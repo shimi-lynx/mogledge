@@ -1,0 +1,43 @@
+.ai-handoff-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  overflow: auto;
+}
+.ai-handoff-dialog h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+.ai-handoff-dialog p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-handoff-dialog label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+.ai-handoff-dialog textarea,
+.ai-handoff-dialog select {
+  width: 100%;
+  padding: 8px;
+}
+.ai-handoff-dialog textarea {
+  height: clamp(160px, 30dvh, 320px);
+  min-height: 120px;
+  resize: vertical;
+}
+.ai-handoff-hint {
+  color: var(--surface-muted);
+}
+.ai-handoff-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.ai-handoff-buttons button {
+  padding: 8px 12px;
+}

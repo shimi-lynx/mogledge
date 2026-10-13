@@ -1,0 +1,37 @@
+.external-link-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-background);
+  color: var(--surface-text);
+}
+.external-link-dialog::backdrop {
+  background: var(--surface-backdrop);
+}
+.external-link-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+.external-link-dialog p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.external-link-dialog code {
+  display: block;
+  padding: 10px;
+  background: var(--surface-field);
+  overflow-wrap: anywhere;
+}
+.external-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.external-link-actions button {
+  padding: 8px 12px;
+}

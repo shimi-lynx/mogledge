@@ -1,0 +1,109 @@
+[package]
+name = "my-knowledge"
+version = "0.8.0"
+description = "Sandboxed local HTML knowledge viewer"
+edition = "2021"
+default-run = "my-knowledge"
+rust-version = "1.99"
+
+[lib]
+name = "my_knowledge_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-updater = { version = "=2.13.3", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+axum = "0.8"
+http-body = "1"
+tokio = { version = "1", features = ["net", "rt-multi-thread", "macros", "sync", "time"] }
+notify = "8"
+rand = "0.9"
+percent-encoding = "2"
+cap-std = "3"
+rusqlite = { version = "0.40.2", features = ["bundled", "hooks"] }
+html5ever = "0.39.0"
+unicode-normalization = "0.1.25"
+sha2 = "0.10.9"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1", features = ["fs"] }
+
+[features]
+# Ordinary Mac builds use persistent identities; legacy data still requires
+# independent backup and explicit owner confirmation before reads or writes.
+macos-persistent-storage = []
+custom-protocol = ["tauri/custom-protocol"]
+default = ["macos-persistent-storage"]
+# Allows fixture bootstrap and a renderer-only harness. Never enable for distribution.
+e2e = []
+e2e-embedded = ["e2e", "dep:tauri-plugin-wdio-webdriver"]
+# Opt-in only for reviewed installer/app distributions with a configured signed feed.
+distribution-updater = ["dep:tauri-plugin-updater"]
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[[bin]]
+name = "storage-identity-cli"
+path = "src/bin/storage-identity-cli.rs"
+
+[[bin]]
+name = "knowledge-cli"
+path = "src/bin/knowledge-cli.rs"
+
+[[bin]]
+name = "state-inspection-cli"
+path = "src/bin/state-inspection-cli.rs"
+
+[[bin]]
+name = "state-transfer-cli"
+path = "src/bin/state-transfer-cli.rs"
+
+[[bin]]
+name = "document-harness"
+path = "src/bin/document-harness.rs"
+required-features = ["e2e"]
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+  "Win32_System_DataExchange",
+  "Win32_System_Memory",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Accessibility",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_Controls",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Input_Ime",
+  "Wdk_Foundation",
+  "Wdk_Storage_FileSystem",
+  "Win32_Security",
+  "Win32_System_IO",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri-plugin-wdio-webdriver = { version = "1", optional = true }
+
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
+
+[patch.crates-io]
+wry = { path = "vendor/wry" }

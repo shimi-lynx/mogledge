@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-storage-identity-transition"
+description = "Enables the open_storage_identity_transition command without any pre-configured scope."
+commands.allow = ["open_storage_identity_transition"]
+
+[[permission]]
+identifier = "deny-open-storage-identity-transition"
+description = "Denies the open_storage_identity_transition command without any pre-configured scope."
+commands.deny = ["open_storage_identity_transition"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-saved-state-recovery"
+description = "Enables the list_saved_state_recovery command without any pre-configured scope."
+commands.allow = ["list_saved_state_recovery"]
+
+[[permission]]
+identifier = "deny-list-saved-state-recovery"
+description = "Denies the list_saved_state_recovery command without any pre-configured scope."
+commands.deny = ["list_saved_state_recovery"]

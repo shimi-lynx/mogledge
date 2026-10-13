@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-confirm-state-transfer"
+description = "Enables the confirm_state_transfer command without any pre-configured scope."
+commands.allow = ["confirm_state_transfer"]
+
+[[permission]]
+identifier = "deny-confirm-state-transfer"
+description = "Denies the confirm_state_transfer command without any pre-configured scope."
+commands.deny = ["confirm_state_transfer"]

@@ -1,0 +1,119 @@
+.app-help-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* The remaining dialog styles also serve saved-input transfer confirmations. */
+.app-help {
+  width: min(720px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  color: var(--surface-text);
+  background: var(--surface-background);
+  box-shadow: 0 12px 40px var(--surface-shadow);
+}
+.app-help[open] {
+  display: flex;
+  flex-direction: column;
+}
+.app-help::backdrop {
+  background: var(--surface-backdrop);
+}
+.app-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.app-help h1 {
+  font-size: 18px;
+  margin: 0;
+}
+.app-help-header p {
+  font-size: 11px;
+  color: var(--surface-muted);
+  margin: 6px 0 0;
+}
+.app-help-header button {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  color: var(--surface-control-text);
+  background: var(--surface-control);
+}
+.app-help-content {
+  overflow: auto;
+  min-height: 0;
+  padding: 0 20px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.app-help-content h2 {
+  font-size: 14px;
+  margin: 18px 0 8px;
+  color: var(--surface-accent);
+}
+.app-help-content p {
+  margin: 8px 0;
+}
+.app-help-content ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.app-help-content:focus-visible {
+  outline: 2px solid var(--surface-focus);
+  outline-offset: -2px;
+}
+@media (max-width: 420px) {
+  .app-help-header {
+    padding: 12px;
+    gap: 8px;
+  }
+  .app-help-content {
+    padding: 0 12px 12px;
+  }
+}
+@media (forced-colors: active) {
+  .app-help,
+  .app-help-header button {
+    color: CanvasText;
+    background: Canvas;
+    border-color: ButtonText;
+  }
+  .app-help h2,
+  .app-help-header p {
+    color: CanvasText;
+  }
+}
+
+.state-transfer .app-help-content button {
+  padding: 6px 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  color: var(--surface-control-text);
+  background: var(--surface-control);
+  font: inherit;
+}
+.state-transfer button:disabled {
+  opacity: 1;
+  color: var(--surface-disabled);
+}
+.state-transfer input[type="checkbox"] {
+  accent-color: var(--surface-focus);
+}
+@media (forced-colors: active) {
+  .state-transfer .app-help-content button:not(:disabled) {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+}

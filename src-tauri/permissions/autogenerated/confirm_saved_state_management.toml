@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-confirm-saved-state-management"
+description = "Enables the confirm_saved_state_management command without any pre-configured scope."
+commands.allow = ["confirm_saved_state_management"]
+
+[[permission]]
+identifier = "deny-confirm-saved-state-management"
+description = "Denies the confirm_saved_state_management command without any pre-configured scope."
+commands.deny = ["confirm_saved_state_management"]

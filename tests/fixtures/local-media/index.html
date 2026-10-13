@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" />
+  <title>Local media fixture</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 40rem;
+      margin: 2rem;
+    }
+    video {
+      width: 20rem;
+    }
+    button {
+      margin: 1rem 0;
+    }
+  </style>
+  <body>
+    <h1>ローカル音声・動画</h1>
+    <p>MP3 と MP4 は HTML からの相対 URL。クリックして再生します。</p>
+    <button id="play-audio">音声を再生</button>
+    <audio controls preload="metadata" src="tone.mp3"></audio>
+    <button id="play-video">動画を再生</button>
+    <video controls preload="metadata" src="clip.mp4"></video>
+    <button id="beep">タイマー音を開始</button>
+    <output id="status">未開始</output>
+    <script>
+      // No saved state, IPC, fetch, external dependency or background guarantee.
+      for (const tag of ["audio", "video"]) {
+        document.querySelector(`#play-${tag}`).addEventListener("click", () => {
+          document
+            .querySelector(tag)
+            .play()
+            .catch(() => {
+              document.querySelector("#status").textContent = "再生できません";
+            });
+        });
+      }
+      document.querySelector("#beep").addEventListener("click", async () => {
+        const context = new AudioContext();
+        await context.resume();
+        document.querySelector("#status").textContent = "待機中";
+        setTimeout(() => {
+          const tone = context.createOscillator();
+          const volume = context.createGain();
+          volume.gain.value = 0.05;
+          tone.connect(volume).connect(context.destination);
+          tone.start();
+          tone.stop(context.currentTime + 0.1);
+          tone.addEventListener("ended", () => context.close(), { once: true });
+          document.querySelector("#status").textContent = "音を開始";
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

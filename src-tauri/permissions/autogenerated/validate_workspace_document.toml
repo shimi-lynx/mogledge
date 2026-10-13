@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-validate-workspace-document"
+description = "Enables the validate_workspace_document command without any pre-configured scope."
+commands.allow = ["validate_workspace_document"]
+
+[[permission]]
+identifier = "deny-validate-workspace-document"
+description = "Denies the validate_workspace_document command without any pre-configured scope."
+commands.deny = ["validate_workspace_document"]

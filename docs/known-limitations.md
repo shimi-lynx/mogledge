@@ -1,0 +1,51 @@
+# Known limitations
+
+Mogledge's source, backend fixtures, browser tests and native builds provide different evidence. A successful build, Chromium test with a mocked Native bridge, or synthetic key event does not establish that the same feature works with a physical device, an OS picker or another WebView. See [testing](testing.md) for validation scope and [security](security.md) for supported boundaries.
+
+## Current verification scope
+
+Mac ordinary builds select persistent storage identities by default from 0.7.2 and provide a stopped-profile confirmation entry in the app. The owner confirmed Intel Mac saved-input restoration after reboot. Existing data still requires independent backup and explicit root/document confirmation; unsupported identities and unresolved ownership stay held. Broader storage QA remains incomplete. Windows fixture/compile evidence does not establish Mac behavior. Two existing Windows local-media tests remain failing in the reviewed environment and reproduced before the FIFO repair; they are not reported as passed. See [the identity record](macos-storage-identity.md#normal-mac-use-from-072).
+
+The owner confirmed ordinary Windows 0.7.4 operation in the Ctrl+W check, and post-rename operation on both Windows and macOS. The Mac 0.7.4 close-menu startup defect is corrected in source. After the correction, the owner confirmed ordinary Mac operation, monitored standard sequence/custom simultaneous resident recall and Cmd+W tab closing. Their exact tested version/hash/architecture is not stated. This completes the chosen ordinary-owner acceptance for this round; the broader coverage below is separate developer work, not a new owner checklist.
+
+The Windows 0.7.0 application-only release build from normal main configuration, the installed executable and launch from the Start Menu have been verified. This was an application-file update, not an installer update test. Dedicated Windows profiles have also been used to check startup, ordinary exit, the initial screen, window/accessibility naming and icons. These checks do not establish every feature's behavior or cross-platform equivalence.
+
+Important incomplete Native feature acceptance areas include:
+
+- macOS/WKWebView cases beyond the confirmed basic resident recall and Cmd+W operation, physical trackpad gestures, window integration and accessibility. The owner report does not cover every interaction.
+- Physical JIS/US keyboards, real IME composition, rapid standard/custom resident hotkeys, device changes, tray interactions, and OS-login permission/registration behavior. Synthetic composition and injected keys cover only their tested paths.
+- Native folder/save pickers, clipboard and folder/browser handoffs, actual WebView media codecs and audio/WebAudio behavior, and assistive technologies. Codec availability depends on the OS/WebView.
+- Saved-state export/import, quarantine/restore and quota behavior at large real capacities, with actual disk-full, busy, interruption, restart, crash and power-loss conditions. Targeted SQLite/fixture failures are not a universal durability or resource guarantee.
+- Response time and memory under large documents, many retained views, slow disks/providers and slow response consumers. A logical limit or admission budget does not reserve disk, bound total process memory or guarantee completion time; comparative performance work remains incomplete.
+
+## Existing reported problems
+
+The user confirms that Codex CLI handoff copying now works on their Intel Mac; the original report is considered resolved by the owner. The exact tested binary and clipboard failure cause are not established. Windows real clipboard/Native IPC and Apple Silicon remain unverified; unknown copy results must not be presented as success.
+
+The Intel Mac saved-input-after-reboot report is closed after the owner's restoration confirmation. Persistent volume/object/birth identities are enabled in ordinary Mac builds from 0.7.2; the stopped-profile CLI and bundled confirmation mode back up persistent saved state/settings and require explicit root/document confirmation. Explicit preference copy preserves unresolved old references, and verified independent-backup rollback preserves the current backup. Wider rollback/crash, filesystem and Apple Silicon coverage remains separate QA. See the [storage identity investigation](macos-storage-identity.md).
+
+An existing unresolved report states that, immediately after first root selection, changing the root and adding favorites did not work until restarting. A resident-settings initialization path was corrected, but the root-switch and first-favorite symptoms have not been independently reproduced and resolved. Restart recovery is not the intended requirement for these operations.
+
+## Cloud folders and links
+
+Windows supports reading locally retained OneDrive documents/assets, new HTML and nested-folder creation, HTML rename, and HTML/empty-folder moves through a limited writer. Every affected ancestor and item must have a supported local representation. Files observed as unfetched or partially retained, and directories observed as requiring retrieval, are rejected. Retain the required files outside the app and then rescan/reselect. Directory enumeration and rename may trigger provider communication, placeholder population, synchronization or waits; metadata preflight and no-recall flags do not guarantee zero communication.
+
+The writer uses exclusive creation, retained staging handles and nonreplacement namespace rename, and verifies root/leaf identity and availability. Unknown outcomes preserve files and the last confirmed tree/preferences/database; affected old document grants are revoked. Do not automatically retry or clean up; refresh and inspect the result. Verified moves persist references and display order only in an ordinary local profile. A sidecar failure reports partial success, preserves files and never rolls back or falls back to copy/delete.
+
+Nonempty-folder moves, anchored drops, reorder and trash remain rejected. Symlinks, junctions and unsupported reparse tags are rejected. A partially retained ancestor can prevent an operation on an otherwise retained child. Real-provider recall/release races, offline behavior, short-name aliases, watcher behavior and OS waits remain unverified; metadata checks cannot freeze provider attributes, concurrent child creation or callbacks. A folder observed as empty can change during a move; a failed postcheck returns Unknown and preserves the resulting namespace without rollback. Windows directory-flush durability and full Native GUI acceptance remain incomplete. See the [OneDrive QA contract](onedrive-qa.md).
+
+## Storage and recovery
+
+Only committed input saved through the [document storage API](document-storage.md) is persistent document state. Arbitrary JS/Canvas state, unsaved fields, browser localStorage and Native SQLite are separate. Export/save acknowledgement for every live view is unknown; timestamps and dirty flags do not prove flushing. External browser closure is not detected, so its registration can keep a saved-state management candidate on hold until app restart.
+
+Large configurable logical quotas do not guarantee SQLite row capacity, physical database capacity, free disk, memory or acceptable latency. Internal recovery is a separate fixed 512 MiB/4,096-entry area in the same database, including restored copies; it is neither an independent backup nor encryption. Quarantining releases active logical quota without promising disk reclamation. There is no permanent purge/VACUUM, automatic orphan cleanup or automatic older-copy eviction.
+
+Database recovery/limits format changes can prevent older versions from opening a profile. Returning the numeric quota to its defaults does not restore the older format. Existing inline HTML adapters do not update when the application updates. Follow [data management](data-management.md) and preserve independent profile/HTML backups before changing compatibility.
+
+Lost confirmation responses and cancellation requests can leave an operation outcome unknown. Use explicit inquiry/current-value verification; do not assume rollback or automatically repeat the operation. Transfer receipts are not persisted across restarts, and current-value equality does not establish exactly-once execution. Windows directory-flush durability, power failure and adversarial same-user filesystem replacement are not comprehensively guaranteed.
+
+## Distribution and updates
+
+Installer compile results do not establish successful installation, upgrade or uninstall. Windows installer overwrite/`/UPDATE`, uninstall-mediated updates, custom install locations, shortcut conflicts, pinned/taskbar inheritance, automatic-start registration inheritance and full profile preservation remain outside the completed app-only checks. The owner's successful post-rename operation on both OSes does not establish fresh-install or Mac Dock/LaunchAgent path inheritance. The ordinary-owner Mac startup confirmation is complete for the reported ordinary use; candidate/fresh-install and path-inheritance checks remain outside that report.
+
+A manual GitHub Actions candidate workflow is prepared for Windows x64 unsigned and macOS Apple Silicon/Intel ad-hoc app ZIPs, without installers. It has not produced or validated an Actions candidate yet. Follow its [distribution guide](binary-distribution.md); cost/license confirmation does not replace the actual account/policy review or run approval. Ad-hoc signing is not Developer ID authentication or notarization, and neither it nor an unsigned Windows binary guarantees launch without OS trust prompts. Full dependency collection, bundled license/NOTICE review, OS launch/update QA and distribution approval remain required. Do not disable OS protections to turn a failed launch into a passing test. Updating source does not update the installed executable. Use the [update guide](update-guide.md) to identify the actual application, preserve data and verify the built artifact separately from installer behavior.

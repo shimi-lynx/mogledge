@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><title>Isolation fixture</title>
+  <h1>Sandbox regression</h1>
+  <pre id="results">Running</pre>
+  <script>
+    (async () => {
+      const result = {
+        tauriAbsent: !window.__TAURI__ && !window.__TAURI_INTERNALS__,
+        parentBlocked: false,
+        storageBlocked: false,
+        evalBlocked: false,
+        externalFetchBlocked: false,
+        workerBlocked: false,
+        popupBlocked: false,
+        classic: true,
+      };
+      try {
+        void parent.document.body;
+      } catch {
+        result.parentBlocked = true;
+      }
+      try {
+        localStorage.setItem("probe", "x");
+      } catch {
+        result.storageBlocked = true;
+      }
+      try {
+        eval("1+1");
+      } catch {
+        result.evalBlocked = true;
+      }
+      try {
+        await fetch("https://example.com");
+      } catch {
+        result.externalFetchBlocked = true;
+      }
+      result.workerBlocked = await new Promise((done) => {
+        try {
+          const worker = new Worker("../assets/worker-probe.js");
+          worker.onmessage = () => {
+            worker.terminate();
+            done(false);
+          };
+          worker.onerror = (event) => {
+            event.preventDefault();
+            worker.terminate();
+            done(true);
+          };
+          setTimeout(() => {
+            worker.terminate();
+            done(false);
+          }, 750);
+        } catch {
+          done(true);
+        }
+      });
+      result.popupBlocked = window.open("https://example.com") === null;
+      // Probe every tab/view/search/file-action/tree-mutation command through each real Native transport.
+      // Forged postMessage is never a Native bridge in the product UI.
+      for (const cmd of [
+        "refresh_knowledge",
+        "begin_document_view",
+        "create_document_tab",
+        "close_document_tab",
+        "open_document",
+        "get_index_status",
+        "get_asset_usage",
+        "search_documents",
+        "rebuild_search_index",
+        "perform_file_action",
+        "mutate_tree",
+        "get_document_state_recovery",
+        "recover_document_state",
+        "get_window_chrome",
+        "perform_window_action",
+        "set_window_shortcut_scope",
+      ]) {
+        const message = {
+          cmd,
+          callback: 900,
+          error: 901,
+          payload: {
+            workspaceId: "forged",
+            viewId: "forged",
+            tabId: "forged",
+            relativePath: "Examples/Interactive.html",
+            requestId: 1,
+            query: "private",
+            limit: 20,
+            offset: 0,
+            action: cmd === "perform_window_action" ? "toggle-maximize" : "openFolder",
+            mutation: { kind: "createFolder", parent: "", name: "UntrustedMutation" },
+            scope: "app",
+            candidate: {
+              currentIdentity: "forged",
+              sourceIdentity: "forged",
+              sourceRevision: 1,
+              appCount: 1,
+            },
+          },
+          __TAURI_INVOKE_KEY__: "invalid",
+        };
+        try {
+          window.chrome?.webview?.postMessage(message);
+          window.chrome?.webview?.postMessage(JSON.stringify(message));
+        } catch {}
+        try {
+          window.ipc?.postMessage(JSON.stringify(message));
+        } catch {}
+        try {
+          window.webkit?.messageHandlers?.ipc?.postMessage(JSON.stringify(message));
+        } catch {}
+        parent.postMessage({ cmd, payload: message.payload }, "*");
+      }
+      for (const command of ["focus-search", "reopen-closed-tab"]) {
+        parent.postMessage({ event: "window-command", payload: command }, "*");
+        parent.postMessage({ type: "window-command", command }, "*");
+      }
+      document.querySelector("#results").textContent = JSON.stringify(result);
+      document.documentElement.dataset.done = "true";
+      parent.postMessage({ __wikiFixture: "isolation", value: result }, "*");
+    })();
+  </script>
+</html>

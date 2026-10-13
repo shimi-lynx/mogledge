@@ -1,0 +1,1495 @@
+{
+  "alloc-stdlib@0.3.0": {
+    "name": "alloc-stdlib",
+    "version": "0.3.0",
+    "declaredLicense": "BSD-3-Clause",
+    "crateUrl": "https://static.crates.io/crates/alloc-stdlib/alloc-stdlib-0.3.0.crate",
+    "crateChecksum": "0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1",
+    "repository": "https://github.com/dropbox/rust-alloc-no-stdlib",
+    "sourceRevision": "0a81fd6928ea3b33c8cd484aa4575d50ffb98012",
+    "sourcePath": "alloc-stdlib",
+    "files": [
+      {
+        "path": "alloc-stdlib@0.3.0/LICENSE",
+        "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+        "url": "https://github.com/dropbox/rust-alloc-no-stdlib/blob/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE"
+      }
+    ]
+  },
+  "ambient-authority@0.0.2": {
+    "name": "ambient-authority",
+    "version": "0.0.2",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/ambient-authority/ambient-authority-0.0.2.crate",
+    "crateChecksum": "e9d4ee0d472d1cd2e28c97dfa124b3d8d992e10eb0a035f33f5d12e3a177ba3b",
+    "repository": "https://github.com/sunfishcode/ambient-authority",
+    "sourceRevision": "d0d3c2d5c3fb00b027dfbd2e9041f686d7529775",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "ambient-authority@0.0.2/crate/COPYRIGHT",
+        "sha256": "d00d6d48df2db6f91e4ca9c656e5e30782d5becf52bb3e5bfd0aff467bd37781",
+        "url": "https://static.crates.io/crates/ambient-authority/ambient-authority-0.0.2.crate",
+        "archivePath": "ambient-authority-0.0.2/COPYRIGHT"
+      },
+      {
+        "path": "ambient-authority@0.0.2/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/ambient-authority/ambient-authority-0.0.2.crate",
+        "archivePath": "ambient-authority-0.0.2/LICENSE-APACHE"
+      },
+      {
+        "path": "ambient-authority@0.0.2/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/ambient-authority/ambient-authority-0.0.2.crate",
+        "archivePath": "ambient-authority-0.0.2/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "ambient-authority@0.0.2/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/ambient-authority/ambient-authority-0.0.2.crate",
+        "archivePath": "ambient-authority-0.0.2/LICENSE-MIT"
+      }
+    ]
+  },
+  "bitflags@1.3.2": {
+    "name": "bitflags",
+    "version": "1.3.2",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/bitflags/bitflags-1.3.2.crate",
+    "crateChecksum": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a",
+    "repository": "https://github.com/bitflags/bitflags",
+    "sourceRevision": "ed185cfb1c447c1b4bd6ac021c9ec3bb02c9e2f2",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "bitflags@1.3.2/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/bitflags/bitflags-1.3.2.crate",
+        "archivePath": "bitflags-1.3.2/LICENSE-APACHE"
+      },
+      {
+        "path": "bitflags@1.3.2/crate/LICENSE-MIT",
+        "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+        "url": "https://static.crates.io/crates/bitflags/bitflags-1.3.2.crate",
+        "archivePath": "bitflags-1.3.2/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "block2@0.6.2": {
+    "name": "block2",
+    "version": "0.6.2",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/block2/block2-0.6.2.crate",
+    "crateChecksum": "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "b4167b582b2f75f9a1be75495c41b765344fd03c",
+    "sourcePath": "crates/block2",
+    "files": [
+      {
+        "path": "block2@0.6.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md"
+      },
+      {
+        "path": "block2@0.6.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "block2@0.6.2/LICENSE-MIT-upstream.txt",
+        "sha256": "f6a2e783669a0dd7a2c3b8a4f76db40ae49033e66e1bdc30f3aa25fe5577b070",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/ee9a7ada2131f5944b8750428e265c15632f2a19/LICENSE-MIT.txt"
+      },
+      {
+        "path": "block2@0.6.2/MIT-historical-reference.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/757cd841d0293341dbefd9b99d7548dec244ffde/LICENSE.txt",
+        "referenceOnly": true
+      }
+    ],
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+  },
+  "brotli-decompressor@6.0.1": {
+    "name": "brotli-decompressor",
+    "version": "6.0.1",
+    "declaredLicense": "BSD-3-Clause/MIT",
+    "crateUrl": "https://static.crates.io/crates/brotli-decompressor/brotli-decompressor-6.0.1.crate",
+    "crateChecksum": "941cd9bd4ddab83cb46fa5a2d428f1c857b24ac78cb876cf7beb710840934bd7",
+    "repository": "https://github.com/dropbox/rust-brotli-decompressor",
+    "sourceRevision": "e4f3bf3326256a5dc23e5fa9276d803f6a4ad527",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "brotli-decompressor@6.0.1/crate/LICENSE",
+        "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+        "url": "https://static.crates.io/crates/brotli-decompressor/brotli-decompressor-6.0.1.crate",
+        "archivePath": "brotli-decompressor-6.0.1/LICENSE"
+      }
+    ],
+    "normalizedLicense": "BSD-3-Clause OR MIT"
+  },
+  "bs58@0.5.1": {
+    "name": "bs58",
+    "version": "0.5.1",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/bs58/bs58-0.5.1.crate",
+    "crateChecksum": "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4",
+    "repository": "https://github.com/Nullus157/bs58-rs",
+    "sourceRevision": "7d3c9282d2595612e5474df93dd0e017db9b684f",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "bs58@0.5.1/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/bs58/bs58-0.5.1.crate",
+        "archivePath": "bs58-0.5.1/LICENSE-APACHE"
+      },
+      {
+        "path": "bs58@0.5.1/crate/LICENSE-MIT",
+        "sha256": "42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969",
+        "url": "https://static.crates.io/crates/bs58/bs58-0.5.1.crate",
+        "archivePath": "bs58-0.5.1/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "cap-primitives@3.4.6": {
+    "name": "cap-primitives",
+    "version": "3.4.6",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/cap-primitives/cap-primitives-3.4.6.crate",
+    "crateChecksum": "8e0bf07d379916947be6c4a07f43684153d710a2896c31f9e97781362895596c",
+    "repository": "https://github.com/bytecodealliance/cap-std",
+    "sourceRevision": "cd4c6330089e3731c68b7b98d4dde0cda27402ff",
+    "sourcePath": "cap-primitives",
+    "files": [
+      {
+        "path": "cap-primitives@3.4.6/crate/COPYRIGHT",
+        "sha256": "a8799c2a07dabcb8d52481f885c5ab7000acb8a4d3cd9503fbcb97c84d350e65",
+        "url": "https://static.crates.io/crates/cap-primitives/cap-primitives-3.4.6.crate",
+        "archivePath": "cap-primitives-3.4.6/COPYRIGHT"
+      },
+      {
+        "path": "cap-primitives@3.4.6/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/cap-primitives/cap-primitives-3.4.6.crate",
+        "archivePath": "cap-primitives-3.4.6/LICENSE-APACHE"
+      },
+      {
+        "path": "cap-primitives@3.4.6/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/cap-primitives/cap-primitives-3.4.6.crate",
+        "archivePath": "cap-primitives-3.4.6/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "cap-primitives@3.4.6/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/cap-primitives/cap-primitives-3.4.6.crate",
+        "archivePath": "cap-primitives-3.4.6/LICENSE-MIT"
+      }
+    ]
+  },
+  "cap-std@3.4.6": {
+    "name": "cap-std",
+    "version": "3.4.6",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/cap-std/cap-std-3.4.6.crate",
+    "crateChecksum": "a59e59fa26472d29680ece6a9f8ee8b0551a719a33df2f5240bde065ecbddfd7",
+    "repository": "https://github.com/bytecodealliance/cap-std",
+    "sourceRevision": "cd4c6330089e3731c68b7b98d4dde0cda27402ff",
+    "sourcePath": "cap-std",
+    "files": [
+      {
+        "path": "cap-std@3.4.6/crate/COPYRIGHT",
+        "sha256": "6b1691fdee3b03c3946696a7be125fcf50eff310b9486fac850c1b8aea91478b",
+        "url": "https://static.crates.io/crates/cap-std/cap-std-3.4.6.crate",
+        "archivePath": "cap-std-3.4.6/COPYRIGHT"
+      },
+      {
+        "path": "cap-std@3.4.6/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/cap-std/cap-std-3.4.6.crate",
+        "archivePath": "cap-std-3.4.6/LICENSE-APACHE"
+      },
+      {
+        "path": "cap-std@3.4.6/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/cap-std/cap-std-3.4.6.crate",
+        "archivePath": "cap-std-3.4.6/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "cap-std@3.4.6/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/cap-std/cap-std-3.4.6.crate",
+        "archivePath": "cap-std-3.4.6/LICENSE-MIT"
+      }
+    ]
+  },
+  "cargo_toml@1.0.1": {
+    "name": "cargo_toml",
+    "version": "1.0.1",
+    "declaredLicense": "Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/cargo_toml/cargo_toml-1.0.1.crate",
+    "crateChecksum": "82f4b26e751e711a5302649417f2da046dce6391b2ea30a4820f37462314f0b9",
+    "repository": "https://gitlab.com/lib.rs/cargo_toml",
+    "sourceRevision": "57e06c4f4eb702469db46ef1aa144b9d11e63171",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "cargo_toml@1.0.1/crate/LICENSE",
+        "sha256": "ee874098519e956c23a3c5c7e20581f8e9b1d70aa05eb178f983be9775090a2f",
+        "url": "https://static.crates.io/crates/cargo_toml/cargo_toml-1.0.1.crate",
+        "archivePath": "cargo_toml-1.0.1/LICENSE"
+      }
+    ]
+  },
+  "defmt-parser@1.0.0": {
+    "name": "defmt-parser",
+    "version": "1.0.0",
+    "declaredLicense": "MIT OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/defmt-parser/defmt-parser-1.0.0.crate",
+    "crateChecksum": "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e",
+    "repository": "https://github.com/knurling-rs/defmt",
+    "sourceRevision": "4a8cdb44891ed57b8ff5a023b6bec7137c48708f",
+    "sourcePath": "parser",
+    "files": [
+      {
+        "path": "defmt-parser@1.0.0/LICENSE-MIT",
+        "sha256": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50",
+        "url": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT"
+      },
+      {
+        "path": "defmt-parser@1.0.0/LICENSE-APACHE",
+        "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+        "url": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-APACHE"
+      }
+    ]
+  },
+  "dirs@6.0.0": {
+    "name": "dirs",
+    "version": "6.0.0",
+    "declaredLicense": "MIT OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/dirs/dirs-6.0.0.crate",
+    "crateChecksum": "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e",
+    "repository": "https://github.com/soc/dirs-rs",
+    "sourceRevision": "00511bdc252f491a72ac89f6d6a2463406266fb2",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "dirs@6.0.0/crate/LICENSE-APACHE",
+        "sha256": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
+        "url": "https://static.crates.io/crates/dirs/dirs-6.0.0.crate",
+        "archivePath": "dirs-6.0.0/LICENSE-APACHE"
+      },
+      {
+        "path": "dirs@6.0.0/crate/LICENSE-MIT",
+        "sha256": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
+        "url": "https://static.crates.io/crates/dirs/dirs-6.0.0.crate",
+        "archivePath": "dirs-6.0.0/LICENSE-MIT"
+      }
+    ]
+  },
+  "dirs@7.0.0": {
+    "name": "dirs",
+    "version": "7.0.0",
+    "declaredLicense": "MIT OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/dirs/dirs-7.0.0.crate",
+    "crateChecksum": "8d57d423b3c82e89b9a24ca3091fee61f456a26edbd28d26c65906f4bc1dcd8f",
+    "repository": "https://codeberg.org/dirs/dirs-rs",
+    "sourceRevision": "793c8a97bea55669a806499839abd7b1d844279f",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "dirs@7.0.0/crate/LICENSE-APACHE",
+        "sha256": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
+        "url": "https://static.crates.io/crates/dirs/dirs-7.0.0.crate",
+        "archivePath": "dirs-7.0.0/LICENSE-APACHE"
+      },
+      {
+        "path": "dirs@7.0.0/crate/LICENSE-MIT",
+        "sha256": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
+        "url": "https://static.crates.io/crates/dirs/dirs-7.0.0.crate",
+        "archivePath": "dirs-7.0.0/LICENSE-MIT"
+      }
+    ]
+  },
+  "dirs-sys@0.5.0": {
+    "name": "dirs-sys",
+    "version": "0.5.0",
+    "declaredLicense": "MIT OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/dirs-sys/dirs-sys-0.5.0.crate",
+    "crateChecksum": "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab",
+    "repository": "https://github.com/dirs-dev/dirs-sys-rs",
+    "sourceRevision": "8bcd4aa2c35990d57a2cff2953793525fc42709c",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "dirs-sys@0.5.0/crate/LICENSE-APACHE",
+        "sha256": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
+        "url": "https://static.crates.io/crates/dirs-sys/dirs-sys-0.5.0.crate",
+        "archivePath": "dirs-sys-0.5.0/LICENSE-APACHE"
+      },
+      {
+        "path": "dirs-sys@0.5.0/crate/LICENSE-MIT",
+        "sha256": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
+        "url": "https://static.crates.io/crates/dirs-sys/dirs-sys-0.5.0.crate",
+        "archivePath": "dirs-sys-0.5.0/LICENSE-MIT"
+      }
+    ]
+  },
+  "dispatch2@0.3.1": {
+    "name": "dispatch2",
+    "version": "0.3.1",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/dispatch2/dispatch2-0.3.1.crate",
+    "crateChecksum": "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "8852b424193ca41602281b3d7540d7c8ed51e49a",
+    "sourcePath": "crates/dispatch2",
+    "files": [
+      {
+        "path": "dispatch2@0.3.1/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
+      },
+      {
+        "path": "dispatch2@0.3.1/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "dispatch2@0.3.1/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "dunce@1.0.5": {
+    "name": "dunce",
+    "version": "1.0.5",
+    "declaredLicense": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/dunce/dunce-1.0.5.crate",
+    "crateChecksum": "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813",
+    "repository": "https://gitlab.com/kornelski/dunce",
+    "sourceRevision": "1ee29a83526c9f4c3618e1335f0454c878a54dcf",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "dunce@1.0.5/crate/LICENSE",
+        "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+        "url": "https://static.crates.io/crates/dunce/dunce-1.0.5.crate",
+        "archivePath": "dunce-1.0.5/LICENSE"
+      }
+    ]
+  },
+  "fallible-iterator@0.3.0": {
+    "name": "fallible-iterator",
+    "version": "0.3.0",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/fallible-iterator/fallible-iterator-0.3.0.crate",
+    "crateChecksum": "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649",
+    "repository": "https://github.com/sfackler/rust-fallible-iterator",
+    "sourceRevision": "11cfa0558045e52bdb473c9eab6a1eb35a54e302",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "fallible-iterator@0.3.0/crate/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+        "url": "https://static.crates.io/crates/fallible-iterator/fallible-iterator-0.3.0.crate",
+        "archivePath": "fallible-iterator-0.3.0/LICENSE-APACHE"
+      },
+      {
+        "path": "fallible-iterator@0.3.0/crate/LICENSE-MIT",
+        "sha256": "0816e154b159ba255c563f7c8c7df5bbb8cc5fc96f5ab8cf9f4743b4f41fe7eb",
+        "url": "https://static.crates.io/crates/fallible-iterator/fallible-iterator-0.3.0.crate",
+        "archivePath": "fallible-iterator-0.3.0/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "fallible-streaming-iterator@0.1.9": {
+    "name": "fallible-streaming-iterator",
+    "version": "0.1.9",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/fallible-streaming-iterator/fallible-streaming-iterator-0.1.9.crate",
+    "crateChecksum": "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a",
+    "repository": "https://github.com/sfackler/fallible-streaming-iterator",
+    "sourceRevision": null,
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "fallible-streaming-iterator@0.1.9/crate/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+        "url": "https://static.crates.io/crates/fallible-streaming-iterator/fallible-streaming-iterator-0.1.9.crate",
+        "archivePath": "fallible-streaming-iterator-0.1.9/LICENSE-APACHE"
+      },
+      {
+        "path": "fallible-streaming-iterator@0.1.9/crate/LICENSE-MIT",
+        "sha256": "8dcec5569a9be5b0e086c80faed6f1aefa670af0ec29cecc2f714303096887e0",
+        "url": "https://static.crates.io/crates/fallible-streaming-iterator/fallible-streaming-iterator-0.1.9.crate",
+        "archivePath": "fallible-streaming-iterator-0.1.9/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "fnv@1.0.7": {
+    "name": "fnv",
+    "version": "1.0.7",
+    "declaredLicense": "Apache-2.0 / MIT",
+    "crateUrl": "https://static.crates.io/crates/fnv/fnv-1.0.7.crate",
+    "crateChecksum": "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1",
+    "repository": "https://github.com/servo/rust-fnv",
+    "sourceRevision": "4b4784ebfd3332dc61f0640764d6f1140e03a9ab",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "fnv@1.0.7/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/fnv/fnv-1.0.7.crate",
+        "archivePath": "fnv-1.0.7/LICENSE-APACHE"
+      },
+      {
+        "path": "fnv@1.0.7/crate/LICENSE-MIT",
+        "sha256": "65fdb6c76cd61612070c066eec9ecdb30ee74fb27859d0d9af58b9f499fd0c3e",
+        "url": "https://static.crates.io/crates/fnv/fnv-1.0.7.crate",
+        "archivePath": "fnv-1.0.7/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "Apache-2.0 OR MIT"
+  },
+  "foreign-types@0.5.0": {
+    "name": "foreign-types",
+    "version": "0.5.0",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/foreign-types/foreign-types-0.5.0.crate",
+    "crateChecksum": "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965",
+    "repository": "https://github.com/sfackler/foreign-types",
+    "sourceRevision": "c5a90ed3f39dd5fe8b5af6e9cee1bc446746272c",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "foreign-types@0.5.0/crate/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+        "url": "https://static.crates.io/crates/foreign-types/foreign-types-0.5.0.crate",
+        "archivePath": "foreign-types-0.5.0/LICENSE-APACHE"
+      },
+      {
+        "path": "foreign-types@0.5.0/crate/LICENSE-MIT",
+        "sha256": "333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734",
+        "url": "https://static.crates.io/crates/foreign-types/foreign-types-0.5.0.crate",
+        "archivePath": "foreign-types-0.5.0/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "foreign-types-macros@0.2.4": {
+    "name": "foreign-types-macros",
+    "version": "0.2.4",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/foreign-types-macros/foreign-types-macros-0.2.4.crate",
+    "crateChecksum": "ea5190182e6915eb873ddbc16e23b711b6eb1f9c00a0d0a3a91b5f6228475225",
+    "repository": "https://github.com/sfackler/foreign-types",
+    "sourceRevision": "2d5077646c441fb089662e9ac439bec45c0d84b5",
+    "sourcePath": "foreign-types-macros",
+    "files": [
+      {
+        "path": "foreign-types-macros@0.2.4/crate/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+        "url": "https://static.crates.io/crates/foreign-types-macros/foreign-types-macros-0.2.4.crate",
+        "archivePath": "foreign-types-macros-0.2.4/LICENSE-APACHE"
+      },
+      {
+        "path": "foreign-types-macros@0.2.4/crate/LICENSE-MIT",
+        "sha256": "333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734",
+        "url": "https://static.crates.io/crates/foreign-types-macros/foreign-types-macros-0.2.4.crate",
+        "archivePath": "foreign-types-macros-0.2.4/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "foreign-types-shared@0.3.1": {
+    "name": "foreign-types-shared",
+    "version": "0.3.1",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/foreign-types-shared/foreign-types-shared-0.3.1.crate",
+    "crateChecksum": "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b",
+    "repository": "https://github.com/sfackler/foreign-types",
+    "sourceRevision": "bdce800c23ce73b33a337833611e0e5fdf83ce9f",
+    "sourcePath": "foreign-types-shared",
+    "files": [
+      {
+        "path": "foreign-types-shared@0.3.1/crate/LICENSE-APACHE",
+        "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+        "url": "https://static.crates.io/crates/foreign-types-shared/foreign-types-shared-0.3.1.crate",
+        "archivePath": "foreign-types-shared-0.3.1/LICENSE-APACHE"
+      },
+      {
+        "path": "foreign-types-shared@0.3.1/crate/LICENSE-MIT",
+        "sha256": "333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734",
+        "url": "https://static.crates.io/crates/foreign-types-shared/foreign-types-shared-0.3.1.crate",
+        "archivePath": "foreign-types-shared-0.3.1/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "fs-set-times@0.20.3": {
+    "name": "fs-set-times",
+    "version": "0.20.3",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/fs-set-times/fs-set-times-0.20.3.crate",
+    "crateChecksum": "94e7099f6313ecacbe1256e8ff9d617b75d1bcb16a6fddef94866d225a01a14a",
+    "repository": "https://github.com/bytecodealliance/fs-set-times",
+    "sourceRevision": "56406c912238a253f01f10446541f2cf2d9a88c3",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "fs-set-times@0.20.3/crate/COPYRIGHT",
+        "sha256": "e196ffeb5ab101e9ec8bbe395c9f367c5380ee2d28c47e5c03371523798a9af7",
+        "url": "https://static.crates.io/crates/fs-set-times/fs-set-times-0.20.3.crate",
+        "archivePath": "fs-set-times-0.20.3/COPYRIGHT"
+      },
+      {
+        "path": "fs-set-times@0.20.3/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/fs-set-times/fs-set-times-0.20.3.crate",
+        "archivePath": "fs-set-times-0.20.3/LICENSE-APACHE"
+      },
+      {
+        "path": "fs-set-times@0.20.3/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/fs-set-times/fs-set-times-0.20.3.crate",
+        "archivePath": "fs-set-times-0.20.3/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "fs-set-times@0.20.3/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/fs-set-times/fs-set-times-0.20.3.crate",
+        "archivePath": "fs-set-times-0.20.3/LICENSE-MIT"
+      }
+    ]
+  },
+  "ident_case@1.0.1": {
+    "name": "ident_case",
+    "version": "1.0.1",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/ident_case/ident_case-1.0.1.crate",
+    "crateChecksum": "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39",
+    "repository": "https://github.com/TedDriggs/ident_case",
+    "sourceRevision": "bf0d863e3006b40a0d923a81d7b2dd2db1136c2c",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "ident_case@1.0.1/crate/LICENSE",
+        "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
+        "url": "https://static.crates.io/crates/ident_case/ident_case-1.0.1.crate",
+        "archivePath": "ident_case-1.0.1/LICENSE"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "io-extras@0.18.4": {
+    "name": "io-extras",
+    "version": "0.18.4",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/io-extras/io-extras-0.18.4.crate",
+    "crateChecksum": "2285ddfe3054097ef4b2fe909ef8c3bcd1ea52a8f0d274416caebeef39f04a65",
+    "repository": "https://github.com/sunfishcode/io-extras",
+    "sourceRevision": "c3f15717de25eb8afc223571882573963b467456",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "io-extras@0.18.4/crate/COPYRIGHT",
+        "sha256": "f0c1d22de8bd3b776a40f2691f08b84e91c7bafc78b72a51150e231002b88db3",
+        "url": "https://static.crates.io/crates/io-extras/io-extras-0.18.4.crate",
+        "archivePath": "io-extras-0.18.4/COPYRIGHT"
+      },
+      {
+        "path": "io-extras@0.18.4/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/io-extras/io-extras-0.18.4.crate",
+        "archivePath": "io-extras-0.18.4/LICENSE-APACHE"
+      },
+      {
+        "path": "io-extras@0.18.4/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/io-extras/io-extras-0.18.4.crate",
+        "archivePath": "io-extras-0.18.4/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "io-extras@0.18.4/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/io-extras/io-extras-0.18.4.crate",
+        "archivePath": "io-extras-0.18.4/LICENSE-MIT"
+      }
+    ]
+  },
+  "io-lifetimes@2.0.4": {
+    "name": "io-lifetimes",
+    "version": "2.0.4",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/io-lifetimes/io-lifetimes-2.0.4.crate",
+    "crateChecksum": "06432fb54d3be7964ecd3649233cddf80db2832f47fec34c01f65b3d9d774983",
+    "repository": "https://github.com/sunfishcode/io-lifetimes",
+    "sourceRevision": "37b9d1bc5d70ec81c0ea862f34b853aef4c4b949",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "io-lifetimes@2.0.4/crate/COPYRIGHT",
+        "sha256": "495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a",
+        "url": "https://static.crates.io/crates/io-lifetimes/io-lifetimes-2.0.4.crate",
+        "archivePath": "io-lifetimes-2.0.4/COPYRIGHT"
+      },
+      {
+        "path": "io-lifetimes@2.0.4/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/io-lifetimes/io-lifetimes-2.0.4.crate",
+        "archivePath": "io-lifetimes-2.0.4/LICENSE-APACHE"
+      },
+      {
+        "path": "io-lifetimes@2.0.4/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/io-lifetimes/io-lifetimes-2.0.4.crate",
+        "archivePath": "io-lifetimes-2.0.4/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "io-lifetimes@2.0.4/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/io-lifetimes/io-lifetimes-2.0.4.crate",
+        "archivePath": "io-lifetimes-2.0.4/LICENSE-MIT"
+      }
+    ]
+  },
+  "json-patch@4.2.0": {
+    "name": "json-patch",
+    "version": "4.2.0",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/json-patch/json-patch-4.2.0.crate",
+    "crateChecksum": "7421438de105a0827e44fadd05377727847d717c80ce29a229f85fd04c427b72",
+    "repository": "https://github.com/idubrov/json-patch",
+    "sourceRevision": "1b0f707f9f4aad1009f0364f6ca73c5e88cdd85c",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "json-patch@4.2.0/crate/LICENSE-APACHE",
+        "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+        "url": "https://static.crates.io/crates/json-patch/json-patch-4.2.0.crate",
+        "archivePath": "json-patch-4.2.0/LICENSE-APACHE"
+      },
+      {
+        "path": "json-patch@4.2.0/crate/LICENSE-MIT",
+        "sha256": "87f7527b1066337751f7f4d717089bf514ff8f7ee7d66c4c5b891b09e744ec11",
+        "url": "https://static.crates.io/crates/json-patch/json-patch-4.2.0.crate",
+        "archivePath": "json-patch-4.2.0/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "objc2@0.6.4": {
+    "name": "objc2",
+    "version": "0.6.4",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2/objc2-0.6.4.crate",
+    "crateChecksum": "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "8852b424193ca41602281b3d7540d7c8ed51e49a",
+    "sourcePath": "crates/objc2",
+    "files": [
+      {
+        "path": "objc2@0.6.4/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
+      },
+      {
+        "path": "objc2@0.6.4/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2@0.6.4/LICENSE-MIT-upstream.txt",
+        "sha256": "f6a2e783669a0dd7a2c3b8a4f76db40ae49033e66e1bdc30f3aa25fe5577b070",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/ee9a7ada2131f5944b8750428e265c15632f2a19/LICENSE-MIT.txt"
+      },
+      {
+        "path": "objc2@0.6.4/MIT-historical-reference.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/757cd841d0293341dbefd9b99d7548dec244ffde/LICENSE.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2@0.6.4/RUST-LICENSE-MIT",
+        "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/349fbba24f0158c1ed293658c31de5c8a0954e5a/LICENSE-MIT"
+      },
+      {
+        "path": "objc2@0.6.4/RUST-COPYRIGHT-reference",
+        "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/349fbba24f0158c1ed293658c31de5c8a0954e5a/COPYRIGHT",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2@0.6.4/RUST-REUSE-reference.toml",
+        "sha256": "854a41f615ff32a7402ad4b27326a5ed5896df2c7f048d87865068d2f69ccea1",
+        "url": "https://raw.githubusercontent.com/rust-lang/rust/349fbba24f0158c1ed293658c31de5c8a0954e5a/REUSE.toml",
+        "referenceOnly": true
+      }
+    ],
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review.",
+    "noticeProvenance": {
+      "packageSourceFile": "src/__macro_helpers/os_version/apple.rs",
+      "packageSourceUrl": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/crates/objc2/src/__macro_helpers/os_version/apple.rs",
+      "upstreamChange": "https://github.com/rust-lang/rust/pull/138944",
+      "upstreamRevision": "349fbba24f0158c1ed293658c31de5c8a0954e5a",
+      "upstreamSourceFiles": [
+        "library/std/src/sys/platform_version/darwin/mod.rs",
+        "library/std/src/sys/platform_version/darwin/core_foundation.rs"
+      ],
+      "basis": "The exact published objc2 source explicitly identifies Rust PR 138944 as heavily copied source. The pinned Rust COPYRIGHT and REUSE annotations identify MIT or Apache-2.0 terms and existing project attribution for these source paths; the unchanged MIT text is retained as an additional upstream notice.",
+      "reviewStatus": "This records a specific source/notice reference, not exhaustive contributor coverage, a final linked-code determination or Apple SDK clearance. The existing mandatory package review remains unresolved."
+    }
+  },
+  "objc2-app-kit@0.3.2": {
+    "name": "objc2-app-kit",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-app-kit/objc2-app-kit-0.3.2.crate",
+    "crateChecksum": "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-app-kit",
+    "files": [
+      {
+        "path": "objc2-app-kit@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-app-kit@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-app-kit@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-core-foundation@0.3.2": {
+    "name": "objc2-core-foundation",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-core-foundation/objc2-core-foundation-0.3.2.crate",
+    "crateChecksum": "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-core-foundation",
+    "files": [
+      {
+        "path": "objc2-core-foundation@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-core-foundation@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-core-foundation@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-core-graphics@0.3.2": {
+    "name": "objc2-core-graphics",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-core-graphics/objc2-core-graphics-0.3.2.crate",
+    "crateChecksum": "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-core-graphics",
+    "files": [
+      {
+        "path": "objc2-core-graphics@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-core-graphics@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-core-graphics@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-encode@4.1.0": {
+    "name": "objc2-encode",
+    "version": "4.1.0",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-encode/objc2-encode-4.1.0.crate",
+    "crateChecksum": "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "8d214f5477365ffcbcbb7de058c86ed9a518efb7",
+    "sourcePath": "crates/objc2-encode",
+    "files": [
+      {
+        "path": "objc2-encode@4.1.0/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+      },
+      {
+        "path": "objc2-encode@4.1.0/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-encode@4.1.0/LICENSE-MIT-upstream.txt",
+        "sha256": "f6a2e783669a0dd7a2c3b8a4f76db40ae49033e66e1bdc30f3aa25fe5577b070",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/ee9a7ada2131f5944b8750428e265c15632f2a19/LICENSE-MIT.txt"
+      },
+      {
+        "path": "objc2-encode@4.1.0/MIT-historical-reference.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/757cd841d0293341dbefd9b99d7548dec244ffde/LICENSE.txt",
+        "referenceOnly": true
+      }
+    ],
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+  },
+  "objc2-exception-helper@0.1.1": {
+    "name": "objc2-exception-helper",
+    "version": "0.1.1",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-exception-helper/objc2-exception-helper-0.1.1.crate",
+    "crateChecksum": "c7a1c5fbb72d7735b076bb47b578523aedc40f3c439bea6dfd595c089d79d98a",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "8d214f5477365ffcbcbb7de058c86ed9a518efb7",
+    "sourcePath": "crates/objc2-exception-helper",
+    "files": [
+      {
+        "path": "objc2-exception-helper@0.1.1/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+      },
+      {
+        "path": "objc2-exception-helper@0.1.1/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-exception-helper@0.1.1/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-foundation@0.3.2": {
+    "name": "objc2-foundation",
+    "version": "0.3.2",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-foundation/objc2-foundation-0.3.2.crate",
+    "crateChecksum": "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-foundation",
+    "files": [
+      {
+        "path": "objc2-foundation@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-foundation@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-foundation@0.3.2/LICENSE-MIT-upstream.txt",
+        "sha256": "f6a2e783669a0dd7a2c3b8a4f76db40ae49033e66e1bdc30f3aa25fe5577b070",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/ee9a7ada2131f5944b8750428e265c15632f2a19/LICENSE-MIT.txt"
+      },
+      {
+        "path": "objc2-foundation@0.3.2/MIT-historical-reference.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/757cd841d0293341dbefd9b99d7548dec244ffde/LICENSE.txt",
+        "referenceOnly": true
+      }
+    ],
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+  },
+  "objc2-io-surface@0.3.2": {
+    "name": "objc2-io-surface",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-io-surface/objc2-io-surface-0.3.2.crate",
+    "crateChecksum": "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-io-surface",
+    "files": [
+      {
+        "path": "objc2-io-surface@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-io-surface@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-io-surface@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-quartz-core@0.3.2": {
+    "name": "objc2-quartz-core",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-quartz-core/objc2-quartz-core-0.3.2.crate",
+    "crateChecksum": "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-quartz-core",
+    "files": [
+      {
+        "path": "objc2-quartz-core@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-quartz-core@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-quartz-core@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-security@0.3.2": {
+    "name": "objc2-security",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-security/objc2-security-0.3.2.crate",
+    "crateChecksum": "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-security",
+    "files": [
+      {
+        "path": "objc2-security@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-security@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-security@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-service-management@0.3.2": {
+    "name": "objc2-service-management",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-service-management/objc2-service-management-0.3.2.crate",
+    "crateChecksum": "b213642d6959cc6023ceb1217aa595eaaf09b8094ce95127c103cab611fe65e8",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-service-management",
+    "files": [
+      {
+        "path": "objc2-service-management@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-service-management@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-service-management@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "objc2-web-kit@0.3.2": {
+    "name": "objc2-web-kit",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-web-kit/objc2-web-kit-0.3.2.crate",
+    "crateChecksum": "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-web-kit",
+    "files": [
+      {
+        "path": "objc2-web-kit@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-web-kit@0.3.2/MIT-reference.txt",
+        "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt",
+        "referenceOnly": true
+      },
+      {
+        "path": "objc2-web-kit@0.3.2/LICENSE-APACHE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
+      }
+    ],
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+  },
+  "rustix@1.1.5": {
+    "name": "rustix",
+    "version": "1.1.5",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/rustix/rustix-1.1.5.crate",
+    "crateChecksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+    "repository": "https://github.com/bytecodealliance/rustix",
+    "sourceRevision": "287214b889865d8e1406a0ee71cc409b6f6191c8",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "rustix@1.1.5/crate/COPYRIGHT",
+        "sha256": "377c2e7c53250cc5905c0b0532d35973392af16ffb9596a41d99d202cf3617c9",
+        "url": "https://static.crates.io/crates/rustix/rustix-1.1.5.crate",
+        "archivePath": "rustix-1.1.5/COPYRIGHT"
+      },
+      {
+        "path": "rustix@1.1.5/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/rustix/rustix-1.1.5.crate",
+        "archivePath": "rustix-1.1.5/LICENSE-APACHE"
+      },
+      {
+        "path": "rustix@1.1.5/crate/LICENSE-Apache-2.0_WITH_LLVM-exception",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/rustix/rustix-1.1.5.crate",
+        "archivePath": "rustix-1.1.5/LICENSE-Apache-2.0_WITH_LLVM-exception"
+      },
+      {
+        "path": "rustix@1.1.5/crate/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "url": "https://static.crates.io/crates/rustix/rustix-1.1.5.crate",
+        "archivePath": "rustix-1.1.5/LICENSE-MIT"
+      }
+    ]
+  },
+  "same-file@1.0.6": {
+    "name": "same-file",
+    "version": "1.0.6",
+    "declaredLicense": "Unlicense/MIT",
+    "crateUrl": "https://static.crates.io/crates/same-file/same-file-1.0.6.crate",
+    "crateChecksum": "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502",
+    "repository": "https://github.com/BurntSushi/same-file",
+    "sourceRevision": "5799cd323b8eefd17a089c950dac113f66c89c9e",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "same-file@1.0.6/crate/COPYING",
+        "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
+        "url": "https://static.crates.io/crates/same-file/same-file-1.0.6.crate",
+        "archivePath": "same-file-1.0.6/COPYING"
+      },
+      {
+        "path": "same-file@1.0.6/crate/LICENSE-MIT",
+        "sha256": "cb3c929a05e6cbc9de9ab06a4c57eeb60ca8c724bef6c138c87d3a577e27aa14",
+        "url": "https://static.crates.io/crates/same-file/same-file-1.0.6.crate",
+        "archivePath": "same-file-1.0.6/LICENSE-MIT"
+      },
+      {
+        "path": "same-file@1.0.6/crate/UNLICENSE",
+        "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+        "url": "https://static.crates.io/crates/same-file/same-file-1.0.6.crate",
+        "archivePath": "same-file-1.0.6/UNLICENSE"
+      }
+    ],
+    "normalizedLicense": "Unlicense OR MIT"
+  },
+  "selectors@0.38.0": {
+    "name": "selectors",
+    "version": "0.38.0",
+    "declaredLicense": "MPL-2.0",
+    "crateUrl": "https://static.crates.io/crates/selectors/selectors-0.38.0.crate",
+    "crateChecksum": "8adfa1c298912827b8a28b223b3b874357397ae706e6190acd9bf28cee99114d",
+    "repository": "https://github.com/servo/stylo",
+    "sourceRevision": "572ecba2d1600e7c3d490586692a209faf703baa",
+    "sourcePath": "selectors",
+    "files": [
+      {
+        "path": "selectors@0.38.0/LICENSE-MPL-2.0",
+        "sha256": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt"
+      }
+    ]
+  },
+  "serde_urlencoded@0.7.1": {
+    "name": "serde_urlencoded",
+    "version": "0.7.1",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/serde_urlencoded/serde_urlencoded-0.7.1.crate",
+    "crateChecksum": "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd",
+    "repository": "https://github.com/nox/serde_urlencoded",
+    "sourceRevision": "d8bc15d16adf6b3ba6ae46d199d7109cf5079efa",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "serde_urlencoded@0.7.1/crate/LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "url": "https://static.crates.io/crates/serde_urlencoded/serde_urlencoded-0.7.1.crate",
+        "archivePath": "serde_urlencoded-0.7.1/LICENSE-APACHE"
+      },
+      {
+        "path": "serde_urlencoded@0.7.1/crate/LICENSE-MIT",
+        "sha256": "b9eb266294324f672cbe945fe8f2e32f85024f0d61a1a7d14382cdde0ac44769",
+        "url": "https://static.crates.io/crates/serde_urlencoded/serde_urlencoded-0.7.1.crate",
+        "archivePath": "serde_urlencoded-0.7.1/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "shlex@2.0.1": {
+    "name": "shlex",
+    "version": "2.0.1",
+    "declaredLicense": "MIT OR Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/shlex/shlex-2.0.1.crate",
+    "crateChecksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba",
+    "repository": "https://github.com/comex/rust-shlex",
+    "sourceRevision": "e82b1411beb7c92871c2c078c9ab415bbcf207ef",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "shlex@2.0.1/crate/LICENSE-APACHE",
+        "sha256": "553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583",
+        "url": "https://static.crates.io/crates/shlex/shlex-2.0.1.crate",
+        "archivePath": "shlex-2.0.1/LICENSE-APACHE"
+      },
+      {
+        "path": "shlex@2.0.1/crate/LICENSE-MIT",
+        "sha256": "4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1",
+        "url": "https://static.crates.io/crates/shlex/shlex-2.0.1.crate",
+        "archivePath": "shlex-2.0.1/LICENSE-MIT"
+      }
+    ]
+  },
+  "tauri-plugin@2.7.1": {
+    "name": "tauri-plugin",
+    "version": "2.7.1",
+    "declaredLicense": "Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/tauri-plugin/tauri-plugin-2.7.1.crate",
+    "crateChecksum": "1140cf34a3b3b836a13103dcab17f18831d5cc3534cbd435dc01a5c6daa65aa2",
+    "repository": "https://github.com/tauri-apps/tauri",
+    "sourceRevision": "30da1fd6e17de6107ecc850c95dfb16b5729f2dd",
+    "sourcePath": "crates/tauri-plugin",
+    "files": [
+      {
+        "path": "tauri-plugin@2.7.1/LICENSE-MIT",
+        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+        "url": "https://github.com/tauri-apps/tauri/blob/30da1fd6e17de6107ecc850c95dfb16b5729f2dd/LICENSE-MIT"
+      },
+      {
+        "path": "tauri-plugin@2.7.1/LICENSE-APACHE-2.0",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+        "url": "https://github.com/tauri-apps/tauri/blob/30da1fd6e17de6107ecc850c95dfb16b5729f2dd/LICENSE-APACHE-2.0"
+      }
+    ]
+  },
+  "vcpkg@0.2.15": {
+    "name": "vcpkg",
+    "version": "0.2.15",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/vcpkg/vcpkg-0.2.15.crate",
+    "crateChecksum": "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426",
+    "repository": "https://github.com/mcgoo/vcpkg-rs",
+    "sourceRevision": "e7d37e095ef2aa85c80242aa3850d442832b7b54",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "vcpkg@0.2.15/crate/LICENSE-APACHE",
+        "sha256": "60c93a31f490375aadf64098b75f10715010379541021e00261045d7800611d3",
+        "url": "https://static.crates.io/crates/vcpkg/vcpkg-0.2.15.crate",
+        "archivePath": "vcpkg-0.2.15/LICENSE-APACHE"
+      },
+      {
+        "path": "vcpkg@0.2.15/crate/LICENSE-MIT",
+        "sha256": "016d20f335060a70e79d9fcf8dfaa6201114d65d592211f4bdfb8ae9ca2bc1dc",
+        "url": "https://static.crates.io/crates/vcpkg/vcpkg-0.2.15.crate",
+        "archivePath": "vcpkg-0.2.15/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "version_check@0.9.5": {
+    "name": "version_check",
+    "version": "0.9.5",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/version_check/version_check-0.9.5.crate",
+    "crateChecksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+    "repository": "https://github.com/SergioBenitez/version_check",
+    "sourceRevision": "d77ef9f27cc336719b2d839d09ee6635dd22f758",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "version_check@0.9.5/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/version_check/version_check-0.9.5.crate",
+        "archivePath": "version_check-0.9.5/LICENSE-APACHE"
+      },
+      {
+        "path": "version_check@0.9.5/crate/LICENSE-MIT",
+        "sha256": "b7e650f3fce5c53249d1cdc608b54df156a97edd636cf9d23498d0cfe7aec63e",
+        "url": "https://static.crates.io/crates/version_check/version_check-0.9.5.crate",
+        "archivePath": "version_check-0.9.5/LICENSE-MIT"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "walkdir@2.5.0": {
+    "name": "walkdir",
+    "version": "2.5.0",
+    "declaredLicense": "Unlicense/MIT",
+    "crateUrl": "https://static.crates.io/crates/walkdir/walkdir-2.5.0.crate",
+    "crateChecksum": "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b",
+    "repository": "https://github.com/BurntSushi/walkdir",
+    "sourceRevision": "4f26be4d450910916ea11533b2efc52b9a6483bc",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "walkdir@2.5.0/crate/COPYING",
+        "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
+        "url": "https://static.crates.io/crates/walkdir/walkdir-2.5.0.crate",
+        "archivePath": "walkdir-2.5.0/COPYING"
+      },
+      {
+        "path": "walkdir@2.5.0/crate/LICENSE-MIT",
+        "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
+        "url": "https://static.crates.io/crates/walkdir/walkdir-2.5.0.crate",
+        "archivePath": "walkdir-2.5.0/LICENSE-MIT"
+      },
+      {
+        "path": "walkdir@2.5.0/crate/UNLICENSE",
+        "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+        "url": "https://static.crates.io/crates/walkdir/walkdir-2.5.0.crate",
+        "archivePath": "walkdir-2.5.0/UNLICENSE"
+      }
+    ],
+    "normalizedLicense": "Unlicense OR MIT"
+  },
+  "webview2-com@0.39.1": {
+    "name": "webview2-com",
+    "version": "0.39.1",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/webview2-com/webview2-com-0.39.1.crate",
+    "crateChecksum": "3f89fca7a704cee10dcb3654c1dbb8941d1783132f1917358af75bec37a7d7e6",
+    "repository": "https://github.com/wravery/webview2-rs",
+    "sourceRevision": "edc2caf886175ccaebe86078c9cfe1ae2a187328",
+    "sourcePath": "crates/webview2-com",
+    "files": [
+      {
+        "path": "webview2-com@0.39.1/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "url": "https://github.com/wravery/webview2-rs/blob/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE"
+      }
+    ]
+  },
+  "webview2-com-macros@0.8.1": {
+    "name": "webview2-com-macros",
+    "version": "0.8.1",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/webview2-com-macros/webview2-com-macros-0.8.1.crate",
+    "crateChecksum": "67a921c1b6914c367b2b823cd4cde6f96beec77d30a939c8199bb377cf9b9b54",
+    "repository": "https://github.com/wravery/webview2-rs",
+    "sourceRevision": "dffa41a8a46d3f5565eefbff2de57d38d399f158",
+    "sourcePath": "crates/callback-macros",
+    "files": [
+      {
+        "path": "webview2-com-macros@0.8.1/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "url": "https://github.com/wravery/webview2-rs/blob/dffa41a8a46d3f5565eefbff2de57d38d399f158/LICENSE"
+      }
+    ]
+  },
+  "webview2-com-sys@0.39.1": {
+    "name": "webview2-com-sys",
+    "version": "0.39.1",
+    "declaredLicense": "MIT",
+    "crateUrl": "https://static.crates.io/crates/webview2-com-sys/webview2-com-sys-0.39.1.crate",
+    "crateChecksum": "b3a07132775117d6065853d9d1178157b8c90e228de47129d6bce2c7edebedfb",
+    "repository": "https://github.com/wravery/webview2-rs",
+    "sourceRevision": "edc2caf886175ccaebe86078c9cfe1ae2a187328",
+    "sourcePath": "crates/bindings",
+    "files": [
+      {
+        "path": "webview2-com-sys@0.39.1/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "url": "https://github.com/wravery/webview2-rs/blob/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE"
+      },
+      {
+        "path": "webview2-com-sys@0.39.1/sdk/LICENSE.txt",
+        "sha256": "0af8f1b807512aae39c2ac1aa4d0cae65cabecb6fd554b8439a5162a0d6eca55",
+        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3800.47/microsoft.web.webview2.1.0.3800.47.nupkg"
+      },
+      {
+        "path": "webview2-com-sys@0.39.1/sdk/NOTICE.txt",
+        "sha256": "106423785c5b7eba0a8e61d1837f2132e9c828e20ad530f565d981c1df60dd90",
+        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3800.47/microsoft.web.webview2.1.0.3800.47.nupkg"
+      }
+    ],
+    "sdk": {
+      "name": "Microsoft.Web.WebView2",
+      "version": "1.0.3800.47",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3800.47/microsoft.web.webview2.1.0.3800.47.nupkg",
+      "sha256": "56c9f26bdd07916a2d1949fb58a5c7e434dfa1173577dca879206050c4e718db",
+      "matchedFiles": [
+        {
+          "path": "x64/WebView2LoaderStatic.lib",
+          "sha256": "89c6b872783b8f6c3cedbff618adb42082d455c615453ae10cfc753f1e8f25d8"
+        },
+        {
+          "path": "x64/WebView2Loader.dll.lib",
+          "sha256": "bfc8ccaaa056be95243a5b66a827e5849d2bb39676fca4dcc2053796d8e15c6d"
+        },
+        {
+          "path": "x64/WebView2Loader.dll",
+          "sha256": "86545b66cdb0603bc26b626fb9ad610cb6e71f28d468f5ea66df23b03dda96d5"
+        },
+        {
+          "path": "x86/WebView2LoaderStatic.lib",
+          "sha256": "0513f7e61304321f2d91e1851475be07e091042aa3640597e660608f72521e6c"
+        },
+        {
+          "path": "x86/WebView2Loader.dll.lib",
+          "sha256": "a3ec0ee539d58fe72391f2e89cb814f96fab721c6d8d30953d152ea95dffad49"
+        },
+        {
+          "path": "x86/WebView2Loader.dll",
+          "sha256": "161dc6673084a31f64670ace8e61cb0e1b55af815b6c7c8217a0cdd8503454e2"
+        },
+        {
+          "path": "arm64/WebView2LoaderStatic.lib",
+          "sha256": "4a1ca4b518337c508aa0d778b220c6e59558fce21f4fd0d79a6ea944dd9d5208"
+        },
+        {
+          "path": "arm64/WebView2Loader.dll.lib",
+          "sha256": "d70271daa44507865ca0696cd1c1ede5e58e694eec74cb2d06e17dbbe205e9a2"
+        },
+        {
+          "path": "arm64/WebView2Loader.dll",
+          "sha256": "a0de1844933a10c898f833771a85f0ab9a0e3c745d4715f63d2d9730f9416025"
+        }
+      ]
+    }
+  },
+  "winx@0.36.4": {
+    "name": "winx",
+    "version": "0.36.4",
+    "declaredLicense": "Apache-2.0 WITH LLVM-exception",
+    "crateUrl": "https://static.crates.io/crates/winx/winx-0.36.4.crate",
+    "crateChecksum": "3f3fd376f71958b862e7afb20cfe5a22830e1963462f3a17f49d82a6c1d1f42d",
+    "repository": "https://github.com/sunfishcode/winx",
+    "sourceRevision": "23d6e2793b27979f7a7abbdbf1b2aedc1d0c78f3",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "winx@0.36.4/crate/LICENSE",
+        "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+        "url": "https://static.crates.io/crates/winx/winx-0.36.4.crate",
+        "archivePath": "winx-0.36.4/LICENSE"
+      }
+    ]
+  },
+  "filetime@0.2.29": {
+    "name": "filetime",
+    "version": "0.2.29",
+    "declaredLicense": "MIT/Apache-2.0",
+    "crateUrl": "https://static.crates.io/crates/filetime/filetime-0.2.29.crate",
+    "crateChecksum": "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759",
+    "repository": "https://github.com/alexcrichton/filetime",
+    "sourceRevision": "ab5ee65b5e4fe2de19dbe7d4fe08bc31e945949c",
+    "sourcePath": "",
+    "files": [
+      {
+        "path": "filetime@0.2.29/crate/LICENSE-MIT",
+        "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+        "url": "https://static.crates.io/crates/filetime/filetime-0.2.29.crate",
+        "archivePath": "filetime-0.2.29/LICENSE-MIT"
+      },
+      {
+        "path": "filetime@0.2.29/crate/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://static.crates.io/crates/filetime/filetime-0.2.29.crate",
+        "archivePath": "filetime-0.2.29/LICENSE-APACHE"
+      }
+    ],
+    "normalizedLicense": "MIT OR Apache-2.0"
+  },
+  "objc2-osa-kit@0.3.2": {
+    "name": "objc2-osa-kit",
+    "version": "0.3.2",
+    "declaredLicense": "Zlib OR Apache-2.0 OR MIT",
+    "crateUrl": "https://static.crates.io/crates/objc2-osa-kit/objc2-osa-kit-0.3.2.crate",
+    "crateChecksum": "f112d1746737b0da274ef79a23aac283376f335f4095a083a267a082f21db0c0",
+    "repository": "https://github.com/madsmtm/objc2",
+    "sourceRevision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+    "sourcePath": "framework-crates/objc2-osa-kit",
+    "files": [
+      {
+        "path": "objc2-osa-kit@0.3.2/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      },
+      {
+        "path": "objc2-osa-kit@0.3.2/LICENSE-APACHE-reference.txt",
+        "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/Apache-2.0.txt",
+        "referenceOnly": true
+      }
+    ],
+    "reviewRequired": "The exact upstream root LICENSE.md declares three license alternatives and warns about generated Apple SDK-derived bindings. Linked Apache terms are retained as reference only; complete applicable package terms/notices, generating SDK/version/terms and redistribution coverage remain unresolved. This updater-only Mac package extends the existing Mac SDK/notice review. No distribution approval is inferred from metadata or reference text."
+  }
+}

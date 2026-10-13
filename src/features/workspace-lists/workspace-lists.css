@@ -1,0 +1,97 @@
+.workspace-lists-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.workspace-lists-content {
+  max-height: min(65vh, 540px);
+  overflow: auto;
+}
+.workspace-lists h2 {
+  font-size: 12px;
+  color: var(--surface-muted);
+  padding: 10px 14px 4px;
+  margin: 0;
+}
+.workspace-lists ul {
+  max-height: none;
+  overflow: visible;
+}
+.workspace-lists li {
+  display: flex;
+  gap: 4px;
+  padding: 2px 6px;
+}
+.workspace-lists .workspace-document {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.workspace-lists button:disabled {
+  opacity: 1;
+  color: var(--surface-disabled);
+  cursor: default;
+}
+.workspace-lists button:focus-visible {
+  outline: 2px solid var(--surface-focus);
+  outline-offset: -2px;
+}
+.workspace-lists li span,
+.workspace-lists li small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.workspace-set-policy {
+  margin: 4px 14px 8px;
+  font-size: 11px;
+  color: var(--surface-muted);
+  line-height: 1.5;
+}
+.workspace-set-form {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 6px;
+}
+.workspace-set-form input {
+  flex: 1;
+  min-width: 0;
+  width: 80px;
+  background: var(--surface-field);
+  color: var(--surface-field-text);
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 5px;
+}
+.workspace-set-form button {
+  font-size: 11px;
+}
+.workspace-set-shortcut {
+  min-width: 0;
+  max-width: 120px;
+  align-self: center;
+  font: inherit;
+  font-size: 11px;
+  color: var(--surface-field-text);
+  background: var(--surface-field);
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 5px 2px;
+}
+.workspace-set-shortcut:focus-visible {
+  outline: 2px solid var(--surface-focus);
+}
+@media (max-width: 640px) {
+  .workspace-lists li {
+    flex-wrap: wrap;
+  }
+  .workspace-lists .workspace-document {
+    flex-basis: 100%;
+  }
+}

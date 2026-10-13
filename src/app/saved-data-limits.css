@@ -1,0 +1,23 @@
+.saved-data-limits {
+  border-top: 1px solid var(--surface-border);
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.saved-data-limits h3 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+.saved-data-limits-fields {
+  min-width: 0;
+  padding: 8px;
+}
+.saved-data-limits-fields label {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+.saved-data-limits-fields input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}

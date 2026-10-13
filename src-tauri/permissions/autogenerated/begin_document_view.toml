@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-begin-document-view"
+description = "Enables the begin_document_view command without any pre-configured scope."
+commands.allow = ["begin_document_view"]
+
+[[permission]]
+identifier = "deny-begin-document-view"
+description = "Denies the begin_document_view command without any pre-configured scope."
+commands.deny = ["begin_document_view"]

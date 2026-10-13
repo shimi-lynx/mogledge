@@ -1,0 +1,203 @@
+.settings-dialog {
+  /* Follow the host viewport without stretching settings across a large display. */
+  width: min(clamp(720px, 84vw, 960px), calc(100vw - 32px));
+  height: min(clamp(480px, 84dvh, 720px), calc(100dvh - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.settings-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.settings-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.settings-close-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 1;
+}
+.settings-close-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 14px;
+  border-top: 1px solid var(--surface-border);
+}
+.settings-footer button {
+  min-width: 80px;
+  min-height: 32px;
+  padding: 4px 14px;
+  font: inherit;
+}
+.settings-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 176px) minmax(0, 1fr);
+  min-height: 0;
+}
+.settings-columns nav {
+  padding: 12px 8px;
+  border-right: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  overflow-y: auto;
+}
+.settings-columns nav button {
+  width: 100%;
+  padding: 10px 8px;
+  text-align: left;
+  background: transparent;
+  color: var(--surface-text);
+  border-color: transparent;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.settings-columns nav button[aria-current="page"] {
+  background: var(--surface-selected);
+  color: var(--surface-selected-text);
+}
+.resident-settings p {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.resident-group + .resident-group {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--surface-border);
+}
+.resident-settings .resident-note {
+  color: var(--surface-muted);
+}
+.resident-settings .resident-status {
+  font-weight: 600;
+}
+.resident-settings .resident-warning {
+  padding: 8px 10px;
+  border-left: 3px solid var(--surface-danger);
+  background: var(--surface-control);
+  color: var(--surface-danger);
+}
+.resident-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}
+.resident-toggle input {
+  margin: 2px 0;
+}
+.resident-target {
+  overflow-wrap: anywhere;
+}
+.resident-settings h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.resident-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.resident-settings button {
+  max-width: 100%;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.settings-columns section {
+  min-width: 0;
+  padding: 20px;
+  overflow: auto;
+}
+.settings-columns h2 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .settings-columns {
+    grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+  }
+  .settings-columns nav {
+    padding: 10px 4px;
+  }
+  .settings-columns nav button {
+    padding: 10px 6px;
+  }
+  .settings-columns section {
+    padding: 16px 12px;
+  }
+}
+
+.html-authoring-preview ul {
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.html-authoring-preview code {
+  font-size: 11px;
+}
+.html-authoring-preview button {
+  margin-right: 8px;
+}
+.html-authoring-enable {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 18px;
+}
+.app-update-settings p {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.app-update-settings h3,
+.app-update-settings h4 {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.app-update-settings .app-update-notes {
+  white-space: pre-wrap;
+}
+.app-update-settings button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+}
+.app-update-settings progress {
+  width: 100%;
+}
+.app-update-settings [role="alert"] {
+  color: var(--surface-danger);
+}

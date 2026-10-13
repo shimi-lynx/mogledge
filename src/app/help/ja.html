@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Mogledge — 機能と使い方</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #f7f9fc;
+        --text: #263645;
+        --muted: #526577;
+        --border: #8c9aa8;
+        --selected: #d7ece3;
+        --focus: #287b65;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --background: #25282c;
+          --text: #eef0f3;
+          --muted: #b5bdc7;
+          --border: #69737e;
+          --selected: #32494b;
+          --focus: #9bd9c6;
+        }
+      }
+      @media (forced-colors: active) {
+        :root {
+          --background: Canvas;
+          --text: CanvasText;
+          --muted: CanvasText;
+          --border: ButtonText;
+          --selected: ButtonFace;
+          --focus: Highlight;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--background);
+        color: var(--text);
+        font:
+          14px/1.7 "Segoe UI",
+          "Yu Gothic UI",
+          system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 960px;
+        height: 100%;
+        margin: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: 20px;
+        line-height: 1.4;
+      }
+      fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+        min-height: 0;
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto minmax(0, 1fr);
+        column-gap: 8px;
+      }
+      legend,
+      .help-choice {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      .help-label {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        text-align: center;
+        cursor: pointer;
+      }
+      .help-choice:checked + .help-label {
+        background: var(--selected);
+        font-weight: 600;
+      }
+      .help-choice:focus-visible + .help-label {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .help-panel {
+        display: none;
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-height: 0;
+        overflow: auto;
+        padding: 8px 4px 16px 0;
+        margin-top: 16px;
+      }
+      #help-features:checked ~ #help-features-panel,
+      #help-usage:checked ~ #help-usage-panel,
+      #help-shortcuts:checked ~ #help-shortcuts-panel {
+        display: block;
+      }
+      h2 {
+        margin: 16px 0 6px;
+        font-size: 16px;
+        color: var(--focus);
+      }
+      h2:first-child {
+        margin-top: 0;
+      }
+      p {
+        margin: 6px 0 12px;
+      }
+      ul,
+      ol {
+        margin: 6px 0 16px;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: fixed;
+        font-size: 12px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+      th:first-child {
+        width: 38%;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 420px) {
+        main {
+          padding: 12px;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        .help-label {
+          padding: 6px 2px;
+          font-size: 12px;
+        }
+        th,
+        td {
+          padding: 6px 3px;
+        }
+      }
+      @media (max-width: 260px) {
+        fieldset {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: repeat(3, auto) minmax(0, 1fr);
+          row-gap: 6px;
+        }
+        .help-label {
+          text-align: left;
+          padding: 4px 8px;
+        }
+        .help-panel {
+          grid-row: 4;
+          margin-top: 8px;
+        }
+        table,
+        tbody,
+        tr,
+        th,
+        td {
+          display: block;
+        }
+        thead {
+          display: none;
+        }
+        tr {
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border);
+        }
+        th,
+        td {
+          padding: 2px 0;
+          border: 0;
+        }
+        th:first-child {
+          width: auto;
+        }
+        td::before {
+          content: attr(data-platform) ": ";
+          color: var(--muted);
+        }
+      }
+
+      .ai-guide {
+        padding: 18px 20px;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--focus);
+        border-radius: 8px;
+        background: var(--selected);
+        margin-bottom: 24px;
+      }
+      .ai-guide h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .quick-steps {
+        margin-bottom: 12px;
+      }
+      details {
+        margin-top: 12px;
+        border-top: 1px solid var(--border);
+        padding-top: 10px;
+      }
+      summary {
+        color: var(--focus);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      summary:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+      .folder-note {
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .overview {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .feature-card {
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        min-width: 0;
+      }
+      .feature-card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .feature-card p:last-child,
+      .feature-card ul:last-child,
+      details ul:last-child {
+        margin-bottom: 0;
+      }
+      .help-panel {
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 620px) {
+        .overview {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .ai-guide,
+        .feature-card {
+          padding: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>機能と使い方</h1>
+      <fieldset>
+        <legend>表示する内容</legend>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-features"
+          checked
+          aria-controls="help-features-panel"
+        />
+        <label class="help-label" for="help-features">機能</label>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-usage"
+          aria-controls="help-usage-panel"
+        />
+        <label class="help-label" for="help-usage">使い方</label>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-shortcuts"
+          aria-controls="help-shortcuts-panel"
+        />
+        <label class="help-label" for="help-shortcuts">ショートカット</label>
+        <section class="help-panel" id="help-features-panel" aria-label="機能の説明" tabindex="0">
+          <div class="ai-guide">
+            <p class="eyebrow">まずはここから</p>
+            <h2>AIに渡す</h2>
+            <p>HTMLアプリの作成・改善、文書の説明、フォルダー内の作業を外部のAIに頼めます。</p>
+            <ol class="quick-steps">
+              <li>
+                <strong>対象を選ぶ。</strong>
+                HTMLやフォルダーを右クリックし、「AIに渡す」を選びます。
+              </li>
+              <li>
+                <strong>連携先と依頼文を決める。</strong>
+                例：「入力を保存できる週間プランナーを作って」。依頼文は空でも開けます。
+              </li>
+              <li>
+                <strong>下書きを開くか、依頼文をコピーする。</strong>
+                相手のAIで作業フォルダーと全文を確認し、そこで送信します。
+              </li>
+            </ol>
+            <p class="note">HTML本文や保存入力を自動で送信しません。</p>
+            <p class="folder-note">
+              <strong>作成・編集は同期外のローカルフォルダーで。</strong>
+              OneDrive同期外の通常のローカルフォルダーを使ってください。OneDrive同期フォルダー内のファイル・フォルダー操作は失敗する場合があります。
+            </p>
+            <details>
+              <summary>ほかの入口・渡す内容</summary>
+              <ul>
+                <li>
+                  knowledge全体ならフォルダー選択欄を右クリックします。ツリー行のAIボタン、表示中の文書でWindowsのCtrl+Shift+A／macOSのCmd+Shift+Aも使えます。
+                </li>
+                <li>
+                  ChatGPT / Codex、Claude Code、Claude Code
+                  CLIでは未送信の下書きを開きます。連携先の導入とリンク登録は別途必要です。
+                </li>
+                <li>
+                  ファイルはパスを本文に含め、親フォルダーを作業フォルダーにします。フォルダーはその場所を作業フォルダーにし、本文には自分の依頼文だけを渡します。
+                </li>
+                <li>
+                  「依頼文をコピー」は対象パスと依頼文を含めます。Codex
+                  CLIはコピーして手動で貼り付けます。相手で作業フォルダーを選び、Codexを起動して入力欄に貼り付け、確認して送信します。shellのコマンド欄には貼り付けません。
+                </li>
+                <li>
+                  相手のアプリが開かない場合は、依頼文をコピーして手動で渡せます。相手の権限・承認設定は変更しません。
+                </li>
+              </ul>
+            </details>
+          </div>
+          <h2>ほかにできること</h2>
+          <div class="overview">
+            <div class="feature-card">
+              <h3>HTMLをすばやく切り替える</h3>
+              <p>
+                Mogledge（モグリッジ）はknowledge内のHTMLをタブで開き、左右2列でも表示できます。タブの切替・並べ替え・列移動・左メニューの開閉では、入力・Canvas・JavaScriptの実行状態を保ちます。同じHTMLを左右で開くと、それぞれ独立した状態になります。
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>名前・全文・お気に入りから開く</h3>
+              <ul>
+                <li>
+                  <strong>クイックオープン：</strong>名前・相対パスで探し、最大20件を表示します。
+                </li>
+                <li>
+                  <strong>全文検索：</strong>HTML本文を20件ずつ検索し、フォルダー配下に絞れます。
+                </li>
+                <li>
+                  <strong>お気に入り：</strong
+                  >HTMLとフォルダーを合わせてroot別に最大50件。検索中も表示します。
+                </li>
+                <li>
+                  <strong>最近の文書：</strong
+                  >時計ボタンで最大50件を表示します。お気に入りのフォルダーを選ぶとツリーのその場所へ移動します。
+                </li>
+              </ul>
+            </div>
+            <div class="feature-card">
+              <h3>作業セットを保存</h3>
+              <p>
+                作業セットは最大10組・各30文書で、列・タブ順・選択・倍率を保存します。呼出し時に既存文書の状態を保ち、新しい未選択文書は選ぶまで読み込みません。入力値はセットに含めません。
+              </p>
+              <details>
+                <summary>呼出しキーを割り当てる</summary>
+                <p>
+                  管理画面でセットにCtrl/Cmd+Shift+1〜0を割り当てられます。0は10番目です。番号はこのルートの安定したセットIDに保存し、名前・順序が変わっても保持します。未割当は無操作で、削除した番号が別セットへ移ることはありません。アプリ内だけで使い、HTML自身のキー操作・入力・IME・ダイアログを優先します。
+                </p>
+              </details>
+            </div>
+            <div class="feature-card">
+              <h3>履歴・表示倍率</h3>
+              <p>
+                戻る・進むは列ごとに最大32件です。閉じた文書は起動中の直近10件から開き直せます。倍率は文書ごとに50〜200%へ変えられ、アプリの操作部分は拡大しません。
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>ファイル・フォルダーを整理</h3>
+              <p>
+                ツリーからHTML・フォルダーの作成、名前変更、並べ替え、移動、ごみ箱、パスコピー、OSで開く操作を使えます。HTML本文の編集は外部のAIやエディターで行います。
+              </p>
+              <p class="folder-note">
+                <strong>作成・編集は同期外のローカルフォルダーで。</strong>
+                OneDrive同期外の通常のローカルフォルダーを使ってください。OneDrive同期フォルダー内のファイル・フォルダー操作は失敗する場合があります。
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>保存済み入力の管理</h3>
+              <p>
+                保存APIに対応したHTMLは入力状態を復元できます。保存済み入力を書き出す・取り込む操作では、ファイルと必要なbackup先を選び、置換と停止・再読み込みを確認します。平文JSONは内容を確認して安全に保管してください。
+              </p>
+            </div>
+          </div>
+        </section>
+        <section class="help-panel" id="help-usage-panel" aria-label="使い方の説明" tabindex="0">
+          <div class="ai-guide">
+            <p class="eyebrow">まずはここから</p>
+            <h2>AIに渡す</h2>
+            <p>HTMLアプリの作成・改善、文書の説明、フォルダー内の作業を外部のAIに頼めます。</p>
+            <ol class="quick-steps">
+              <li>
+                <strong>対象を選ぶ。</strong>
+                HTMLやフォルダーを右クリックし、「AIに渡す」を選びます。
+              </li>
+              <li>
+                <strong>連携先と依頼文を決める。</strong>
+                例：「入力を保存できる週間プランナーを作って」。依頼文は空でも開けます。
+              </li>
+              <li>
+                <strong>下書きを開くか、依頼文をコピーする。</strong>
+                相手のAIで作業フォルダーと全文を確認し、そこで送信します。
+              </li>
+            </ol>
+            <p class="note">HTML本文や保存入力を自動で送信しません。</p>
+            <p class="folder-note">
+              <strong>作成・編集は同期外のローカルフォルダーで。</strong>
+              OneDrive同期外の通常のローカルフォルダーを使ってください。OneDrive同期フォルダー内のファイル・フォルダー操作は失敗する場合があります。
+            </p>
+            <details>
+              <summary>ほかの入口・渡す内容</summary>
+              <ul>
+                <li>
+                  knowledge全体ならフォルダー選択欄を右クリックします。ツリー行のAIボタン、表示中の文書でWindowsのCtrl+Shift+A／macOSのCmd+Shift+Aも使えます。
+                </li>
+                <li>
+                  ChatGPT / Codex、Claude Code、Claude Code
+                  CLIでは未送信の下書きを開きます。連携先の導入とリンク登録は別途必要です。
+                </li>
+                <li>
+                  ファイルはパスを本文に含め、親フォルダーを作業フォルダーにします。フォルダーはその場所を作業フォルダーにし、本文には自分の依頼文だけを渡します。
+                </li>
+                <li>
+                  「依頼文をコピー」は対象パスと依頼文を含めます。Codex
+                  CLIはコピーして手動で貼り付けます。相手で作業フォルダーを選び、Codexを起動して入力欄に貼り付け、確認して送信します。shellのコマンド欄には貼り付けません。
+                </li>
+                <li>
+                  相手のアプリが開かない場合は、依頼文をコピーして手動で渡せます。相手の権限・承認設定は変更しません。
+                </li>
+              </ul>
+            </details>
+          </div>
+          <h2>文書を開く</h2>
+          <ol>
+            <li>
+              左メニューのフォルダー選択でknowledgeを開きます。HTMLの編集は外部のAIやエディターで行います。
+            </li>
+            <li>
+              ツリーのHTMLを選ぶか、クイックオープン・全文検索から開きます。入力や本文検索を使わない間はファイル一覧で閲覧できます。
+            </li>
+            <li>
+              ツリー・タブの右クリックから左右の列で開けます。タブはドラッグで並べ替え・列移動ができます。
+            </li>
+          </ol>
+          <h2>左メニューとタブ</h2>
+          <p>
+            左上のアイコンでメニュー開閉・ファイル・文書検索を切り替えます。境界線をドラッグするか、境界にフォーカスして左右・Home・Endキーで幅を変えます。狭い画面ではメニューが文書に重なります。
+          </p>
+          <p>
+            作成ボタンの下にお気に入り枠があります。多い場合は枠内をスクロールします。タイトルバーの作業セットアイコンからセットの保存・呼出しを開けます。一番右のヘルプアイコンは、この同じタブを選びます。タブの×・中クリック、またはタブにフォーカスした閉じるキーで閉じます。
+          </p>
+          <p>
+            左メニュー下部の設定ボタンから「表示言語を選択」を開き、日本語・英語を切り替えます。初回は英語で表示し、保存した言語はすぐに反映されて次回起動後も保持します。版数は下部左側に表示します。
+          </p>
+          <h2>ファイルを作成・移動する</h2>
+          <p class="folder-note">
+            <strong>作成・編集は同期外のローカルフォルダーで。</strong>
+            OneDrive同期外の通常のローカルフォルダーを使ってください。OneDrive同期フォルダー内のファイル・フォルダー操作は失敗する場合があります。
+          </p>
+          <p>
+            作成ボタンはHTML、フォルダー、root直下のフォルダーの順です。フォルダーの作成先・移動先は候補から選び、文字入力で相対パスを絞り込めます。入力文字を任意のパスとして書き込みません。
+          </p>
+          <h2>HTML本文から探す</h2>
+          <ul>
+            <li>
+              検索欄右の「検索の詳細設定」でAND／ORとフォルダーを選びます。子孫フォルダーも対象です。詳細の開閉と条件は次回起動にも保持します。
+            </li>
+            <li>
+              「検索条件をリセット」でAND・ルート全体へ戻します。キーワードと詳細の開閉は変えません。
+            </li>
+            <li>
+              入力内の×は検索語と結果だけを消します。Escapeはまず検索語を消し、空ならファイル表示へ戻ります。
+            </li>
+            <li>
+              フォルダーの右クリックから「このフォルダー内を検索」も使えます。範囲の×で全体に戻れます。
+            </li>
+          </ul>
+          <h2>更新・保存時の注意</h2>
+          <p>
+            外部で保存すると表示中の文書に反映します。非表示タブは更新待ちになり、表示するまで実行状態を保ちます。「状態をリセットして再読み込み」は入力・Canvas・JavaScriptの実行状態をリセットします。
+          </p>
+          <p>
+            保存APIは入力状態を保存するためのものです。JavaScriptやCanvas全体の状態は保存しません。リセット・終了前に文書内の保存を完了してください。HTMLの名前変更・移動後は、本文中の相対リンクを外部エディターで確認します。
+          </p>
+          <p>
+            作成・変更・ごみ箱は通常のローカルフォルダーで使います。ごみ箱への移動に失敗しても永久削除へ切り替えません。復元はOSのごみ箱で行います。
+          </p>
+          <p>
+            OneDriveでは端末に保持済みの項目を閲覧します。オンラインのみの項目はOS側で端末に保持してから使います。WindowsではWebView2、macOSでは12以降を使います。
+          </p>
+        </section>
+        <section
+          class="help-panel"
+          id="help-shortcuts-panel"
+          aria-label="ショートカットの説明"
+          tabindex="0"
+        >
+          <h2>主なショートカット</h2>
+          <p>
+            Ctrl+W /
+            Cmd+Wはアプリの操作部やHTMLが処理しないキー操作で使えます。入力欄・IME・ダイアログ・HTML側のキャンセルを優先します。押し続けても1タブだけ閉じ、最後のタブを閉じてもアプリは終了しません。
+          </p>
+          <table role="table">
+            <thead>
+              <tr role="row">
+                <th scope="col" role="columnheader">操作</th>
+                <th scope="col" role="columnheader">Windows</th>
+                <th scope="col" role="columnheader">macOS</th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              <tr role="row">
+                <th scope="row" role="rowheader">AIに渡す</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+A</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+A</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">名前で開く</th>
+                <td role="cell" data-platform="Windows">Ctrl+P</td>
+                <td role="cell" data-platform="macOS">Cmd+P</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">左メニューを開閉</th>
+                <td role="cell" data-platform="Windows">Ctrl+B</td>
+                <td role="cell" data-platform="macOS">Cmd+B</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">割り当てた作業セットを呼び出す（0は10番目）</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+1〜0</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+1〜0</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">設定を開く</th>
+                <td role="cell" data-platform="Windows">Ctrl+,</td>
+                <td role="cell" data-platform="macOS">Cmd+,</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">ファイル表示へ</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+E</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+E</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">文書検索へ</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+F</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+F</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">HTMLを作成</th>
+                <td role="cell" data-platform="Windows">Ctrl+N</td>
+                <td role="cell" data-platform="macOS">Cmd+N</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">フォルダーを作成</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+N</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+N</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">HTMLの名前変更</th>
+                <td role="cell" data-platform="Windows">F2</td>
+                <td role="cell" data-platform="macOS">Return</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">ごみ箱へ移動</th>
+                <td role="cell" data-platform="Windows">Delete / Backspace</td>
+                <td role="cell" data-platform="macOS">Cmd+Backspace</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">次・前のタブ</th>
+                <td role="cell" data-platform="Windows">Ctrl+Tab / Ctrl+Shift+Tab</td>
+                <td role="cell" data-platform="macOS">Ctrl+Tab / Ctrl+Shift+Tab</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">アクティブ列の現在のタブを閉じる</th>
+                <td role="cell" data-platform="Windows">Ctrl+W</td>
+                <td role="cell" data-platform="macOS">Cmd+W</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">閉じた文書を開き直す</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+T</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+T</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">左・右列へ移動</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+← / →</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+← / →</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">戻る・進む</th>
+                <td role="cell" data-platform="Windows">Alt+← / →</td>
+                <td role="cell" data-platform="macOS">Cmd+[ / ]</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">拡大・縮小・100%</th>
+                <td role="cell" data-platform="Windows">Ctrlと + / − / 0</td>
+                <td role="cell" data-platform="macOS">Cmdと + / − / 0</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">右クリックメニュー</th>
+                <td role="cell" data-platform="Windows">Shift+F10</td>
+                <td role="cell" data-platform="macOS">Shift+F10</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="note">
+            文書操作は文書またはタブ、ファイル操作はツリーにフォーカスして使います。入力欄・IME変換中・確認画面では入力を優先し、HTML自身がキャンセルしたキーを横取りしません。
+          </p>
+          <h2>ヘルプ内の切替</h2>
+          <p>
+            Tabで上の分類に移り、左右の矢印キーまたはSpaceで選べます。その後Tabで表示中の説明に移り、矢印・Page
+            Up・Page Downでスクロールできます。
+          </p>
+        </section>
+      </fieldset>
+    </main>
+  </body>
+</html>

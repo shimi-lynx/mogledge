@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>生成サンプル: 保存できる計算機</title>
+    <style>
+      body {
+        font: 16px system-ui;
+        max-width: 42rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      label {
+        display: block;
+        margin: 1rem 0;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+      button {
+        margin: 0.5rem 0.5rem 0.5rem 0;
+      }
+      #status {
+        min-height: 1.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>生成サンプル: 保存できる計算機</h1>
+    <label>数値 <input id="amount" type="number" value="2" min="0" step="0.5" /></label>
+    <label
+      >計算
+      <select id="mode">
+        <option value="double">2倍</option>
+        <option value="square">2乗</option>
+      </select></label
+    >
+    <label><input id="enabled" type="checkbox" checked /> 計算を有効にする</label>
+    <p>結果: <output id="result">—</output></p>
+    <button id="save" type="button">保存</button
+    ><button id="reload" type="button">保存して再読込</button>
+
+    <p id="status" role="status" aria-live="polite">保存状態を読込中…</p>
+    <p>
+      閉じる前に保存ボタンで「保存済み」を確認してください。未確認の保存は終了時に失われる場合があります。
+    </p>
+    <script>
+      (function (scope) {
+        "use strict";
+        const DEFAULT_DOCUMENT_BYTES = 5 * 1024 * 1024;
+        const encoder = new TextEncoder();
+
+        class StorageError extends Error {
+          constructor(code, message = code) {
+            super(message);
+            this.name = "StorageError";
+            this.code = code;
+          }
+        }
+
+        function create({ appId, schemaVersion }) {
+          if (typeof appId !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(appId))
+            throw new StorageError("invalid_key");
+          if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1)
+            throw new StorageError("invalid_schema");
+          const native = "__MY_KNOWLEDGE_STORAGE_V1__" in scope;
+          const descriptor = scope.__MY_KNOWLEDGE_STORAGE_V1__;
+          const jobs = [];
+          let running = false;
+          let lastFailure = null;
+          let browserRevision = 0;
+
+          function maximumDocumentBytes() {
+            if (!native || descriptor?.maximumDocumentBytes === undefined)
+              return DEFAULT_DOCUMENT_BYTES;
+            const bytes = descriptor.maximumDocumentBytes;
+            if (!Number.isSafeInteger(bytes) || bytes <= 0)
+              throw new StorageError("storage_unavailable");
+            // This is a finite allocation/transport ceiling, not the configured quota.
+            // The Native transaction checks the current limits for every commit, so
+            // changing settings needs no reload, extra request, or cached client quota.
+            return bytes;
+          }
+
+          function errorFrom(error) {
+            if (error instanceof StorageError) return error;
+            return new StorageError(
+              error?.name === "QuotaExceededError" ? "quota_exceeded" : "storage_unavailable",
+              error?.message || "Storage unavailable",
+            );
+          }
+
+          function browserKey() {
+            const documentUrl = new URL(scope.location.href);
+            documentUrl.hash = "";
+            documentUrl.search = "";
+            return "my-knowledge:v1:" + encodeURIComponent(documentUrl.href) + ":" + appId;
+          }
+
+          async function transport(op, value) {
+            if (native) {
+              if (descriptor?.version !== 1 || !descriptor.available || !descriptor.endpoint)
+                throw new StorageError("storage_unavailable");
+              const response = await scope.fetch(descriptor.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "omit",
+                cache: "no-store",
+                body: JSON.stringify({
+                  version: 1,
+                  op,
+                  key: appId,
+                  ...(op === "write" ? { value } : {}),
+                }),
+              });
+              let result;
+              try {
+                result = await response.json();
+              } catch {
+                throw new StorageError("invalid_response");
+              }
+              if (!result || typeof result !== "object") throw new StorageError("invalid_response");
+              if (!response.ok)
+                throw new StorageError(
+                  typeof result.error === "string" ? result.error : "storage_unavailable",
+                );
+              if (
+                result.version !== 1 ||
+                !Number.isSafeInteger(result.revision) ||
+                result.revision < 0 ||
+                !("value" in result)
+              )
+                throw new StorageError("invalid_response");
+              return result;
+            }
+            // Access itself can throw for file URLs, disabled storage, or an opaque origin.
+            const storage = scope.localStorage;
+            const key = browserKey();
+            if (op === "read") {
+              const stored = storage.getItem(key);
+              if (stored === null) return { value: null, revision: browserRevision };
+              let result;
+              try {
+                result = JSON.parse(stored);
+              } catch {
+                throw new StorageError("invalid_response");
+              }
+              if (
+                !result ||
+                result.version !== 1 ||
+                !Number.isSafeInteger(result.revision) ||
+                result.revision < 0 ||
+                !("value" in result)
+              )
+                throw new StorageError("invalid_response");
+              browserRevision = result.revision;
+              return result;
+            }
+            const revision = browserRevision + 1;
+            if (op === "delete") storage.removeItem(key);
+            else storage.setItem(key, JSON.stringify({ version: 1, value, revision }));
+            browserRevision = revision;
+            return { value: op === "delete" ? null : value, revision };
+          }
+
+          async function drain() {
+            if (running) return;
+            running = true;
+            while (jobs.length) {
+              const job = jobs.shift();
+              try {
+                let result;
+                if (job.op === "error") throw job.value;
+                if (job.op === "flush") {
+                  if (lastFailure) throw lastFailure;
+                } else {
+                  result = await transport(job.op, job.value);
+                  if (job.op === "read" && result.value !== null) {
+                    if (!result.value || result.value.schemaVersion !== schemaVersion)
+                      throw new StorageError("schema_mismatch");
+                    if (!("data" in result.value)) throw new StorageError("invalid_response");
+                  }
+                  if (job.op !== "read") lastFailure = null;
+                }
+                for (const waiter of job.waiters)
+                  waiter.resolve(
+                    job.op === "read" ? (result.value?.data ?? null) : result?.revision,
+                  );
+              } catch (error) {
+                const failure = errorFrom(error);
+                lastFailure = failure;
+                for (const waiter of job.waiters) waiter.reject(failure);
+              }
+            }
+            running = false;
+          }
+
+          function enqueue(op, value) {
+            return new Promise((resolve, reject) => {
+              const previous = jobs[jobs.length - 1];
+              // Only not-yet-started consecutive writes coalesce; reads/deletes/flush are barriers.
+              if (op === "write" && previous?.op === "write") {
+                previous.value = value;
+                previous.waiters.push({ resolve, reject });
+              } else jobs.push({ op, value, waiters: [{ resolve, reject }] });
+              queueMicrotask(drain);
+            });
+          }
+
+          return Object.freeze({
+            read: () => enqueue("read"),
+            write(data) {
+              try {
+                const encoded = JSON.stringify({ schemaVersion, data });
+                if (data === undefined || encoded === undefined)
+                  throw new StorageError("invalid_value");
+                // The persisted map also includes {"appId":...}. Other appIds in
+                // the same physical document are accounted for by the Native server.
+                if (encoder.encode(encoded).byteLength + appId.length + 5 > maximumDocumentBytes())
+                  throw new StorageError("quota_exceeded");
+                // Snapshot before queuing so later caller mutations cannot change a pending save.
+                const snapshot = JSON.parse(encoded);
+                if (!("data" in snapshot)) throw new StorageError("invalid_value");
+                return enqueue("write", snapshot);
+              } catch (error) {
+                return enqueue(
+                  "error",
+                  error instanceof StorageError ? error : new StorageError("invalid_value"),
+                );
+              }
+            },
+            remove: () => enqueue("delete"),
+            flush: () => enqueue("flush"),
+          });
+        }
+
+        Object.defineProperty(scope, "MyKnowledgeStorage", {
+          value: Object.freeze({ create, StorageError }),
+          configurable: false,
+          writable: false,
+        });
+      })(globalThis);
+    </script>
+    <script>
+      (function () {
+        "use strict";
+        if (Object.hasOwn(globalThis, "MyKnowledgeExport")) return;
+        const maximum = 5 * 1024 * 1024;
+        const formats = { png: "png", jpeg: "jpg", csv: "csv", json: "json", text: "txt" };
+        const descriptorPresent = Object.hasOwn(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__");
+        const descriptor = globalThis.__MY_KNOWLEDGE_EXPORT_V1__;
+        let busy = false;
+        let last = -Infinity;
+        function failure(code) {
+          const error = new Error(code);
+          error.code = code;
+          return error;
+        }
+        function exportArtifact(proposal) {
+          // Admission precedes every await, including Blob encoding. No automatic retry.
+          if (!navigator.userActivation?.isActive)
+            return Promise.reject(failure("ArtifactGestureRequired"));
+          if (
+            !proposal ||
+            Object.keys(proposal).sort().join() !== "blob,format,name" ||
+            !(proposal.blob instanceof Blob) ||
+            !Object.hasOwn(formats, proposal.format) ||
+            typeof proposal.name !== "string" ||
+            !proposal.name ||
+            proposal.name.length > 1024 ||
+            new TextEncoder().encode(proposal.name).length > 1024
+          )
+            return Promise.reject(failure("ArtifactInvalidRequest"));
+          if (!proposal.blob.size || proposal.blob.size > maximum)
+            return Promise.reject(failure("ArtifactTooLargeOrInvalid"));
+          if (busy) return Promise.reject(failure("ArtifactBusy"));
+          if (performance.now() - last < 1000) return Promise.reject(failure("ArtifactCooldown"));
+          busy = true;
+          last = performance.now();
+          let operation;
+          try {
+            if (descriptorPresent) {
+              if (descriptor?.version !== 1 || typeof descriptor.exportArtifact !== "function")
+                throw failure("ArtifactUnavailable");
+              operation = descriptor.exportArtifact(proposal);
+            } else {
+              // Browser only. A download request is not proof of a saved file.
+              const extension = formats[proposal.format];
+              const basename =
+                // eslint-disable-next-line no-control-regex -- File names must replace forbidden control characters.
+                proposal.name
+                  .replace(/[\\/<>:"|?*\u0000-\u001f\u007f]/g, "_")
+                  .replace(/[ .]+$/g, "") || "artifact";
+              const name = basename.toLowerCase().endsWith("." + extension)
+                ? basename
+                : basename + "." + extension;
+              const url = URL.createObjectURL(proposal.blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = name;
+              document.body.append(link);
+              try {
+                link.click();
+              } finally {
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }
+              operation = Promise.resolve({ status: "download-requested", name });
+            }
+          } catch (error) {
+            operation = Promise.reject(error);
+          }
+          return Promise.resolve(operation).finally(() => {
+            busy = false;
+          });
+        }
+        Object.defineProperty(globalThis, "MyKnowledgeExport", {
+          value: Object.freeze({ exportArtifact }),
+          writable: false,
+          configurable: false,
+        });
+      })();
+    </script>
+    <script>
+      (async () => {
+        "use strict";
+        const storage = MyKnowledgeStorage.create({
+          appId: "generated-calculator",
+          schemaVersion: 1,
+        });
+        const amount = document.querySelector("#amount");
+        const mode = document.querySelector("#mode");
+        const enabled = document.querySelector("#enabled");
+        const result = document.querySelector("#result");
+        const status = document.querySelector("#status");
+        const saveButton = document.querySelector("#save");
+        const reloadButton = document.querySelector("#reload");
+        const controls = [amount, mode, enabled];
+        let initialized = false;
+        let timer;
+        let generation = 0;
+
+        function state() {
+          return { amount: Number(amount.value), mode: mode.value, enabled: enabled.checked };
+        }
+        function valid(value) {
+          return (
+            value &&
+            typeof value.amount === "number" &&
+            Number.isFinite(value.amount) &&
+            ["double", "square"].includes(value.mode) &&
+            typeof value.enabled === "boolean"
+          );
+        }
+        function restore(value) {
+          if (!valid(value))
+            throw new Error("保存値の形式が異なります。保存値は変更していません。");
+          amount.value = String(value.amount);
+          mode.value = value.mode;
+          enabled.checked = value.enabled;
+        }
+        function calculate() {
+          const value = state();
+          result.value = !value.enabled
+            ? "無効"
+            : String(value.mode === "double" ? value.amount * 2 : value.amount ** 2);
+        }
+        function failed(error) {
+          status.textContent = "保存できません: " + (error.code || error.message);
+        }
+        async function saveNow() {
+          clearTimeout(timer);
+          if (!initialized) throw new Error("復元に失敗したため保存を停止しています");
+          const currentGeneration = generation;
+          status.textContent = "保存中…";
+          await storage.write(state());
+          await storage.flush();
+          if (generation === currentGeneration) status.textContent = "保存済み";
+        }
+
+        for (const control of controls) control.disabled = true;
+        saveButton.disabled = reloadButton.disabled = true;
+        try {
+          const saved = await storage.read();
+          if (saved !== null) restore(saved);
+          initialized = true;
+          status.textContent = saved === null ? "保存値なし" : "復元済み";
+        } catch (error) {
+          failed(error);
+        } finally {
+          for (const control of controls) control.disabled = false;
+          saveButton.disabled = reloadButton.disabled = !initialized;
+          calculate();
+        }
+
+        for (const control of controls)
+          control.addEventListener("input", () => {
+            generation++;
+            calculate();
+            if (!initialized) return;
+            status.textContent = "未保存";
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              saveNow().catch(failed);
+            }, 100);
+          });
+        saveButton.addEventListener("click", () => {
+          saveNow().catch(failed);
+        });
+        reloadButton.addEventListener("click", async () => {
+          for (const control of controls) control.disabled = true;
+          saveButton.disabled = reloadButton.disabled = true;
+          try {
+            await saveNow();
+            location.reload();
+          } catch (error) {
+            failed(error);
+            for (const control of controls) control.disabled = false;
+            saveButton.disabled = reloadButton.disabled = !initialized;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

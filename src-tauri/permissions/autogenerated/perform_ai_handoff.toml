@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-perform-ai-handoff"
+description = "Enables the perform_ai_handoff command without any pre-configured scope."
+commands.allow = ["perform_ai_handoff"]
+
+[[permission]]
+identifier = "deny-perform-ai-handoff"
+description = "Denies the perform_ai_handoff command without any pre-configured scope."
+commands.deny = ["perform_ai_handoff"]

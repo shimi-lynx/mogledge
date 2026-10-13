@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.ico binary
+
+# Preserve authoritative legal documents byte-for-byte, including upstream CRLF.
+scripts/distribution/materials/** -text

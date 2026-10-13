@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-choose-knowledge-root"
+description = "Enables the choose_knowledge_root command without any pre-configured scope."
+commands.allow = ["choose_knowledge_root"]
+
+[[permission]]
+identifier = "deny-choose-knowledge-root"
+description = "Denies the choose_knowledge_root command without any pre-configured scope."
+commands.deny = ["choose_knowledge_root"]

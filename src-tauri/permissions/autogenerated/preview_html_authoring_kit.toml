@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-preview-html-authoring-kit"
+description = "Enables the preview_html_authoring_kit command without any pre-configured scope."
+commands.allow = ["preview_html_authoring_kit"]
+
+[[permission]]
+identifier = "deny-preview-html-authoring-kit"
+description = "Denies the preview_html_authoring_kit command without any pre-configured scope."
+commands.deny = ["preview_html_authoring_kit"]

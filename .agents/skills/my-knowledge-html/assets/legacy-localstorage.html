@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>変換前の計算機</title>
+  </head>
+  <body>
+    <label>数値 <input id="amount" type="number" value="2" min="0" step="0.5" /></label>
+    <label
+      >計算
+      <select id="mode">
+        <option value="double">2倍</option>
+        <option value="square">2乗</option>
+      </select></label
+    >
+    <label><input id="enabled" type="checkbox" checked /> 計算を有効にする</label>
+    <output id="result"></output>
+    <script>
+      const amount = document.querySelector("#amount");
+      const mode = document.querySelector("#mode");
+      const enabled = document.querySelector("#enabled");
+      const result = document.querySelector("#result");
+      const saved = JSON.parse(localStorage.getItem("legacy-calculator-state"));
+      if (saved) {
+        amount.value = saved.number;
+        mode.value = saved.operation;
+        enabled.checked = saved.active;
+      }
+      function calculate() {
+        result.value = !enabled.checked
+          ? "無効"
+          : String(mode.value === "double" ? Number(amount.value) * 2 : Number(amount.value) ** 2);
+      }
+      for (const control of [amount, mode, enabled])
+        control.addEventListener("input", () => {
+          calculate();
+          localStorage.setItem(
+            "legacy-calculator-state",
+            JSON.stringify({
+              number: Number(amount.value),
+              operation: mode.value,
+              active: enabled.checked,
+            }),
+          );
+        });
+      calculate();
+    </script>
+  </body>
+</html>

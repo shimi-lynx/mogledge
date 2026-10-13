@@ -1,0 +1,65 @@
+name: Binary distribution candidates (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Native platform to build (all runs three jobs)
+        type: choice
+        options: [windows-x64, macos-arm64, macos-x64, all]
+        default: windows-x64
+      cost_confirmed:
+        description: Account plan, remaining allowance, budget and Actions policy checked; execution approved
+        type: boolean
+        default: false
+        required: true
+      license_reviewed:
+        description: Third-party license/source obligations for this source revision reviewed
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: binary-distribution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: inputs.cost_confirmed && inputs.license_reviewed
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["windows-x64","macos-arm64","macos-x64"]' || format('["{0}"]', inputs.platform)) }}
+    runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || matrix.platform == 'macos-arm64' && 'macos-15' || 'macos-15-intel' }}
+    env:
+      BUILD_TARGET: ${{ matrix.platform == 'windows-x64' && 'x86_64-pc-windows-msvc' || matrix.platform == 'macos-arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.11.0
+      - name: Install pinned toolchain and dependencies
+        shell: bash
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup target add "$BUILD_TARGET" --toolchain 1.99.0
+          npm ci
+      - name: Test distribution gates
+        run: node --test scripts/distribution/distribution.test.mjs
+      - name: Build, verify and package
+        run: node scripts/distribution/build.mjs ${{ matrix.platform }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: success()
+        with:
+          name: Mogledge-${{ matrix.platform }}-${{ github.sha }}
+          path: .tools/distribution/output/*
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0

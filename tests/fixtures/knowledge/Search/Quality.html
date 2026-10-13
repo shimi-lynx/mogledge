@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>日本語検索品質</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      /* 非索引StyleSentinel */
+    </style>
+  </head>
+  <body>
+    <h1>日本語検索品質と安全な引用</h1>
+    <p>検索品質 &lt;img src="invalid" onerror="window.searchSnippetExecuted=true"&gt;</p>
+    <p>東京都の計画。ＲＵＳＴ、情報検索、SQLite の資料です。</p>
+    <p>検索構文ではなく、そのままの文字として NEAR(foo)、x:y、a"b、%_ を扱います。</p>
+    <label>保持する入力 <input id="retained-search-input" value="initial" /></label>
+    <input type="password" value="非索引InputSentinel" />
+    <textarea>非索引TextareaSentinel</textarea>
+    <template><p>非索引TemplateSentinel</p></template>
+    <!-- 非索引CommentSentinel -->
+    <script>
+      window.searchExcludedScript = "非索引ScriptSentinel";
+    </script>
+  </body>
+</html>

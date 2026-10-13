@@ -1,0 +1,15 @@
+node_modules/
+dist/
+src-tauri/target/
+tests/backend/target/
+src-tauri/gen/
+.tools/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+test-results/
+.DS_Store
+logs/
+/AGENTS.local.md

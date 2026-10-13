@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-document-state-recovery"
+description = "Enables the get_document_state_recovery command without any pre-configured scope."
+commands.allow = ["get_document_state_recovery"]
+
+[[permission]]
+identifier = "deny-get-document-state-recovery"
+description = "Denies the get_document_state_recovery command without any pre-configured scope."
+commands.deny = ["get_document_state_recovery"]

@@ -1,0 +1,95 @@
+.quick-open {
+  color-scheme: var(--surface-scheme);
+  color: var(--surface-text);
+  background: var(--surface-background);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 0;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  margin: min(15vh, 80px) auto auto;
+  overflow: hidden;
+}
+.quick-open::backdrop {
+  background: var(--surface-backdrop);
+}
+.quick-open-input-row {
+  display: flex;
+  padding: 10px;
+  gap: 8px;
+}
+.quick-open input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-field);
+  color: var(--surface-field-text);
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 10px;
+  font: inherit;
+}
+.quick-open input:focus-visible {
+  outline: 2px solid var(--surface-focus);
+}
+.quick-open button {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 8px;
+}
+.quick-open ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: min(55vh, 440px);
+  overflow: auto;
+}
+.quick-open li {
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.quick-open li[aria-selected="true"],
+.quick-open li:hover:not([aria-disabled="true"]) {
+  background: var(--surface-selected);
+  color: var(--surface-selected-text);
+}
+.quick-open li span,
+.quick-open li small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-open li small {
+  color: var(--surface-muted);
+  margin-top: 3px;
+}
+.quick-open p {
+  margin: 0;
+  border-top: 1px solid var(--surface-border);
+  padding: 8px 14px;
+  font-size: 12px;
+}
+@media (forced-colors: active) {
+  .quick-open {
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+  .quick-open input {
+    background: Field;
+    color: FieldText;
+    border-color: FieldText;
+  }
+  .quick-open li small {
+    color: CanvasText;
+  }
+  .quick-open li[aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+  .quick-open li[aria-selected="true"] small,
+  .quick-open li:hover:not([aria-disabled="true"]) small {
+    color: HighlightText;
+  }
+}

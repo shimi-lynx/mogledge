@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-validate-workspace-folder"
+description = "Enables the validate_workspace_folder command without any pre-configured scope."
+commands.allow = ["validate_workspace_folder"]
+
+[[permission]]
+identifier = "deny-validate-workspace-folder"
+description = "Denies the validate_workspace_folder command without any pre-configured scope."
+commands.deny = ["validate_workspace_folder"]

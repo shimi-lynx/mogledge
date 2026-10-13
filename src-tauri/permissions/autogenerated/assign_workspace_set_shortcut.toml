@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assign-workspace-set-shortcut"
+description = "Enables the assign_workspace_set_shortcut command without any pre-configured scope."
+commands.allow = ["assign_workspace_set_shortcut"]
+
+[[permission]]
+identifier = "deny-assign-workspace-set-shortcut"
+description = "Denies the assign_workspace_set_shortcut command without any pre-configured scope."
+commands.deny = ["assign_workspace_set_shortcut"]

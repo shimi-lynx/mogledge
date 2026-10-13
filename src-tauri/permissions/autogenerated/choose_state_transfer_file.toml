@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-choose-state-transfer-file"
+description = "Enables the choose_state_transfer_file command without any pre-configured scope."
+commands.allow = ["choose_state_transfer_file"]
+
+[[permission]]
+identifier = "deny-choose-state-transfer-file"
+description = "Denies the choose_state_transfer_file command without any pre-configured scope."
+commands.deny = ["choose_state_transfer_file"]

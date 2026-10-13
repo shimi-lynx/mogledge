@@ -1,0 +1,25 @@
+REVIEW DRAFT: KNOWN MIT NOTICE SET
+
+Packages: block2 0.6.2; objc2 0.6.4; objc2-encode 4.1.0;
+objc2-foundation 0.3.2.
+
+Keep the full, unchanged LICENSE-MIT-upstream.txt and
+MIT-historical-reference.txt retained beside each package:
+
+Copyright 2026 Mads Marquart
+Copyright (c) Steven Sheldon
+
+objc2's identified Rust OS-version implementation also retains
+RUST-LICENSE-MIT, RUST-COPYRIGHT-reference and RUST-REUSE-reference.toml:
+
+Copyright (c) The Rust Project Contributors
+
+This summary accompanies the full retained permission/license texts; it does
+not replace them. Names and years above reproduce existing upstream notices.
+The source-to-notice evidence is in scripts/distribution/mac-mit-notice-map.json and
+docs/mac-mit-notice-map.md. Additional applicable notices found in actual
+payload review must be preserved.
+
+This proposal does not grant rights to separately owned Apple SDK material,
+determine all copyright holders, certify actual binary contents or approve
+distribution. The existing mandatory package review remains required.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mutate-tree"
+description = "Enables the mutate_tree command without any pre-configured scope."
+commands.allow = ["mutate_tree"]
+
+[[permission]]
+identifier = "deny-mutate-tree"
+description = "Denies the mutate_tree command without any pre-configured scope."
+commands.deny = ["mutate_tree"]

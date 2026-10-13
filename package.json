@@ -1,0 +1,49 @@
+{
+  "name": "my-knowledge",
+  "version": "0.8.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp check && vp build",
+    "test": "vp test",
+    "tauri": "tauri",
+    "test:e2e": "wdio run tests/e2e/wdio.conf.ts",
+    "test:browser": "playwright test",
+    "bench": "node scripts/benchmark.mjs",
+    "test:production": "node scripts/test-production.mjs",
+    "check": "vp check",
+    "fmt": "vp fmt",
+    "test:ui": "playwright test --config playwright.ui.config.ts",
+    "test:storage": "node --test tests/storage/*.test.mjs",
+    "test:storage:browser": "playwright test --config playwright.storage.config.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tauri-apps/cli": "2.12.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "@wdio/cli": "^9.0.0",
+    "@wdio/globals": "^9.0.0",
+    "@wdio/local-runner": "^9.0.0",
+    "@wdio/mocha-framework": "^9.0.0",
+    "@wdio/spec-reporter": "^9.0.0",
+    "@wdio/tauri-service": "1.4.0",
+    "jsdom": "^27.0.0",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vite-plus": "1.0.0"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vitest": "5.0.1"
+  },
+  "packageManager": "npm@10.9.3"
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-validate-document-navigation"
+description = "Enables the validate_document_navigation command without any pre-configured scope."
+commands.allow = ["validate_document_navigation"]
+
+[[permission]]
+identifier = "deny-validate-document-navigation"
+description = "Denies the validate_document_navigation command without any pre-configured scope."
+commands.deny = ["validate_document_navigation"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-html-artifact"
+description = "Enables the save_html_artifact command without any pre-configured scope."
+commands.allow = ["save_html_artifact"]
+
+[[permission]]
+identifier = "deny-save-html-artifact"
+description = "Denies the save_html_artifact command without any pre-configured scope."
+commands.deny = ["save_html_artifact"]

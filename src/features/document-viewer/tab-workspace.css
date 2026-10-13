@@ -1,0 +1,95 @@
+.tab-strip .tab-group {
+  flex-basis: 0;
+  align-items: stretch;
+}
+.tab-group-drop-target {
+  flex: 1 0 24px;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  color: #607468;
+  font-size: 11px;
+  padding: 0 4px;
+}
+.tab-strip[data-dragging="true"] .tab-group-drop-target {
+  border: 1px dashed #a3b7ae;
+}
+.tab-split-drop-target {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 130px;
+  max-width: 40%;
+  white-space: nowrap;
+  border: 1px dashed #a3b7ae;
+  color: #36594a;
+  background: #f2f6f4;
+  font-size: 11px;
+  margin-left: 4px;
+}
+.tab-group-drop-target.drop-active,
+.tab-split-drop-target.drop-active {
+  background: #d4eadf;
+  border-color: #2e8064;
+  box-shadow: inset 0 0 0 1px #2e8064;
+}
+.tab-context-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 230px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--surface-border);
+  border-radius: 7px;
+  background: var(--surface-background);
+  color: var(--surface-text);
+  box-shadow: 0 5px 18px var(--surface-shadow);
+}
+.tab-context-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 6px 8px;
+  max-width: 300px;
+  color: var(--surface-muted);
+  font-size: 11px;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 3px;
+}
+.tab-context-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  padding: 8px;
+  font-size: 12px;
+}
+.tab-context-menu button:hover:not(:disabled),
+.tab-context-menu button:focus-visible {
+  background: var(--surface-hover);
+  color: var(--surface-selected-text);
+  outline: 2px solid var(--surface-focus);
+  outline-offset: -2px;
+}
+.tab-context-menu button:disabled {
+  opacity: 1;
+  color: var(--surface-disabled);
+}
+
+.tab-zoom {
+  flex-shrink: 0;
+  margin-left: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}

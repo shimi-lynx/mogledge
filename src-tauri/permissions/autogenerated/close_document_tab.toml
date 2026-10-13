@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-document-tab"
+description = "Enables the close_document_tab command without any pre-configured scope."
+commands.allow = ["close_document_tab"]
+
+[[permission]]
+identifier = "deny-close-document-tab"
+description = "Denies the close_document_tab command without any pre-configured scope."
+commands.deny = ["close_document_tab"]

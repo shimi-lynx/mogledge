@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Mogledge — Features and usage</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #f7f9fc;
+        --text: #263645;
+        --muted: #526577;
+        --border: #8c9aa8;
+        --selected: #d7ece3;
+        --focus: #287b65;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --background: #25282c;
+          --text: #eef0f3;
+          --muted: #b5bdc7;
+          --border: #69737e;
+          --selected: #32494b;
+          --focus: #9bd9c6;
+        }
+      }
+      @media (forced-colors: active) {
+        :root {
+          --background: Canvas;
+          --text: CanvasText;
+          --muted: CanvasText;
+          --border: ButtonText;
+          --selected: ButtonFace;
+          --focus: Highlight;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--background);
+        color: var(--text);
+        font:
+          14px/1.7 "Segoe UI",
+          "Yu Gothic UI",
+          system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 960px;
+        height: 100%;
+        margin: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: 20px;
+        line-height: 1.4;
+      }
+      fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+        min-height: 0;
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto minmax(0, 1fr);
+        column-gap: 8px;
+      }
+      legend,
+      .help-choice {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      .help-label {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        text-align: center;
+        cursor: pointer;
+      }
+      .help-choice:checked + .help-label {
+        background: var(--selected);
+        font-weight: 600;
+      }
+      .help-choice:focus-visible + .help-label {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .help-panel {
+        display: none;
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-height: 0;
+        overflow: auto;
+        padding: 8px 4px 16px 0;
+        margin-top: 16px;
+      }
+      #help-features:checked ~ #help-features-panel,
+      #help-usage:checked ~ #help-usage-panel,
+      #help-shortcuts:checked ~ #help-shortcuts-panel {
+        display: block;
+      }
+      h2 {
+        margin: 16px 0 6px;
+        font-size: 16px;
+        color: var(--focus);
+      }
+      h2:first-child {
+        margin-top: 0;
+      }
+      p {
+        margin: 6px 0 12px;
+      }
+      ul,
+      ol {
+        margin: 6px 0 16px;
+        padding-left: 24px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: fixed;
+        font-size: 12px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+      }
+      th:first-child {
+        width: 38%;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 420px) {
+        main {
+          padding: 12px;
+        }
+        h1 {
+          font-size: 18px;
+        }
+        .help-label {
+          padding: 6px 2px;
+          font-size: 12px;
+        }
+        th,
+        td {
+          padding: 6px 3px;
+        }
+      }
+      @media (max-width: 260px) {
+        fieldset {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: repeat(3, auto) minmax(0, 1fr);
+          row-gap: 6px;
+        }
+        .help-label {
+          text-align: left;
+          padding: 4px 8px;
+        }
+        .help-panel {
+          grid-row: 4;
+          margin-top: 8px;
+        }
+        table,
+        tbody,
+        tr,
+        th,
+        td {
+          display: block;
+        }
+        thead {
+          display: none;
+        }
+        tr {
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border);
+        }
+        th,
+        td {
+          padding: 2px 0;
+          border: 0;
+        }
+        th:first-child {
+          width: auto;
+        }
+        td::before {
+          content: attr(data-platform) ": ";
+          color: var(--muted);
+        }
+      }
+
+      .ai-guide {
+        padding: 18px 20px;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--focus);
+        border-radius: 8px;
+        background: var(--selected);
+        margin-bottom: 24px;
+      }
+      .ai-guide h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .quick-steps {
+        margin-bottom: 12px;
+      }
+      details {
+        margin-top: 12px;
+        border-top: 1px solid var(--border);
+        padding-top: 10px;
+      }
+      summary {
+        color: var(--focus);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      summary:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+      .folder-note {
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .overview {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .feature-card {
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        min-width: 0;
+      }
+      .feature-card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .feature-card p:last-child,
+      .feature-card ul:last-child,
+      details ul:last-child {
+        margin-bottom: 0;
+      }
+      .help-panel {
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 620px) {
+        .overview {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .ai-guide,
+        .feature-card {
+          padding: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Features and usage</h1>
+      <fieldset>
+        <legend>Choose a section</legend>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-features"
+          checked
+          aria-controls="help-features-panel"
+        />
+        <label class="help-label" for="help-features">Features</label>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-usage"
+          aria-controls="help-usage-panel"
+        />
+        <label class="help-label" for="help-usage">Usage</label>
+        <input
+          class="help-choice"
+          type="radio"
+          name="help-section"
+          id="help-shortcuts"
+          aria-controls="help-shortcuts-panel"
+        />
+        <label class="help-label" for="help-shortcuts">Shortcuts</label>
+        <section
+          class="help-panel"
+          id="help-features-panel"
+          aria-label="Features explained"
+          tabindex="0"
+        >
+          <div class="ai-guide">
+            <p class="eyebrow">Start here</p>
+            <h2>Send to AI</h2>
+            <p>
+              Ask your AI to create or improve an HTML app, explain a document, or work with a
+              folder.
+            </p>
+            <ol class="quick-steps">
+              <li>
+                <strong>Choose the target.</strong> Right-click an HTML file or folder and choose
+                “Send to AI”.
+              </li>
+              <li>
+                <strong>Choose your AI and add a request.</strong> For example: “Make a weekly
+                planner that saves my input.” A blank request is also allowed.
+              </li>
+              <li>
+                <strong>Open the draft or copy the request.</strong> Check the working directory and
+                full draft in your AI tool, then send it there.
+              </li>
+            </ol>
+            <p class="note">HTML content and saved input are not sent automatically.</p>
+            <p class="folder-note">
+              <strong>Create and edit in a local folder.</strong> Use an ordinary local folder
+              outside OneDrive sync. File and folder operations inside OneDrive sync folders may
+              fail.
+            </p>
+            <details>
+              <summary>Other ways to start and what is passed</summary>
+              <ul>
+                <li>
+                  For the whole knowledge folder, right-click the folder selector. You can also use
+                  the AI button on a tree row, or Ctrl+Shift+A on Windows / Cmd+Shift+A on macOS for
+                  the active document.
+                </li>
+                <li>
+                  ChatGPT / Codex, Claude Code and Claude Code CLI open an unsent draft. The target
+                  tool must be installed and its link handler registered.
+                </li>
+                <li>
+                  A file draft includes its path and uses its parent folder as the working
+                  directory. A folder draft uses that folder as the working directory; its text
+                  contains only your request.
+                </li>
+                <li>
+                  “Copy request” includes the selected path and your request. Codex CLI uses this
+                  copy: choose its working directory, start Codex, paste into its input, and check
+                  before sending. Paste the request into the AI, not into a shell.
+                </li>
+                <li>
+                  If the AI app does not open, copy the request and pass it manually. Mogledge does
+                  not change your AI tool’s permissions or approval settings.
+                </li>
+              </ul>
+            </details>
+          </div>
+          <h2>What else you can do</h2>
+          <div class="overview">
+            <div class="feature-card">
+              <h3>Switch between HTML apps quickly</h3>
+              <p>
+                Mogledge opens HTML files from your knowledge folder in tabs or in two columns.
+                Switching, reordering or moving tabs, and opening or closing the sidebar keeps
+                input, canvas and JavaScript state. Opening the same HTML in both columns creates
+                separate views with independent state.
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>Open by name, full text or favorites</h3>
+              <ul>
+                <li>
+                  <strong>Quick Open:</strong> find by name or relative path; up to 20 matches.
+                </li>
+                <li>
+                  <strong>Full-text search:</strong> find words inside HTML; 20 results per page,
+                  with a folder filter.
+                </li>
+                <li>
+                  <strong>Favorites:</strong> keep up to 50 documents and folders for each knowledge
+                  folder, including while searching.
+                </li>
+                <li>
+                  <strong>Recent:</strong> use the clock button for up to 50 recent documents. A
+                  favorite folder takes you to that location in the tree.
+                </li>
+              </ul>
+            </div>
+            <div class="feature-card">
+              <h3>Save a workspace</h3>
+              <p>
+                Save up to 10 workspace sets with 30 documents each, including columns, tab order,
+                selection and zoom. Restoring a set keeps existing views and loads new, unselected
+                documents only when you select them. Input values are not part of a workspace set.
+              </p>
+              <details>
+                <summary>Assign a workspace shortcut</summary>
+                <p>
+                  Assign Ctrl/Cmd+Shift+1–0 to sets in the manager; 0 is slot 10. The ten slots
+                  belong to this root and retain stable set IDs when names or order change.
+                  Unassigned keys do nothing; deleting a set clears its assignment without assigning
+                  another set. These shortcuts work within the app and give priority to HTML
+                  shortcuts, inputs, IME and dialogs.
+                </p>
+              </details>
+            </div>
+            <div class="feature-card">
+              <h3>History and zoom</h3>
+              <p>
+                Back and Forward keep up to 32 entries for each column. Reopen up to 10 recently
+                closed documents during the current session. Each document can use 50–200% zoom
+                without changing the size of the app controls.
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>Manage files and folders</h3>
+              <p>
+                Use the tree to create HTML files and folders, rename, reorder, move, send to the
+                trash, copy paths or open with your OS. Edit HTML content with your external AI tool
+                or editor.
+              </p>
+              <p class="folder-note">
+                <strong>Create and edit in a local folder.</strong> Use an ordinary local folder
+                outside OneDrive sync. File and folder operations inside OneDrive sync folders may
+                fail.
+              </p>
+            </div>
+            <div class="feature-card">
+              <h3>Manage saved input</h3>
+              <p>
+                HTML apps that use the storage API can restore their saved input. Exporting or
+                importing input asks you to choose files and any required backup, then confirm
+                replacement and stopping or reloading views. Check the contents of the plain-text
+                JSON and store it safely.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section class="help-panel" id="help-usage-panel" aria-label="Usage explained" tabindex="0">
+          <div class="ai-guide">
+            <p class="eyebrow">Start here</p>
+            <h2>Send to AI</h2>
+            <p>
+              Ask your AI to create or improve an HTML app, explain a document, or work with a
+              folder.
+            </p>
+            <ol class="quick-steps">
+              <li>
+                <strong>Choose the target.</strong> Right-click an HTML file or folder and choose
+                “Send to AI”.
+              </li>
+              <li>
+                <strong>Choose your AI and add a request.</strong> For example: “Make a weekly
+                planner that saves my input.” A blank request is also allowed.
+              </li>
+              <li>
+                <strong>Open the draft or copy the request.</strong> Check the working directory and
+                full draft in your AI tool, then send it there.
+              </li>
+            </ol>
+            <p class="note">HTML content and saved input are not sent automatically.</p>
+            <p class="folder-note">
+              <strong>Create and edit in a local folder.</strong> Use an ordinary local folder
+              outside OneDrive sync. File and folder operations inside OneDrive sync folders may
+              fail.
+            </p>
+            <details>
+              <summary>Other ways to start and what is passed</summary>
+              <ul>
+                <li>
+                  For the whole knowledge folder, right-click the folder selector. You can also use
+                  the AI button on a tree row, or Ctrl+Shift+A on Windows / Cmd+Shift+A on macOS for
+                  the active document.
+                </li>
+                <li>
+                  ChatGPT / Codex, Claude Code and Claude Code CLI open an unsent draft. The target
+                  tool must be installed and its link handler registered.
+                </li>
+                <li>
+                  A file draft includes its path and uses its parent folder as the working
+                  directory. A folder draft uses that folder as the working directory; its text
+                  contains only your request.
+                </li>
+                <li>
+                  “Copy request” includes the selected path and your request. Codex CLI uses this
+                  copy: choose its working directory, start Codex, paste into its input, and check
+                  before sending. Paste the request into the AI, not into a shell.
+                </li>
+                <li>
+                  If the AI app does not open, copy the request and pass it manually. Mogledge does
+                  not change your AI tool’s permissions or approval settings.
+                </li>
+              </ul>
+            </details>
+          </div>
+          <h2>Open a document</h2>
+          <ol>
+            <li>
+              Choose a knowledge folder from the sidebar. Edit HTML files with your external AI tool
+              or editor.
+            </li>
+            <li>
+              Select HTML from the tree, Quick Open or full-text search. Return to Files when you do
+              not need search.
+            </li>
+            <li>
+              Right-click a tree item or tab to open it in the left or right column. Drag tabs to
+              reorder them or move them between columns.
+            </li>
+          </ol>
+          <h2>The sidebar and tabs</h2>
+          <p>
+            The top-left icons toggle the sidebar, Files and Search. Drag the divider to resize the
+            sidebar, or focus it and use the arrow, Home and End keys. On a narrow window the
+            sidebar covers the document area.
+          </p>
+          <p>
+            Favorites appear below the creation buttons; scroll inside the frame for more entries.
+            The workspace sets icon in the title bar opens saving and restoring sets. The rightmost
+            help icon selects this same tab. Close a tab with its × button, a middle click or the
+            close shortcut while the tab is focused.
+          </p>
+          <p>
+            Open Settings at the bottom of the sidebar and choose “Select display language” to
+            switch between Japanese and English. English is the first-launch default. Your choice
+            applies immediately and is kept for the next launch. The version appears at the bottom
+            left.
+          </p>
+          <h2>Create and move files</h2>
+          <p class="folder-note">
+            <strong>Create and edit in a local folder.</strong> Use an ordinary local folder outside
+            OneDrive sync. File and folder operations inside OneDrive sync folders may fail.
+          </p>
+          <p>
+            The creation buttons are HTML, folder and root folder. Choose destinations from the
+            folder list and type to filter relative paths. Typed text is a filter, not an arbitrary
+            path to write.
+          </p>
+          <h2>Find words inside HTML</h2>
+          <ul>
+            <li>
+              Open “Search options” beside the query. Choose AND/OR and a folder, including its
+              subfolders. The options and open state are kept for the next launch.
+            </li>
+            <li>
+              “Reset search conditions” restores AND and the entire knowledge folder. It keeps the
+              query and the options’ open state.
+            </li>
+            <li>
+              The × inside the query clears only the query and results. Escape clears the query
+              first, then returns to Files when it is empty.
+            </li>
+            <li>
+              Right-click a folder and choose “Search in this folder”. Clear the scope with × to
+              search the entire knowledge folder.
+            </li>
+          </ul>
+          <h2>Updates and saving</h2>
+          <p>
+            Saving externally updates the visible document. Hidden tabs keep their running state and
+            show an update marker. “Reset state and reload” resets input, canvas and JavaScript
+            state.
+          </p>
+          <p>
+            The storage API saves input, not the entire JavaScript or canvas state. Complete saving
+            within the document before resetting or quitting. Check relative links with your
+            external editor after renaming or moving HTML files.
+          </p>
+          <p>
+            Create, modify and trash files in ordinary local folders. A failed trash operation never
+            falls back to permanent deletion. Restore files through your OS trash.
+          </p>
+          <p>
+            For OneDrive, browse items already kept on the device. Use your OS to keep online-only
+            items locally before opening them. Windows requires WebView2; macOS requires version 12
+            or later.
+          </p>
+        </section>
+        <section
+          class="help-panel"
+          id="help-shortcuts-panel"
+          aria-label="Shortcuts explained"
+          tabindex="0"
+        >
+          <h2>Main shortcuts</h2>
+          <p>
+            Ctrl+W / Cmd+W works from app controls and unhandled HTML focus. Editing, IME, dialogs
+            and HTML cancellation take priority. Holding the key closes only one tab; the last tab
+            never closes the app.
+          </p>
+          <table role="table">
+            <thead>
+              <tr role="row">
+                <th scope="col" role="columnheader">Action</th>
+                <th scope="col" role="columnheader">Windows</th>
+                <th scope="col" role="columnheader">macOS</th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              <tr role="row">
+                <th scope="row" role="rowheader">Send to AI</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+A</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+A</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Open by name</th>
+                <td role="cell" data-platform="Windows">Ctrl+P</td>
+                <td role="cell" data-platform="macOS">Cmd+P</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Toggle sidebar</th>
+                <td role="cell" data-platform="Windows">Ctrl+B</td>
+                <td role="cell" data-platform="macOS">Cmd+B</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">
+                  Restore an assigned workspace set (0 is slot 10)
+                </th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+1–0</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+1–0</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Open Settings</th>
+                <td role="cell" data-platform="Windows">Ctrl+,</td>
+                <td role="cell" data-platform="macOS">Cmd+,</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Show Files</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+E</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+E</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Focus document search</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+F</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+F</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Create HTML</th>
+                <td role="cell" data-platform="Windows">Ctrl+N</td>
+                <td role="cell" data-platform="macOS">Cmd+N</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Create folder</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+N</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+N</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Rename HTML</th>
+                <td role="cell" data-platform="Windows">F2</td>
+                <td role="cell" data-platform="macOS">Return</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Move to trash</th>
+                <td role="cell" data-platform="Windows">Delete / Backspace</td>
+                <td role="cell" data-platform="macOS">Cmd+Backspace</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Next / previous tab</th>
+                <td role="cell" data-platform="Windows">Ctrl+Tab / Ctrl+Shift+Tab</td>
+                <td role="cell" data-platform="macOS">Ctrl+Tab / Ctrl+Shift+Tab</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Close current tab in active column</th>
+                <td role="cell" data-platform="Windows">Ctrl+W</td>
+                <td role="cell" data-platform="macOS">Cmd+W</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Reopen closed document</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+T</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+T</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Move to left / right column</th>
+                <td role="cell" data-platform="Windows">Ctrl+Shift+← / →</td>
+                <td role="cell" data-platform="macOS">Cmd+Shift+← / →</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Back / Forward</th>
+                <td role="cell" data-platform="Windows">Alt+← / →</td>
+                <td role="cell" data-platform="macOS">Cmd+[ / ]</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Zoom in / out / reset</th>
+                <td role="cell" data-platform="Windows">Ctrl and + / − / 0</td>
+                <td role="cell" data-platform="macOS">Cmd and + / − / 0</td>
+              </tr>
+              <tr role="row">
+                <th scope="row" role="rowheader">Context menu</th>
+                <td role="cell" data-platform="Windows">Shift+F10</td>
+                <td role="cell" data-platform="macOS">Shift+F10</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Focus the document or tab for document actions, and the tree for file actions. Text
+            inputs, IME composition and confirmation dialogs take priority. The app respects keys
+            canceled by the HTML itself.
+          </p>
+          <h2>Switch help sections</h2>
+          <p>
+            Tab to the section choices, then use the arrow keys or Space to select one. Tab again to
+            focus the visible content and scroll with arrow keys, Page Up or Page Down.
+          </p>
+        </section>
+      </fieldset>
+    </main>
+  </body>
+</html>

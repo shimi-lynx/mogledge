@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-document-favorite"
+description = "Enables the set_document_favorite command without any pre-configured scope."
+commands.allow = ["set_document_favorite"]
+
+[[permission]]
+identifier = "deny-set-document-favorite"
+description = "Denies the set_document_favorite command without any pre-configured scope."
+commands.deny = ["set_document_favorite"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-capture-workspace-set"
+description = "Enables the capture_workspace_set command without any pre-configured scope."
+commands.allow = ["capture_workspace_set"]
+
+[[permission]]
+identifier = "deny-capture-workspace-set"
+description = "Denies the capture_workspace_set command without any pre-configured scope."
+commands.deny = ["capture_workspace_set"]

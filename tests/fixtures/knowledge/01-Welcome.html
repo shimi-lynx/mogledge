@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><title>Welcome</title>
+  <style>
+    body {
+      font:
+        16px/1.8 "Segoe UI",
+        sans-serif;
+      color: #23433b;
+      margin: 0;
+      padding: 56px;
+      background: #f6faf7;
+    }
+    small {
+      letter-spacing: 3px;
+      color: #7c998f;
+    }
+    h1 {
+      font-size: 38px;
+      font-weight: 500;
+    }
+    section {
+      padding: 24px;
+      background: white;
+      border: 1px solid #dce9e1;
+      border-radius: 12px;
+    }
+    input {
+      width: 100%;
+    }
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: #267d68;
+      color: white;
+      padding: 10px 18px;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 540px;
+      border: 1px solid #e1eee7;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    code {
+      color: #267d68;
+    }
+  </style>
+  <small>MY KNOWLEDGE / INTERACTIVE DOCUMENT</small>
+  <h1>知識を、動かしてみる。</h1>
+  <p>このページはReactではなく、knowledge内のHTMLとして動いています。</p>
+  <section>
+    <label
+      >振幅 <output id="value">35</output
+      ><input id="amplitude" type="range" min="5" max="90" value="35" /></label
+    ><canvas id="wave" width="540" height="220"></canvas> <button id="reset">リセット</button>
+    <p>外部エディタやAIでこのHTMLを保存すると、自動で再読み込みされます。</p>
+  </section>
+  <script>
+    const canvas = document.querySelector("#wave"),
+      ctx = canvas.getContext("2d"),
+      range = document.querySelector("#amplitude");
+    function draw() {
+      document.querySelector("#value").value = range.value;
+      ctx.clearRect(0, 0, 540, 220);
+      ctx.strokeStyle = "#31896d";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = 0; x < 540; x++) {
+        const y = 110 + Math.sin(x / 35) * Number(range.value);
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    range.addEventListener("input", draw);
+    document.querySelector("#reset").onclick = () => {
+      range.value = 35;
+      draw();
+    };
+    draw();
+  </script>
+</html>

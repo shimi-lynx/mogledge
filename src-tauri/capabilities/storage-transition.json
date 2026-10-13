@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "storage-transition",
+  "description": "Standalone stopped-profile confirmation UI only; HTML and the normal main window have no migration authority.",
+  "local": true,
+  "webviews": ["storage-transition"],
+  "permissions": ["allow-storage-transition-request", "allow-storage-transition-pick-directory"]
+}

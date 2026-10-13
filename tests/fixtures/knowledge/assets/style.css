@@ -1,0 +1,19 @@
+body {
+  background: rgb(246, 250, 247);
+  font:
+    16px/1.8 "Segoe UI",
+    sans-serif;
+  color: #25463a;
+  padding: 32px;
+}
+label {
+  display: block;
+}
+button {
+  padding: 8px 20px;
+}
+canvas {
+  display: block;
+  margin-top: 20px;
+  border: 1px solid #abc;
+}

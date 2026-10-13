@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-perform-root-action"
+description = "Enables the perform_root_action command without any pre-configured scope."
+commands.allow = ["perform_root_action"]
+
+[[permission]]
+identifier = "deny-perform-root-action"
+description = "Denies the perform_root_action command without any pre-configured scope."
+commands.deny = ["perform_root_action"]

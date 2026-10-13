@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-html-authoring-enabled"
+description = "Enables the set_html_authoring_enabled command without any pre-configured scope."
+commands.allow = ["set_html_authoring_enabled"]
+
+[[permission]]
+identifier = "deny-set-html-authoring-enabled"
+description = "Denies the set_html_authoring_enabled command without any pre-configured scope."
+commands.deny = ["set_html_authoring_enabled"]

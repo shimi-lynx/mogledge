@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-workspace-set"
+description = "Enables the resolve_workspace_set command without any pre-configured scope."
+commands.allow = ["resolve_workspace_set"]
+
+[[permission]]
+identifier = "deny-resolve-workspace-set"
+description = "Denies the resolve_workspace_set command without any pre-configured scope."
+commands.deny = ["resolve_workspace_set"]
