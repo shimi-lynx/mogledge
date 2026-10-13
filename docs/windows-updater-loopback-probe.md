@@ -67,6 +67,34 @@ paths before writing synthetic inputs. Preserve the ordinary app/process,
 shortcuts, login registration and all user data. Updater signing is distinct from
 Authenticode; report OS protection prompts without bypassing them.
 
+Run baseline installation, registration checks and application launch in the same
+unelevated user desktop environment. A launcher can inherit a separate registry
+view even when Windows reports no package identity. Use the existing Explorer
+desktop for all three steps and verify its actual results; a package-status check
+alone does not establish a shared environment. Do not change privileges, ACLs or
+security settings to reconcile different views.
+
+Before applying an update, confirm the QA identifier and actual executable
+version/hash, then compare its parent directory with both the default value of
+`HKCU\Software\Mogledge QA\MogledgeUpdaterQA` and `InstallLocation` under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\MogledgeUpdaterQA`.
+Read these keys in the same desktop environment as the running QA app. Both must
+resolve to the confirmed custom directory. The pinned updater does not supply the
+running directory as an NSIS `/D` argument; the installer restores its previous
+location from that product registry key and otherwise uses its default directory.
+
+If a probe already installed elsewhere, preserve that failure state before a
+retest. Save synthetic inputs and normally quit every QA instance. Back up QA
+settings, document state, synthetic files and both installed QA directories to a
+new private location, recording hashes and the original QA registration. Copy a
+SQLite database only after all QA processes have exited, or use its backup API;
+an arbitrary live copy is not a verified backup. Refuse baseline installation
+while any QA instance remains running, and verify the backup before proceeding.
+Use overwrite/update mode at the reviewed custom directory to retain the QA
+profile; preserve the other installed copy and all original evidence. Reuse the
+unchanged verified target artifact and signature. A procedure correction alone
+does not require rebuilding or resigning that target.
+
 Put only the real target installer and minimal signed manifest in `serve/`.
 The manifest's version is `0.8.0`; its Windows URL is the artifact above and its
 signature is the actual `.sig` contents. The local server binds only 127.0.0.1,
@@ -123,3 +151,29 @@ The corrected QA enrollment passed an app-crate regression using the real
 `generate_context!` output: the packaging field is elided while the compiled
 enrollment and signed loopback policy are retained. App fmt and QA strict Clippy
 also passed. This regression does not replace the next installed launch probe.
+
+The corrected baseline subsequently completed a signed Native download and
+automatic relaunch to 0.8.0. The synthetic root and saved input survived, but the
+target launched from the default directory while the custom-directory baseline
+remained 0.7.99. Read-only comparisons then found different QA registry values
+between the installation launch environment and the existing Explorer desktop.
+This establishes an environment mismatch and explains the installer fallback;
+the subsequent comparison installed and launched the retained baseline through
+the same existing Explorer desktop, then applied the unchanged signed target.
+The 0.8.0 process and both registry locations retained the original custom path,
+and the executable matched the retained target hash. The earlier default-path
+copy and the pre-retest state backup were preserved.
+
+Before baseline installation, all QA processes had exited normally. The private
+state backup passed retained-file hash checks, SQLite integrity checks and a
+restore to a separate directory using the SQLite backup API. After the update, a
+read-only connection to the dedicated QA database produced a consistent snapshot
+through that API. The copied database retained the synthetic app's input
+`amount=7`, `mode=double`, `enabled=true` and revision; its calculation gives 14.
+The synthetic root was retained. These checks establish saved-state preservation,
+not observed reopening of the document tab or rendered input restoration.
+
+The normal update's custom-path comparison passed. The complete Native suite
+remains incomplete: modified-artifact, invalid-signature and communication
+failure checks remain unrun for this probe. Those results must not be inferred
+from the successful update, preparation tests or independent signature checks.
