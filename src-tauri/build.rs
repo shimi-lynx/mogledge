@@ -1,4 +1,25 @@
+mod updater_build_config;
+
 fn main() {
+    // Tauri codegen defaults this bundle-only field in the embedded Config.
+    // Preserve the same typed, merged build decision instead of reading runtime env.
+    println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+    println!("cargo:rerun-if-changed=updater_build_config.rs");
+    let target = tauri_utils::platform::Target::from_triple(
+        &std::env::var("TARGET").expect("Cargo target is required"),
+    );
+    let (config, paths) = tauri_utils::config::parse::read_from(
+        target,
+        &std::env::current_dir().expect("Cargo build directory is required"),
+    )
+    .expect("Tauri build configuration could not be read");
+    for path in paths {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+    let selected = std::env::var("TAURI_CONFIG").ok();
+    let enabled = updater_build_config::signed_artifacts_enabled(config, selected.as_deref())
+        .expect("Tauri updater build configuration is invalid");
+    println!("cargo:rustc-env=MOGLEDGE_SIGNED_UPDATE_BUILD={enabled}");
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "storage_transition_request",

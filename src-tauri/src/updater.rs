@@ -42,8 +42,7 @@ pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
                 reason = Some("unsupported");
             } else if let Some(value) = app.config().plugins.0.get("updater") {
                 if updater_model::secure_config(value)
-                    && app.config().bundle.create_updater_artifacts
-                        == tauri::utils::config::Updater::Bool(true)
+                    && option_env!("MOGLEDGE_SIGNED_UPDATE_BUILD") == Some("true")
                     && serde_json::from_value::<tauri_plugin_updater::Config>(value.clone()).is_ok()
                 {
                     reason = if installed_app() {
@@ -358,5 +357,28 @@ mod native {
         }
         // Windows hands relaunch to NSIS; on macOS applying the bundle needs relaunch.
         app.restart();
+    }
+}
+
+#[cfg(test)]
+mod build_enrollment_tests {
+    #[test]
+    fn enrollment_retains_the_selected_build_decision_after_codegen() {
+        let base = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let selected = crate::updater_build_config::signed_artifacts_enabled(
+            base,
+            option_env!("TAURI_CONFIG"),
+        )
+        .unwrap();
+        assert_eq!(
+            option_env!("MOGLEDGE_SIGNED_UPDATE_BUILD"),
+            Some(if selected { "true" } else { "false" })
+        );
+        // The pinned Tauri version intentionally drops bundle-only settings.
+        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        assert_eq!(
+            context.config().bundle.create_updater_artifacts,
+            tauri::utils::config::Updater::Bool(false)
+        );
     }
 }

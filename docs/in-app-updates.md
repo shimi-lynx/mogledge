@@ -25,9 +25,23 @@ Even when the feature is selected, debug/e2e builds remain disabled. A release b
 - An explicit distribution configuration overlay with `bundle.createUpdaterArtifacts: true`.
 - A nonempty real `plugins.updater.pubkey`, nonempty HTTPS `endpoints`, and `requireSignedVersion: true`.
 - No insecure protocol, invalid certificate/hostname acceptance or downgrade configuration. The wrapper additionally requires HTTPS for all requests, including redirects and artifact downloads.
-- A supported installed app layout. Windows currently requires the NSIS installation's `uninstall.exe` alongside the executable. A standalone `--no-bundle` EXE is disabled. macOS requires an executable inside an `.app/Contents/MacOS` bundle. The feature and production overlay must be reviewed before a distributor enrolls any build.
+- A supported installed app layout. Windows currently requires `uninstall.exe` alongside the executable in the NSIS installation directory; compiling with `--no-bundle` does not establish that layout. An explicitly approved manual replacement in an existing NSIS directory can retain the layout. macOS requires an executable inside an `.app/Contents/MacOS` bundle. The feature and production overlay must be reviewed before a distributor enrolls any build.
 
 Missing or invalid configuration stays disabled with an explanatory message. No placeholder feed/key is embedded. The UI cannot enroll a self-build or modify the feed/key. A user who wants to move from a self-build or standalone EXE to an enrolled distribution must follow an explicitly approved manual installation/migration procedure first. There is no silent opt-in.
+
+Version 0.8.1 retains the selected artifact decision at compile time. The pinned
+[Tauri configuration codegen](https://docs.rs/tauri-utils/2.10.1/src/tauri_utils/config.rs.html#4536-4565)
+defaults `bundle.createUpdaterArtifacts` in the runtime configuration, so reading
+that runtime field incorrectly disabled explicitly enrolled builds. The build
+script reads the base/platform configuration with Tauri's loader, applies the
+same CLI configuration merge, validates the full typed configuration, and embeds
+only whether the product identifier is `com.shimilynx.myknowledge` and the
+resulting value is boolean `true`. QA, legacy and custom identifiers stay
+disabled. Missing, false and legacy
+string values do not enroll a build; malformed configuration fails the build.
+Changing process environment variables after compilation cannot enroll an app.
+The feature, release/e2e, secure feed and installed-layout checks still apply.
+This correction alone selects no feed/key or distribution route.
 
 Each check request times out after 30 seconds; downloads after 5 minutes. Progress events are limited to roughly ten per second during downloads. No idle polling timer or preference file is added. The accepted artifact limit is 256 MiB. The official plugin buffers a download in memory; the limit is an artifact policy, **not a strict peak-memory guarantee**. Cancellation/size notification takes effect when the download future yields, and the final length is checked again before retaining verified bytes. Closing Settings does not release a ready package; cancellation or process exit does. The plugin's cryptographic verification is never bypassed.
 
