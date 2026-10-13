@@ -65,6 +65,9 @@ pub mod resident_shortcut_transaction;
 pub mod resident_startup;
 #[path = "../../../src-tauri/src/updater_model.rs"]
 pub mod updater_model;
+#[cfg(feature = "updater-loopback-qa")]
+#[path = "../../../src-tauri/src/updater_qa.rs"]
+pub mod updater_qa;
 
 // Mac input logic is platform-independent; native framework calls remain in the app.
 #[path = "../../../src-tauri/src/resident/macos_input.rs"]

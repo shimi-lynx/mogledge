@@ -28,6 +28,31 @@ impl Default for UpdaterState {
     }
 }
 
+#[cfg(feature = "updater-loopback-qa")]
+pub(crate) fn validate_qa_context(
+    config: &tauri::utils::config::Config,
+) -> Result<(), &'static str> {
+    let executable = std::env::current_exe().map_err(|_| "Updater QA executable unavailable")?;
+    if !crate::updater_qa::identity(
+        &config.identifier,
+        config.product_name.as_deref(),
+        config.main_binary_name.as_deref(),
+        executable.file_name().and_then(|name| name.to_str()),
+        cfg!(windows),
+        cfg!(debug_assertions),
+        cfg!(feature = "e2e"),
+    ) || config.bundle.create_updater_artifacts != tauri::utils::config::Updater::Bool(true)
+        || !config
+            .plugins
+            .0
+            .get("updater")
+            .is_some_and(crate::updater_qa::config)
+    {
+        return Err("Updater QA identity/configuration rejected before profile initialization");
+    }
+    Ok(())
+}
+
 pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let state = app.state::<UpdaterState>();
     let version = app.package_info().version.to_string();
@@ -41,7 +66,11 @@ pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
             if !cfg!(any(windows, target_os = "macos")) {
                 reason = Some("unsupported");
             } else if let Some(value) = app.config().plugins.0.get("updater") {
-                if updater_model::secure_config(value)
+                #[cfg(feature = "updater-loopback-qa")]
+                let accepted = crate::updater_qa::config(value);
+                #[cfg(not(feature = "updater-loopback-qa"))]
+                let accepted = updater_model::secure_config(value);
+                if accepted
                     && app.config().bundle.create_updater_artifacts
                         == tauri::utils::config::Updater::Bool(true)
                     && serde_json::from_value::<tauri_plugin_updater::Config>(value.clone()).is_ok()
@@ -225,8 +254,21 @@ mod native {
         let result = async {
             app.updater_builder()
                 .timeout(Duration::from_secs(30))
-                // Includes redirects and artifact downloads; never accept a TLS downgrade.
-                .configure_client(|client| client.https_only(true))
+                // The production client applies HTTPS-only to both check and download.
+                .configure_client(|client| {
+                    #[cfg(feature = "updater-loopback-qa")]
+                    {
+                        // Neither a redirect nor a system/environment proxy may leave the fixture.
+                        client
+                            .https_only(false)
+                            .no_proxy()
+                            .redirect(reqwest::redirect::Policy::none())
+                    }
+                    #[cfg(not(feature = "updater-loopback-qa"))]
+                    {
+                        client.https_only(true)
+                    }
+                })
                 .build()?
                 .check()
                 .await
@@ -238,6 +280,15 @@ mod native {
             if let Some(result) = result {
                 match result {
                     Ok(mut update) => {
+                        #[cfg(feature = "updater-loopback-qa")]
+                        if update.as_ref().is_some_and(|update| {
+                            !crate::updater_qa::artifact(update.download_url.as_str())
+                        }) {
+                            r.session.failed(id, "UpdateCheckFailed");
+                            r.update = None;
+                            publish(&app, &r);
+                            return Ok(r.session.snapshot.clone());
+                        }
                         if let Some(update) = &mut update {
                             // The plugin's check timeout is not inherited by its download object.
                             update.timeout = Some(Duration::from_secs(300));

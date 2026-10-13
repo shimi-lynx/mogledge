@@ -29,6 +29,8 @@ pub mod tree_mutations;
 pub mod tree_order;
 mod updater;
 pub mod updater_model;
+#[cfg(feature = "updater-loopback-qa")]
+mod updater_qa;
 pub mod watcher;
 pub mod workspace_settings;
 pub mod write_fs;
@@ -53,6 +55,10 @@ pub fn shell_csp(origin: &str, dev: bool) -> String {
 
 pub fn run() {
     if std::env::args_os().any(|argument| argument == "--storage-transition-ui") {
+        if cfg!(feature = "updater-loopback-qa") {
+            eprintln!("Updater QA does not allow the storage-transition process");
+            std::process::exit(1);
+        }
         storage_transition_window::run();
         return;
     }
@@ -68,6 +74,11 @@ pub fn run() {
         }
     });
     let mut context = tauri::generate_context!();
+    #[cfg(feature = "updater-loopback-qa")]
+    updater::validate_qa_context(context.config()).unwrap_or_else(|message| {
+        eprintln!("{message}");
+        std::process::exit(1)
+    });
     context.config_mut().app.security.csp = Some(Csp::Policy(shell_csp(&core.origin, false)));
     context.config_mut().app.security.dev_csp = Some(Csp::Policy(shell_csp(&core.origin, true)));
     let profile_runtime = startup_profile::Runtime::configured(&context.config().identifier)
@@ -218,7 +229,11 @@ fn open_main_window(app: &tauri::AppHandle, setup_core: Arc<Core>) -> Result<(),
             .visible(false)
             // OS taskbar previews and accessibility need a title even though
             // the app's custom/hidden title bar does not display this text.
-            .title("Mogledge")
+            .title(if cfg!(feature = "updater-loopback-qa") {
+                "Mogledge Updater QA"
+            } else {
+                "Mogledge"
+            })
             .inner_size(1280.0, 820.0)
             .min_inner_size(760.0, 500.0)
             .on_new_window(|_, _| NewWindowResponse::Deny)

@@ -17,6 +17,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = { version = "=2.13.3", optional = true }
+# Reuse the updater's locked client solely to disable proxy/redirects in local QA.
+reqwest = { version = "=0.13.5", default-features = false, optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 axum = "0.8"
@@ -45,6 +47,8 @@ e2e = []
 e2e-embedded = ["e2e", "dep:tauri-plugin-wdio-webdriver"]
 # Opt-in only for reviewed installer/app distributions with a configured signed feed.
 distribution-updater = ["dep:tauri-plugin-updater"]
+# Never select for ordinary builds or distribution; requires a dedicated QA identity.
+updater-loopback-qa = ["distribution-updater", "dep:reqwest"]
 
 [dev-dependencies]
 tempfile = "3"

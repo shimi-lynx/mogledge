@@ -67,5 +67,7 @@ path = "src/bin/state-transfer-cli.rs"
 macos-persistent-storage = []
 default = ["macos-persistent-storage"]
 e2e = []
+# Pure QA policy tests do not load the platform updater or make HTTP requests.
+updater-loopback-qa = []
 [target.'cfg(unix)'.dependencies]
 rustix = { version = "1.1", features = ["fs"] }
