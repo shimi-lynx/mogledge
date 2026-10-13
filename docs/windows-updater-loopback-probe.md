@@ -91,3 +91,20 @@ stream. Preserve evidence after failures, and never assume rollback. No Actions,
 Secrets, Release, publication, firewall/security changes, ordinary-app replacement
 or saved-data cleanup belongs to this probe. Record actual passes/failures/unrun
 items; preparation and unit tests do not establish installed-update success.
+
+## Preparation verification
+
+Windows preparation passed the three Node fixture/IPC boundary tests, four Rust
+QA policy tests, both manifest formatting checks, backend all-target strict
+Clippy, default/QA app compile checks and QA app strict Clippy. `npm run check`
+passed with 379 formatted files and 221 lint/type files, without warnings or
+errors. The canonical storage Node tests passed 33 tests in a sequential run.
+
+The initial public source retained an older generated API-spec fingerprint in
+three HTML kit documentation footers. The ordinary generator refreshed only
+those fingerprint fields against the already committed storage specification;
+adapter/template bytes and API behavior are unchanged. An initial concurrent
+storage-test failure was not reproduced after generation and sequential rerun.
+
+No release probe binary, NSIS installation, real signature, Native download,
+relaunch or synthetic-input preservation pass is claimed by these checks.
