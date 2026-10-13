@@ -2,7 +2,7 @@
 
 Settings → **App updates** provides a manual flow: check for updates, read the version and release notes, download and verify the update, then explicitly restart to apply it. Opening Settings, starting Mogledge and tray residency do not poll a server. Japanese and English controls share the same behavior.
 
-The ordinary source build and current application-only distribution are **not enrolled**. The update page explains this and keeps the check button disabled. This protects custom builds from replacement with a distributor's build. There is currently no selected production feed or update public key; this implementation does not establish a downloadable or validated update service.
+The ordinary source build and current application-only distribution are **not enrolled**. The update page explains this and keeps the check button disabled. This protects custom builds from replacement with a distributor's build. No production feed or update public key is active in the default configuration. The [distribution preparation](updater-distribution-preparation.md) records the supplied public key and future feed in an optional disabled overlay; it does not establish a downloadable or validated update service.
 
 ## User flow and saved inputs
 

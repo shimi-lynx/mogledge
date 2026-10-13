@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzNDcyM0I2NzNGRTZDMUUKUldRZWJQNXp0aU5IZzA3U0Q5K1V2ckdXVTE2SzJ2OE9OZkczRkxhaml5QWtFU3ZFa1U4bGQ4ZEkK",
+      "endpoints": ["https://github.com/shimi-lynx/mogledge/releases/latest/download/latest.json"],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
