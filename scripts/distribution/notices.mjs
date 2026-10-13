@@ -230,6 +230,14 @@ async function legalFiles(root, directory = "", depth = 0) {
   return result;
 }
 
+// Bind adoption to the complete pinned material record, including source/files,
+// so updating a package cannot silently inherit an old packaging decision.
+export function materialReviewHash(review) {
+  const material = { ...review };
+  delete material.adoptedReviewSha256;
+  return createHash("sha256").update(JSON.stringify(material)).digest("hex");
+}
+
 export async function collectNotices(repo, destination, metadata, { diagnostic = false } = {}) {
   let materials = {};
   try {
@@ -334,7 +342,11 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
         texts.push(await readFile(file.source, "utf8"));
     }
     const selectedLicenses = requireLicenseText(expression, texts);
-    if (review?.reviewRequired)
+    // The owner adopted these existing texts/notices for packaging. Bind that
+    // decision to the recorded note; changed or newly flagged material still stops.
+    const adoptedReview =
+      review?.reviewRequired && review.adoptedReviewSha256 === materialReviewHash(review);
+    if (review?.reviewRequired && !adoptedReview)
       throw new Error(`Distribution review required: ${review.reviewRequired}`);
     const sourceIncluded =
       pkg.license.includes("MPL-2.0") || (ecosystem === "cargo" && !pkg.source);
@@ -359,6 +371,9 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
       scopes,
       ...(review
         ? { materialReview: `${pkg.name}@${pkg.version}`, supplementalFiles: review.files }
+        : {}),
+      ...(adoptedReview
+        ? { reviewNote: review.reviewRequired, reviewPolicy: "existing-material-adopted" }
         : {}),
       legalFiles: files.map((file) => file.replaceAll(path.sep, "/")),
       sourceIncluded,
@@ -410,7 +425,7 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
   await writeFile(path.join(destination, "index.json"), `${JSON.stringify(inventory, null, 2)}\n`);
   await writeFile(
     path.join(destination, "README.txt"),
-    "Selected OR license branches are recorded in index.json; all collected license/copyright/NOTICE texts are retained beside each package. MPL-2.0 packages and local patched Cargo packages include corresponding source in source/ beside each package: recipients can obtain and modify that included source directly, with its original license/attribution notices preserved. MPL covered source remains governed by MPL-2.0. Scopes describe dependency-graph roles (including host proc-macros), not final linked binary contents. The accompanying source.zip contains the exact application revision and lockfiles. This conservative inventory includes normal and build Cargo dependencies; separate review of generated/embedded native components remains required before redistribution.\n",
+    "Selected OR license branches are recorded in index.json; all collected license/copyright/NOTICE texts are retained beside each package. MPL-2.0 packages and local patched Cargo packages include corresponding source in source/ beside each package: recipients can obtain and modify that included source directly, with its original license/attribution notices preserved. MPL covered source remains governed by MPL-2.0. Scopes describe dependency-graph roles (including host proc-macros), not final linked binary contents. The accompanying source.zip contains the exact application revision and lockfiles. This conservative inventory includes normal and build Cargo dependencies. The owner adopted the retained material research; verify concrete required material inclusion and any newly bundled dependencies/components before redistribution. Recorded interpretation notes remain in index.json and are not legal certification.\n",
   );
   return inventory;
 }

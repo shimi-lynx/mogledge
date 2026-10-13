@@ -110,7 +110,8 @@
         "referenceOnly": true
       }
     ],
-    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review.",
+    "adoptedReviewSha256": "8bc14c42a4ed98cac599453e17c2dfe64983a60690d72ba56af65ec13b999925"
   },
   "brotli-decompressor@6.0.1": {
     "name": "brotli-decompressor",
@@ -367,7 +368,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "3141430d6817b649038e611ba7b9ec18517e830707e8d66d7b683d7f3e673d6e"
   },
   "dunce@1.0.5": {
     "name": "dunce",
@@ -751,7 +753,8 @@
       ],
       "basis": "The exact published objc2 source explicitly identifies Rust PR 138944 as heavily copied source. The pinned Rust COPYRIGHT and REUSE annotations identify MIT or Apache-2.0 terms and existing project attribution for these source paths; the unchanged MIT text is retained as an additional upstream notice.",
       "reviewStatus": "This records a specific source/notice reference, not exhaustive contributor coverage, a final linked-code determination or Apple SDK clearance. The existing mandatory package review remains unresolved."
-    }
+    },
+    "adoptedReviewSha256": "37845e7be0e20d05e432b555325d40d733d74d9b256042cbceaeebb5f3ac4599"
   },
   "objc2-app-kit@0.3.2": {
     "name": "objc2-app-kit",
@@ -780,7 +783,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "80a8216c064ef95ca1fccb613304f5339d13ade443d19861f22ac54e3a9b7cf3"
   },
   "objc2-core-foundation@0.3.2": {
     "name": "objc2-core-foundation",
@@ -809,7 +813,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "d63edf5bf5681425e96a975e1e0e8267f8e98a82bd2f526f79c8e522cebdf4be"
   },
   "objc2-core-graphics@0.3.2": {
     "name": "objc2-core-graphics",
@@ -838,7 +843,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "62450b216f9afdc61827d1b4797c7f39a219aa9b89f3d25454ce5496ecb53d81"
   },
   "objc2-encode@4.1.0": {
     "name": "objc2-encode",
@@ -873,7 +879,8 @@
         "referenceOnly": true
       }
     ],
-    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review.",
+    "adoptedReviewSha256": "6423bd5c77957b72ba78acb545a3fc7f139ca21c2a941121da7a192fe211f8ea"
   },
   "objc2-exception-helper@0.1.1": {
     "name": "objc2-exception-helper",
@@ -902,7 +909,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "556d2ecebc81f64a4395176d1564771b5af3eadf422c814d3f41962000801fdf"
   },
   "objc2-foundation@0.3.2": {
     "name": "objc2-foundation",
@@ -937,7 +945,8 @@
         "referenceOnly": true
       }
     ],
-    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review."
+    "reviewRequired": "Complete upstream MIT terms are collected from a later pinned commit; the maintainer confirms old-version declared licenses but cannot confirm notice sufficiency. Applicable copyright notices and source coverage remain unresolved. The pinned package LICENSE.md also requires Apple SDK provenance/redistribution review; neither the new notice nor the historical reference alone completes this review.",
+    "adoptedReviewSha256": "2f7e5142ef87fc082cd2159d6140fe888948ea7d19ea748c8c42f844b27d6fc3"
   },
   "objc2-io-surface@0.3.2": {
     "name": "objc2-io-surface",
@@ -966,7 +975,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "b54e1e4556b8d4eba4a649a9bb09eae376c504d971bc49af199926ec2fbd7d78"
   },
   "objc2-quartz-core@0.3.2": {
     "name": "objc2-quartz-core",
@@ -995,7 +1005,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "b07c5b9f695cfc185a62234d59e63a393150f21eb7e87e6ecc517120ead04d1d"
   },
   "objc2-security@0.3.2": {
     "name": "objc2-security",
@@ -1024,7 +1035,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "70185064a1a7d51e8d21d8abc5f195fdb78206ff9bb8725eede6bfe0d5586b4c"
   },
   "objc2-service-management@0.3.2": {
     "name": "objc2-service-management",
@@ -1053,7 +1065,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "4dbbded8e4912c7c11fccbf39e845160d281d1c3e3af24a0c7377d1f39bd1a1a"
   },
   "objc2-web-kit@0.3.2": {
     "name": "objc2-web-kit",
@@ -1082,7 +1095,8 @@
         "url": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt"
       }
     ],
-    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review."
+    "reviewRequired": "The pinned upstream LICENSE.md grants an Apache-2.0 alternative, whose complete terms are retained. Upstream also leaves Apple SDK-derived material redistribution unresolved; package-level provenance and applicable SDK terms still require review.",
+    "adoptedReviewSha256": "e4fedc599808955e1c9902e9ca3de6503092b6326ecc2a507a314b8d59fbccf6"
   },
   "rustix@1.1.5": {
     "name": "rustix",
@@ -1490,6 +1504,7 @@
         "referenceOnly": true
       }
     ],
-    "reviewRequired": "The exact upstream root LICENSE.md declares three license alternatives and warns about generated Apple SDK-derived bindings. Linked Apache terms are retained as reference only; complete applicable package terms/notices, generating SDK/version/terms and redistribution coverage remain unresolved. This updater-only Mac package extends the existing Mac SDK/notice review. No distribution approval is inferred from metadata or reference text."
+    "reviewRequired": "The exact upstream root LICENSE.md declares three license alternatives and warns about generated Apple SDK-derived bindings. Linked Apache terms are retained as reference only; complete applicable package terms/notices, generating SDK/version/terms and redistribution coverage remain unresolved. This updater-only Mac package extends the existing Mac SDK/notice review. No distribution approval is inferred from metadata or reference text.",
+    "adoptedReviewSha256": "f2591b8186f98539123cdfd16ce216d014973c91cbbf02b337551078e7737fbc"
   }
 }

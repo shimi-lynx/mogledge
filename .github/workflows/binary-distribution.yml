@@ -3,6 +3,10 @@ name: Binary distribution candidates (manual)
 on:
   workflow_dispatch:
     inputs:
+      expected_source_sha:
+        description: Approved full 40-character source commit; must match the selected ref
+        type: string
+        required: true
       platform:
         description: Native platform to build (all runs three jobs)
         type: choice
@@ -14,7 +18,7 @@ on:
         default: false
         required: true
       license_reviewed:
-        description: Third-party license/source obligations for this source revision reviewed
+        description: Existing legal texts/notices bundled and new dependency material checked
         type: boolean
         default: false
         required: true
@@ -36,12 +40,25 @@ jobs:
         platform: ${{ fromJSON(inputs.platform == 'all' && '["windows-x64","macos-arm64","macos-x64"]' || format('["{0}"]', inputs.platform)) }}
     runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || matrix.platform == 'macos-arm64' && 'macos-15' || 'macos-15-intel' }}
     env:
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
       BUILD_TARGET: ${{ matrix.platform == 'windows-x64' && 'x86_64-pc-windows-msvc' || matrix.platform == 'macos-arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Verify approved source before installing dependencies
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            import { execFileSync } from "node:child_process";
+            import { requireApprovedSource } from "./scripts/distribution/build.mjs";
+            requireApprovedSource(
+              execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+              process.env.EXPECTED_SOURCE_SHA,
+              process.env.GITHUB_SHA,
+            );
+          '
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.11.0

@@ -30,6 +30,16 @@ export const platforms = {
   "macos-x64": { os: "darwin", arch: "x64", target: "x86_64-apple-darwin", signature: "adhoc" },
 };
 
+// Dispatch refs can move: bind both checkout and the event to the approved commit.
+export function requireApprovedSource(sourceSha, expectedSourceSha, workflowSha) {
+  if (
+    !/^[a-f0-9]{40}$/.test(expectedSourceSha ?? "") ||
+    sourceSha !== expectedSourceSha ||
+    workflowSha !== expectedSourceSha
+  )
+    throw new Error("Approved source SHA must match checkout and workflow event");
+}
+
 export function requireAdhoc(description) {
   if (
     !/^Signature=adhoc\r?$/m.test(description) ||
@@ -97,8 +107,8 @@ async function main(platform, appOnly = false) {
     run("git", ["status", "--porcelain", "--untracked-files=no"]).stdout.trim()
   )
     throw new Error("Build requires a clean committed revision");
-  if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== sourceSha)
-    throw new Error("Checkout/source SHA mismatch");
+  if (process.env.GITHUB_SHA)
+    requireApprovedSource(sourceSha, process.env.EXPECTED_SOURCE_SHA, process.env.GITHUB_SHA);
   if (
     (!appOnly && process.version !== "v24.11.0") ||
     !run("rustc", ["--version"]).stdout.startsWith("rustc 1.99.0 ")
@@ -266,7 +276,7 @@ async function main(platform, appOnly = false) {
     executableSha256: await sha256(executable),
     sourceZipSha256: await sha256(path.join(staging, "source.zip")),
     nativeDownloadQa: "not performed",
-    thirdPartyReview: "manual review required in addition to inventory checks",
+    thirdPartyReview: "adopted material requires artifact inclusion and new dependency checks",
     pathRemapping: pathRemappingManifest(remappings),
   };
   await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

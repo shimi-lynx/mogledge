@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { identity, requireAdhoc } from "./build.mjs";
+import { identity, requireAdhoc, requireApprovedSource } from "./build.mjs";
 import {
   assertBinaryPrivacy,
   assertCandidateLayout,
@@ -18,6 +18,7 @@ import {
   cargoPackages,
   cargoPackageScopes,
   collectNotices,
+  materialReviewHash,
   containedFile,
   requireLicenseText,
   validateLicense,
@@ -27,6 +28,21 @@ const mitText = await readFile(
   new URL("materials/webview2-com@0.39.1/LICENSE", import.meta.url),
   "utf8",
 );
+
+test("manual candidates require the approved full commit in both checkout and dispatch", () => {
+  const approved = "a".repeat(40);
+  requireApprovedSource(approved, approved, approved);
+  for (const [checkout, expected, event] of [
+    [approved, undefined, approved],
+    [approved, "a".repeat(12), approved],
+    [approved, "main", approved],
+    [approved, "A".repeat(40), approved],
+    ["b".repeat(40), approved, approved],
+    [approved, approved, "b".repeat(40)],
+    [approved, "$(touch unexpected)", approved],
+  ])
+    assert.throws(() => requireApprovedSource(checkout, expected, event), /Approved source SHA/);
+});
 
 test("authenticated/unsigned signatures cannot pass the ad-hoc gate", () => {
   requireAdhoc("Identifier=com.example\nSignature=adhoc\nTeamIdentifier=not set\n");
@@ -420,6 +436,30 @@ test("pinned material checksums, source identity, SDK bytes and review blockers 
   });
   assert.equal(diagnosis.failures[0].reviewRequired, review.reviewRequired);
   assert.equal(diagnosis.inventory.length, 0);
+  review.adoptedReviewSha256 = materialReviewHash(review);
+  await saveReview();
+  const adopted = await collectNotices(repo, path.join(repo, "adopted"), metadata);
+  assert.equal(adopted[0].reviewNote, review.reviewRequired);
+  assert.equal(adopted[0].reviewPolicy, "existing-material-adopted");
+  const originalVersion = review.version;
+  review.version = "9.9.9";
+  assert.notEqual(review.adoptedReviewSha256, materialReviewHash(review));
+  review.version = originalVersion;
+  const originalNote = review.reviewRequired;
+  review.reviewRequired = "A newly identified mandatory notice issue";
+  await saveReview();
+  await assert.rejects(
+    collectNotices(repo, path.join(repo, "changed-note"), metadata),
+    /Distribution review required/,
+  );
+  review.reviewRequired = originalNote;
+  await writeFile(target, `${mitText}changed`);
+  await saveReview();
+  await assert.rejects(
+    collectNotices(repo, path.join(repo, "adopted-bad-text"), metadata),
+    /checksum mismatch/,
+  );
+  await writeFile(target, await readFile(source));
   review.files[0].referenceOnly = true;
   await saveReview();
   await assert.rejects(
