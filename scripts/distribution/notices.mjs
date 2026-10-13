@@ -290,6 +290,22 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
     const key = `${ecosystem}/${pkg.name.replaceAll("/", "__")}@${pkg.version}`;
     if (used.has(key)) throw new Error(`Duplicate package identity: ${key}`);
     used.add(key);
+    const adoptedReview =
+      review?.reviewRequired && review.adoptedReviewSha256 === materialReviewHash(review);
+    const termEvidence = review?.termCompletenessEvidence ?? [];
+    if (termEvidence.length && !adoptedReview)
+      throw new Error("Term completeness evidence requires an adopted pinned record");
+    const contains = (node, id) =>
+      node.id === id || (node.operator && (contains(node.left, id) || contains(node.right, id)));
+    for (const item of termEvidence) {
+      if (
+        !review.files.some((file) => file.path === item.path && file.referenceOnly === true) ||
+        !contains(parseLicense(expression), item.declaredLicense)
+      )
+        throw new Error(
+          "Term completeness evidence must match a declared alternative and retained reference",
+        );
+    }
     const files = await legalFiles(root);
     if (extraLicense && !files.includes(extraLicense)) files.push(extraLicense);
     const supplements = [];
@@ -338,14 +354,14 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
       const target = path.join(output, "supplemental", file.path);
       await mkdir(path.dirname(target), { recursive: true });
       await cp(file.source, target);
-      if (!file.referenceOnly && !/\.spdx$/i.test(file.path))
+      const term = termEvidence.find((item) => item.path === file.path);
+      if (term) requireLicenseText(term.declaredLicense, [await readFile(file.source, "utf8")]);
+      if ((!file.referenceOnly || term) && !/\.spdx$/i.test(file.path))
         texts.push(await readFile(file.source, "utf8"));
     }
     const selectedLicenses = requireLicenseText(expression, texts);
     // The owner adopted these existing texts/notices for packaging. Bind that
     // decision to the recorded note; changed or newly flagged material still stops.
-    const adoptedReview =
-      review?.reviewRequired && review.adoptedReviewSha256 === materialReviewHash(review);
     if (review?.reviewRequired && !adoptedReview)
       throw new Error(`Distribution review required: ${review.reviewRequired}`);
     const sourceIncluded =
@@ -375,6 +391,7 @@ export async function collectNotices(repo, destination, metadata, { diagnostic =
       ...(adoptedReview
         ? { reviewNote: review.reviewRequired, reviewPolicy: "existing-material-adopted" }
         : {}),
+      ...(termEvidence.length ? { termCompletenessEvidence: termEvidence } : {}),
       legalFiles: files.map((file) => file.replaceAll(path.sep, "/")),
       sourceIncluded,
     });

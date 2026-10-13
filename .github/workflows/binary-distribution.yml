@@ -7,6 +7,11 @@ on:
         description: Approved full 40-character source commit; must match the selected ref
         type: string
         required: true
+      updater_app:
+        description: Prepare an enrolled Mac app and unsigned update archive for owner-local signing
+        type: boolean
+        default: false
+        required: true
       platform:
         description: Native platform to build (all runs three jobs)
         type: choice
@@ -32,7 +37,7 @@ concurrency:
 
 jobs:
   build:
-    if: inputs.cost_confirmed && inputs.license_reviewed
+    if: inputs.cost_confirmed && inputs.license_reviewed && (!inputs.updater_app || inputs.platform == 'macos-arm64' || inputs.platform == 'macos-x64')
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -40,6 +45,7 @@ jobs:
         platform: ${{ fromJSON(inputs.platform == 'all' && '["windows-x64","macos-arm64","macos-x64"]' || format('["{0}"]', inputs.platform)) }}
     runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || matrix.platform == 'macos-arm64' && 'macos-15' || 'macos-15-intel' }}
     env:
+      UPDATER_APP: ${{ inputs.updater_app }}
       EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
       BUILD_TARGET: ${{ matrix.platform == 'windows-x64' && 'x86_64-pc-windows-msvc' || matrix.platform == 'macos-arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
     timeout-minutes: 60
@@ -53,6 +59,8 @@ jobs:
           node --input-type=module -e '
             import { execFileSync } from "node:child_process";
             import { requireApprovedSource } from "./scripts/distribution/build.mjs";
+            if (process.env.UPDATER_APP === "true" && !["x86_64-apple-darwin", "aarch64-apple-darwin"].includes(process.env.BUILD_TARGET))
+              throw new Error("Updater app preparation requires one selected Mac platform");
             requireApprovedSource(
               execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
               process.env.EXPECTED_SOURCE_SHA,
@@ -69,9 +77,13 @@ jobs:
           rustup target add "$BUILD_TARGET" --toolchain 1.99.0
           npm ci
       - name: Test distribution gates
-        run: node --test scripts/distribution/distribution.test.mjs
+        run: node --test scripts/distribution/*.test.mjs
       - name: Build, verify and package
-        run: node scripts/distribution/build.mjs ${{ matrix.platform }}
+        shell: bash
+        run: |
+          args=()
+          if [[ "$UPDATER_APP" == "true" ]]; then args+=(--updater-app); fi
+          node scripts/distribution/build.mjs ${{ matrix.platform }} "${args[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: success()
         with:

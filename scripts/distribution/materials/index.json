@@ -1505,6 +1505,13 @@
       }
     ],
     "reviewRequired": "The exact upstream root LICENSE.md declares three license alternatives and warns about generated Apple SDK-derived bindings. Linked Apache terms are retained as reference only; complete applicable package terms/notices, generating SDK/version/terms and redistribution coverage remain unresolved. This updater-only Mac package extends the existing Mac SDK/notice review. No distribution approval is inferred from metadata or reference text.",
-    "adoptedReviewSha256": "f2591b8186f98539123cdfd16ce216d014973c91cbbf02b337551078e7737fbc"
+    "adoptedReviewSha256": "450513ae1932a8c10b9e935d207355e391249bee2fce34237c538b359681ad79",
+    "termCompletenessEvidence": [
+      {
+        "path": "objc2-osa-kit@0.3.2/LICENSE-APACHE-reference.txt",
+        "declaredLicense": "Apache-2.0",
+        "scope": "Text completeness for this package declaration only; original reference label and SDK applicability/copyright uncertainty remain unchanged."
+      }
+    ]
   }
 }

@@ -40,6 +40,108 @@ export function requireApprovedSource(sourceSha, expectedSourceSha, workflowSha)
     throw new Error("Approved source SHA must match checkout and workflow event");
 }
 
+export function requireDistributionConfig(config) {
+  if (
+    JSON.stringify(Object.keys(config).sort()) !==
+      JSON.stringify(["$schema", "bundle", "plugins"]) ||
+    JSON.stringify(config.bundle) !== JSON.stringify({ createUpdaterArtifacts: true })
+  )
+    throw new Error("Unexpected distribution overlay scope");
+  if (
+    !config.plugins ||
+    JSON.stringify(Object.keys(config.plugins)) !== JSON.stringify(["updater"])
+  )
+    throw new Error("Unexpected distribution plugin scope");
+  const updater = config.plugins.updater;
+  if (
+    !updater ||
+    JSON.stringify(Object.keys(updater).sort()) !==
+      JSON.stringify(["endpoints", "pubkey", "requireSignedVersion", "windows"]) ||
+    updater.requireSignedVersion !== true ||
+    JSON.stringify(updater.windows) !== JSON.stringify({ installMode: "passive" }) ||
+    JSON.stringify(updater.endpoints) !==
+      JSON.stringify([
+        "https://github.com/shimi-lynx/mogledge/releases/latest/download/latest.json",
+      ])
+  )
+    throw new Error("Unexpected distribution updater policy");
+  const document = Buffer.from(updater.pubkey, "base64");
+  if (document.toString("base64") !== updater.pubkey) throw new Error("Invalid update public key");
+  const lines = document.toString("utf8").trimEnd().split("\n");
+  const key = Buffer.from(lines[1] ?? "", "base64");
+  if (
+    lines.length !== 2 ||
+    key.toString("base64") !== lines[1] ||
+    key.length !== 42 ||
+    key.subarray(0, 2).toString("ascii") !== "Ed" ||
+    key.readBigUInt64LE(2) !== 0x834723b673fe6c1en ||
+    lines[0] !== "untrusted comment: minisign public key: 834723B673FE6C1E" ||
+    createHash("sha256").update(key.subarray(10)).digest("hex") !==
+      "65b10a703ca58b486328274e88c5999fee34e16c15356d64aa3b19e54dd49a55"
+  )
+    throw new Error("Unexpected update public key identity");
+}
+
+export async function verifyBundledMaterials(staging, app) {
+  const digest = async (file) =>
+    createHash("sha256")
+      .update(await readFile(file))
+      .digest("hex");
+  const resources = path.join(app, "Contents/Resources");
+  for (const file of ["LICENSE", "source.zip", "BINARY-DISTRIBUTION.md"])
+    if ((await digest(path.join(staging, file))) !== (await digest(path.join(resources, file))))
+      throw new Error("Updater app omitted or changed bundled material");
+  async function compare(source, target) {
+    const original = await readdir(source, { withFileTypes: true });
+    const copied = await readdir(target, { withFileTypes: true });
+    if (original.length !== copied.length)
+      throw new Error("Updater app material file count differs");
+    for (const entry of original) {
+      const found = copied.find((file) => file.name === entry.name);
+      if (!found || entry.isSymbolicLink() || found.isSymbolicLink())
+        throw new Error("Updater app material entry differs");
+      if (entry.isDirectory() && found.isDirectory())
+        await compare(path.join(source, entry.name), path.join(target, entry.name));
+      else if (
+        !entry.isFile() ||
+        !found.isFile() ||
+        (await digest(path.join(source, entry.name))) !==
+          (await digest(path.join(target, entry.name)))
+      )
+        throw new Error("Updater app material bytes differ");
+    }
+  }
+  await compare(path.join(staging, "third-party"), path.join(resources, "third-party"));
+}
+
+export function macUpdaterBuildPlan(target, resources) {
+  if (!["x86_64-apple-darwin", "aarch64-apple-darwin"].includes(target))
+    throw new Error("Updater app preparation requires a Mac target");
+  const common = [
+    "--target",
+    target,
+    "--features",
+    "distribution-updater",
+    "--config",
+    "src-tauri/tauri.updater.distribution.json",
+    "--config",
+    JSON.stringify({ bundle: { resources } }),
+  ];
+  return {
+    build: ["build", ...common, "--no-bundle", "--", "--locked", "--jobs", "1"],
+    // Package the existing enrolled binary, keeping OS ad-hoc signing. Disabling
+    // updater artifact generation only here prevents the CLI requesting a key.
+    bundle: [
+      "bundle",
+      ...common,
+      "--bundles",
+      "app",
+      "--config",
+      JSON.stringify({ bundle: { createUpdaterArtifacts: false } }),
+    ],
+  };
+}
+
 export function requireAdhoc(description) {
   if (
     !/^Signature=adhoc\r?$/m.test(description) ||
@@ -94,13 +196,36 @@ export async function identity(repo) {
   return { productName: config.productName, version: pkg.version, identifier: config.identifier };
 }
 
-async function main(platform, appOnly = false) {
+async function main(platform, appOnly = false, updaterApp = false) {
   const selected = platforms[platform];
   if (!selected || process.platform !== selected.os || process.arch !== selected.arch)
     throw new Error("Use the matching native runner");
+  if (updaterApp && selected.os !== "darwin")
+    throw new Error("Updater app preparation currently supports Mac only");
   const repo = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
   process.chdir(repo);
   const product = await identity(repo);
+  if (updaterApp) {
+    if (
+      [
+        "TAURI_SIGNING_PRIVATE_KEY",
+        "TAURI_SIGNING_PRIVATE_KEY_PATH",
+        "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+        "APPLE_CERTIFICATE",
+        "APPLE_CERTIFICATE_PASSWORD",
+        "APPLE_ID",
+        "APPLE_PASSWORD",
+        "APPLE_API_KEY",
+        "APPLE_API_ISSUER",
+      ].some((name) => Object.hasOwn(process.env, name))
+    )
+      throw new Error("Updater app preparation must not receive signing credentials");
+    requireDistributionConfig(
+      JSON.parse(
+        await readFile(path.join(repo, "src-tauri/tauri.updater.distribution.json"), "utf8"),
+      ),
+    );
+  }
   const sourceSha = run("git", ["rev-parse", "HEAD"]).stdout.trim();
   if (
     !/^[a-f0-9]{40}$/.test(sourceSha) ||
@@ -188,7 +313,7 @@ async function main(platform, appOnly = false) {
   // Never erase a previous candidate or package into a directory with stale files.
   await mkdir(path.dirname(work), { recursive: true });
   await mkdir(work);
-  const name = `${product.productName}_${product.version}_${platform}_${selected.signature}_${sourceSha.slice(0, 12)}`;
+  const name = `${product.productName}_${product.version}_${platform}_${selected.signature}${updaterApp ? "_updater" : ""}_${sourceSha.slice(0, 12)}`;
   const staging = path.join(work, name);
   await mkdir(staging);
   const cargo = JSON.parse(
@@ -202,7 +327,7 @@ async function main(platform, appOnly = false) {
       "--filter-platform",
       selected.target,
       "--features",
-      "custom-protocol",
+      updaterApp ? "custom-protocol,distribution-updater" : "custom-protocol",
     ]).stdout,
   );
   await collectNotices(repo, path.join(staging, "third-party"), cargo);
@@ -218,13 +343,23 @@ async function main(platform, appOnly = false) {
     `--output=${path.join(staging, "source.zip")}`,
     sourceSha,
   ]);
-  const args = ["build", "--target", selected.target];
-  args.push(...(selected.os === "win32" ? ["--no-bundle"] : ["--bundles", "app"]));
-  args.push("--", "--locked", "--jobs", "1");
-  run(process.execPath, ["node_modules/@tauri-apps/cli/tauri.js", ...args], {
-    stdio: "inherit",
-    env: buildEnvironment,
-  });
+  const cli = "node_modules/@tauri-apps/cli/tauri.js";
+  if (updaterApp) {
+    const resources = {
+      [`../.tools/distribution/${name}/third-party`]: "third-party",
+      "../LICENSE": "LICENSE",
+      [`../.tools/distribution/${name}/source.zip`]: "source.zip",
+      "../docs/binary-distribution.md": "BINARY-DISTRIBUTION.md",
+    };
+    const plan = macUpdaterBuildPlan(selected.target, resources);
+    run(process.execPath, [cli, ...plan.build], { stdio: "inherit", env: buildEnvironment });
+    run(process.execPath, [cli, ...plan.bundle], { stdio: "inherit", env: buildEnvironment });
+  } else {
+    const args = ["build", "--target", selected.target];
+    args.push(...(selected.os === "win32" ? ["--no-bundle"] : ["--bundles", "app"]));
+    args.push("--", "--locked", "--jobs", "1");
+    run(process.execPath, [cli, ...args], { stdio: "inherit", env: buildEnvironment });
+  }
   const release = path.join(targetDirectory, selected.target, "release");
   const verifyMac = (app) => {
     run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
@@ -270,7 +405,17 @@ async function main(platform, appOnly = false) {
     target: selected.target,
     signature: selected.signature,
     notarized: false,
-    updater: false,
+    updater: updaterApp,
+    ...(updaterApp
+      ? {
+          updaterSignature: "pending owner-local signing; not installable as an update yet",
+          updateFeed: "awaiting public HTTPS assets; no live service is claimed",
+          enrollmentNativeQa: "not performed",
+          distributionConfigSha256: await sha256(
+            path.join(repo, "src-tauri/tauri.updater.distribution.json"),
+          ),
+        }
+      : {}),
     node: process.version,
     rust: run("rustc", ["--version"]).stdout.trim(),
     executableSha256: await sha256(executable),
@@ -283,6 +428,21 @@ async function main(platform, appOnly = false) {
   await assertCandidateLayout(staging, platform);
   const output = path.join(work, "output");
   await mkdir(output);
+  if (updaterApp) {
+    await verifyBundledMaterials(staging, path.join(staging, "Mogledge.app"));
+    const updateArchive = path.join(output, `${name}.app.tar.gz`);
+    run("tar", ["-czf", updateArchive, "-C", staging, "Mogledge.app"]);
+    const extracted = path.join(work, "updater-extracted");
+    await mkdir(extracted);
+    run("tar", ["-xzf", updateArchive, "-C", extracted]);
+    const restored = verifyMac(path.join(extracted, "Mogledge.app"));
+    if ((await sha256(restored)) !== manifest.executableSha256)
+      throw new Error("Updater archive changed executable bytes");
+    await verifyBundledMaterials(staging, path.join(extracted, "Mogledge.app"));
+    manifest.updateArchive = path.basename(updateArchive);
+    manifest.updateArchiveSha256 = await sha256(updateArchive);
+    await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  }
   const archive = path.join(output, `${name}.zip`);
   if (selected.os === "win32") {
     run("pwsh", [
@@ -312,22 +472,24 @@ async function main(platform, appOnly = false) {
       throw new Error("Archive changed executable bytes");
     await assertCandidateLayout(path.join(extracted, name), platform);
   }
-  await writeFile(
-    path.join(output, "SHA256SUMS.txt"),
-    `${await sha256(archive)}  ${path.basename(archive)}\n`,
-  );
-  await cp(path.join(staging, "manifest.json"), path.join(output, "manifest.json"));
-  if ((await readdir(output)).length !== 3) throw new Error("Unexpected upload contents");
+  const checksums = [`${await sha256(archive)}  ${path.basename(archive)}`];
+  if (updaterApp) checksums.push(`${manifest.updateArchiveSha256}  ${manifest.updateArchive}`);
+  await writeFile(path.join(output, "SHA256SUMS.txt"), `${checksums.join("\n")}\n`);
+  await writeFile(path.join(output, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  if ((await readdir(output)).length !== (updaterApp ? 4 : 3))
+    throw new Error("Unexpected upload contents");
   console.log(`Verified candidate: ${path.basename(archive)}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const option = process.argv[3];
-  if (process.argv.length > 4 || (option && option !== "--app-only")) {
-    console.error("Usage: node scripts/distribution/build.mjs <platform> [--app-only]");
+  if (process.argv.length > 4 || (option && !["--app-only", "--updater-app"].includes(option))) {
+    console.error(
+      "Usage: node scripts/distribution/build.mjs <platform> [--app-only|--updater-app]",
+    );
     process.exitCode = 1;
   } else
-    main(process.argv[2], option === "--app-only").catch((error) => {
+    main(process.argv[2], option === "--app-only", option === "--updater-app").catch((error) => {
       console.error(error.message);
       process.exitCode = 1;
     });
