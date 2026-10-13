@@ -155,10 +155,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn install(&mut self, saved_confirmed: bool) -> Result<u64, &'static str> {
-        if !saved_confirmed {
-            return Err("UpdateSaveConfirmationRequired");
-        }
+    pub fn install(&mut self) -> Result<u64, &'static str> {
         if self.snapshot.phase != Phase::Ready {
             return Err("UpdateNotReady");
         }
@@ -270,28 +267,47 @@ mod tests {
         s.cancel().unwrap();
         assert!(!s.progress(id, 256, Some(384)));
         assert!(!s.downloaded(id));
-        assert!(s.install(true).is_err());
+        assert!(s.install().is_err());
     }
     #[test]
     fn signature_failure_never_allows_install() {
         let mut s = available();
         let id = s.download().unwrap();
         s.failed(id, "UpdateSignatureInvalid");
-        assert!(s.install(true).is_err());
+        assert!(!s.downloaded(id));
+        assert!(s.install().is_err());
         assert_eq!(s.snapshot.error, Some("UpdateSignatureInvalid"));
     }
     #[test]
-    fn install_needs_ready_and_explicit_save_acknowledgement_and_cannot_run_twice() {
+    fn install_needs_ready_and_cannot_run_twice_or_be_cancelled() {
         let mut s = available();
-        assert!(s.install(true).is_err());
+        assert!(s.install().is_err());
         let id = s.download().unwrap();
         s.progress(id, 64, Some(128));
         s.downloaded(id);
         assert!(s.check().is_err());
-        assert!(s.install(false).is_err());
-        s.install(true).unwrap();
-        assert!(s.install(true).is_err());
+        s.install().unwrap();
+        assert!(s.install().is_err());
         assert!(s.cancel().is_err());
+    }
+    #[test]
+    fn install_rejects_every_phase_without_a_ready_update() {
+        for phase in [
+            Phase::Disabled,
+            Phase::Idle,
+            Phase::Checking,
+            Phase::Available,
+            Phase::Downloading,
+            Phase::UpToDate,
+            Phase::Cancelled,
+            Phase::Error,
+            Phase::Installing,
+        ] {
+            let mut session = enabled();
+            session.snapshot.phase = phase;
+            assert_eq!(session.install(), Err("UpdateNotReady"));
+            assert_eq!(session.snapshot.phase, phase);
+        }
     }
     #[test]
     fn insecure_unconfigured_or_downgrade_settings_are_rejected() {

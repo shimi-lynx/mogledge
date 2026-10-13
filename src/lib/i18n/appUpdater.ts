@@ -6,8 +6,8 @@ export const appUpdaterMessages: Readonly<Record<string, string>> = {
   更新の設定を読み込み中: "Loading update settings",
   更新を確認中: "Checking for updates",
   ダウンロードと署名検証中: "Downloading and verifying the signature",
-  "署名検証が完了しました。再起動して更新を適用できます。":
-    "Signature verified. Restart to apply the update.",
+  "署名検証が完了しました。更新して再起動できます。":
+    "Signature verified. Update and restart when ready.",
   更新を適用して再起動中: "Applying the update and restarting",
   利用できる更新はありません: "No update is available",
   "更新を取り消しました。アプリは変更されていません。":
@@ -27,15 +27,11 @@ export const appUpdaterMessages: Readonly<Record<string, string>> = {
   "{downloaded} / {total} MiB": "{downloaded} / {total} MiB",
   "{downloaded} MiB ダウンロード済み（総容量は不明）":
     "{downloaded} MiB downloaded (total size unknown)",
-  "再起動で開いているHTMLの未保存入力やCanvas・実行状態は失われます。各HTMLの保存操作を完了してから進めてください。アプリは未保存内容を自動判定・保存できません。":
-    "Restarting loses unsaved HTML inputs, Canvas and running state. Finish saving in each HTML app before continuing. Mogledge cannot automatically detect or save unsaved content.",
-  "必要な入力を保存し、アプリを終了して更新することを確認しました":
-    "I have saved the inputs I need and confirm closing the app to update",
-  "Windowsはインストーラーでアプリを終了・更新して再起動します。macOSはアプリを置換して再起動します。適用開始後は取り消せません。":
-    "On Windows the installer closes, updates and restarts the app. On macOS the app is replaced and restarted. Applying an update cannot be cancelled once it starts.",
+  "未保存の入力は失われます。必要な内容を保存してから更新してください。":
+    "Unsaved inputs will be lost. Save what you need before updating.",
   更新を確認: "Check for updates",
   ダウンロードして更新: "Download update",
-  再起動して更新を適用: "Restart and apply update",
+  更新して再起動: "Update and restart",
   更新を取り消す: "Cancel update",
   "ダウンロード後も再起動を選ぶまでアプリは変更しません。設定を閉じても処理は続き、開き直すと状態を確認できます。取消は適用開始前に行ってください。":
     "Downloading does not change the app until you choose to restart. Closing Settings keeps the operation running; reopen it to see the status. Cancel before applying the update.",
@@ -49,7 +45,6 @@ export const appUpdaterMessages: Readonly<Record<string, string>> = {
     "Could not verify the update signature. The update will not be applied. Contact the distributor.",
   "更新が256MiBの上限を超えています。手動更新の案内を確認してください。":
     "The update exceeds the 256 MiB limit. See the manual update instructions.",
-  HTMLの入力を保存してから確認してください: "Save your HTML inputs before confirming",
   "アプリの設定を保存できないため更新を中止しました。設定を確認し、更新を再確認してください。":
     "The update stopped because app settings could not be saved. Check the settings and check for updates again.",
   "更新を適用できません。現在のアプリと配布元の手動復旧手順を確認してください。":

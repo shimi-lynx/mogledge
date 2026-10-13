@@ -164,7 +164,6 @@ pub async fn restart_app_update(
     window: WebviewWindow,
     state: State<'_, UpdaterState>,
     core: State<'_, Arc<crate::core::Core>>,
-    saved_confirmed: bool,
 ) -> Result<Snapshot, String> {
     updater_model::main_host(window.label())?;
     #[cfg(feature = "distribution-updater")]
@@ -172,12 +171,11 @@ pub async fn restart_app_update(
         window.app_handle().clone(),
         state.0.clone(),
         core.inner().clone(),
-        saved_confirmed,
     )
     .await;
     #[cfg(not(feature = "distribution-updater"))]
     {
-        let _ = (state, core, saved_confirmed);
+        let _ = (state, core);
         Err("UpdateDisabled".into())
     }
 }
@@ -328,14 +326,13 @@ mod native {
         app: AppHandle,
         state: Arc<Mutex<Runtime>>,
         core: Arc<crate::core::Core>,
-        saved_confirmed: bool,
     ) -> Result<Snapshot, String> {
         let (id, update, bytes) = {
             let mut r = state.lock().map_err(|_| "UpdateUnavailable")?;
             if r.bytes.is_none() || r.update.is_none() {
                 return Err("UpdateNotReady".into());
             }
-            let id = r.session.install(saved_confirmed)?;
+            let id = r.session.install()?;
             let update = r.update.take().ok_or("UpdateNotReady")?;
             let bytes = r.bytes.take().ok_or("UpdateNotReady")?;
             publish(&app, &r);
@@ -343,7 +340,7 @@ mod native {
         };
         let result = tauri::async_runtime::spawn_blocking(move || {
             // Windows install exits directly; flush the host's pending settings first.
-            // Arbitrary HTML inputs must already have been saved by their own app.
+            // The update action warns that arbitrary HTML inputs need their own save operation.
             crate::workspace_settings::flush(&core).map_err(|_| "UpdateSaveFailed")?;
             update
                 .restart_after_install(true)

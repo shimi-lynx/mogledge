@@ -1,6 +1,6 @@
 [package]
 name = "my-knowledge"
-version = "0.8.0"
+version = "0.8.1"
 description = "Sandboxed local HTML knowledge viewer"
 edition = "2021"
 default-run = "my-knowledge"
