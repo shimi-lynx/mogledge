@@ -72,7 +72,7 @@ test("opening Settings reads state without checking a feed; default/self builds 
   }
 });
 
-test("manual check shows plain text notes; download waits for explicit save confirmation and restart", async () => {
+test("verified download enables update and restart with a warning and no confirmation checkbox", async () => {
   const f = fixture();
   render(<AppUpdateSettings api={f.api} />);
   await screen.findByText("Current version: 0.7.5");
@@ -82,17 +82,19 @@ test("manual check shows plain text notes; download waits for explicit save conf
   expect(f.api.download).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Download update" }));
   const restart = await screen.findByRole<HTMLButtonElement>("button", {
-    name: "Restart and apply update",
+    name: "Update and restart",
   });
-  expect(restart.disabled).toBe(true);
+  expect(restart.disabled).toBe(false);
   expect(f.api.restart).not.toHaveBeenCalled();
-  expect(screen.getByText(/cannot automatically detect or save/)).toBeTruthy();
-  fireEvent.click(screen.getByRole("checkbox"));
-  await waitFor(() => expect(restart.disabled).toBe(false));
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(
+    screen.getByText("Unsaved inputs will be lost. Save what you need before updating."),
+  ).toBeTruthy();
+  expect(restart.getAttribute("aria-describedby")).toBe("settings-app-update-warning");
   fireEvent.click(restart);
   fireEvent.click(restart);
   await screen.findByText("Applying the update and restarting");
-  expect(f.api.restart).toHaveBeenCalledExactlyOnceWith(true);
+  expect(f.api.restart).toHaveBeenCalledExactlyOnceWith();
 });
 
 test("no update and network errors allow another manual check", async () => {
@@ -125,7 +127,7 @@ test("signature rejection never offers restart and does not expose native failur
   render(<AppUpdateSettings api={f.api} />);
   fireEvent.click(await screen.findByRole("button", { name: "Download update" }));
   expect((await screen.findByRole("alert")).textContent).toContain("will not be applied");
-  expect(screen.queryByRole("button", { name: "Restart and apply update" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Update and restart" })).toBeNull();
   for (const error of ["constructor", "https://private.invalid/token", { path: "private" }]) {
     expect(updateDiagnostic(error)).toBe(
       "更新の状態を確認できません。Nativeアプリで設定を開き直してください。",
@@ -167,21 +169,23 @@ test("progress handles missing length and stale replies cannot undo cancel or a 
   expect(screen.getByText("1.0 / 2.0 MiB")).toBeTruthy();
 });
 
-test("ready state survives page reopening but save confirmation is always fresh; Japanese stays localized", async () => {
+test("reopening a verified update keeps the Japanese action and warning without applying automatically", async () => {
   setLanguage("ja");
   const f = fixture({ ...initial, phase: "ready", release });
   const view = render(<AppUpdateSettings api={f.api} />);
   const restart = await screen.findByRole<HTMLButtonElement>("button", {
-    name: "再起動して更新を適用",
+    name: "更新して再起動",
   });
-  expect(restart.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox"));
+  expect(restart.disabled).toBe(false);
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(
+    screen.getByText("未保存の入力は失われます。必要な内容を保存してから更新してください。"),
+  ).toBeTruthy();
   view.unmount();
   render(<AppUpdateSettings api={f.api} />);
   expect(
-    (await screen.findByRole<HTMLButtonElement>("button", { name: "再起動して更新を適用" }))
-      .disabled,
-  ).toBe(true);
+    (await screen.findByRole<HTMLButtonElement>("button", { name: "更新して再起動" })).disabled,
+  ).toBe(false);
   expect(f.api.restart).not.toHaveBeenCalled();
   expect(f.api.cancel).not.toHaveBeenCalled();
 });
@@ -197,13 +201,54 @@ test("cancel is unavailable from the moment restart is requested, before its nat
   );
   render(<AppUpdateSettings api={f.api} />);
   const restart = await screen.findByRole<HTMLButtonElement>("button", {
-    name: "Restart and apply update",
+    name: "Update and restart",
   });
-  fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(restart);
   const cancel = screen.getByRole<HTMLButtonElement>("button", { name: "Cancel update" });
   expect(cancel.disabled).toBe(true);
   fireEvent.click(cancel);
   expect(f.api.cancel).not.toHaveBeenCalled();
   await act(async () => finish({ ...initial, revision: 1, phase: "installing", release }));
+});
+
+test("update and restart is absent until Native reports a verified ready update", async () => {
+  for (const phase of [
+    "idle",
+    "checking",
+    "available",
+    "downloading",
+    "upToDate",
+    "cancelled",
+    "error",
+    "installing",
+  ] as const) {
+    const f = fixture({ ...initial, phase, release });
+    const view = render(<AppUpdateSettings api={f.api} />);
+    await screen.findByText("Current version: 0.7.5");
+    expect(screen.queryByRole("button", { name: "Update and restart" })).toBeNull();
+    expect(f.api.restart).not.toHaveBeenCalled();
+    view.unmount();
+  }
+});
+
+test("a ready event cannot enable restart while the download request is still pending", async () => {
+  const f = fixture({ ...initial, phase: "available", release });
+  let finish: (value: UpdateSnapshot) => void = () => {};
+  f.api.download = vi.fn<AppUpdaterApi["download"]>(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  render(<AppUpdateSettings api={f.api} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Download update" }));
+  f.emit({ ...initial, revision: 1, phase: "ready", release });
+  const restart = screen.getByRole<HTMLButtonElement>("button", { name: "Update and restart" });
+  expect(restart.disabled).toBe(true);
+  fireEvent.click(restart);
+  expect(f.api.restart).not.toHaveBeenCalled();
+  await act(async () => finish({ ...initial, revision: 1, phase: "ready", release }));
+  expect(restart.disabled).toBe(false);
+  fireEvent.click(restart);
+  expect(f.api.restart).toHaveBeenCalledExactlyOnceWith();
 });

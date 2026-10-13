@@ -26,7 +26,7 @@ export type AppUpdaterApi = {
   check: () => Promise<UpdateSnapshot>;
   download: () => Promise<UpdateSnapshot>;
   cancel: () => Promise<UpdateSnapshot>;
-  restart: (savedConfirmed: boolean) => Promise<UpdateSnapshot>;
+  restart: () => Promise<UpdateSnapshot>;
   subscribe: (receive: (snapshot: UpdateSnapshot) => void) => Promise<() => void>;
 };
 export const appUpdaterApi: AppUpdaterApi = {
@@ -34,7 +34,7 @@ export const appUpdaterApi: AppUpdaterApi = {
   check: () => invoke("check_app_update"),
   download: () => invoke("download_app_update"),
   cancel: () => invoke("cancel_app_update"),
-  restart: (savedConfirmed) => invoke("restart_app_update", { savedConfirmed }),
+  restart: () => invoke("restart_app_update"),
   subscribe: (receive) =>
     listen<UpdateSnapshot>("app-update-status", (event) => receive(event.payload)),
 };
@@ -48,7 +48,6 @@ const diagnostics: Readonly<Record<string, string>> = {
   UpdateSignatureInvalid:
     "更新の署名を検証できません。安全のため適用しません。配布元に確認してください。",
   UpdateTooLarge: "更新が256MiBの上限を超えています。手動更新の案内を確認してください。",
-  UpdateSaveConfirmationRequired: "HTMLの入力を保存してから確認してください",
   UpdateSaveFailed:
     "アプリの設定を保存できないため更新を中止しました。設定を確認し、更新を再確認してください。",
   UpdateInstallFailed:

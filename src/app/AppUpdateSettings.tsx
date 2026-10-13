@@ -12,7 +12,6 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
   const [snapshot, setSnapshot] = useState<UpdateSnapshot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [savedConfirmed, setSavedConfirmed] = useState(false);
   const mounted = useRef(false);
   const operation = useRef(0);
   const inFlight = useRef<string | null>(null);
@@ -49,10 +48,6 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
       unsubscribe?.();
     };
   }, [api]);
-  useEffect(() => {
-    setSavedConfirmed(false);
-  }, [snapshot?.phase, snapshot?.release?.version]);
-
   const run = async (action: "check" | "download" | "cancel" | "restart") => {
     if (inFlight.current === "restart") return;
     if (inFlight.current && action !== "cancel") return;
@@ -62,7 +57,7 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
     setPending(action);
     setError(null);
     try {
-      accept(await (action === "restart" ? api.restart(savedConfirmed) : api[action]()));
+      accept(await api[action]());
     } catch (cause) {
       if (mounted.current && id === operation.current) setError(cause);
     } finally {
@@ -87,7 +82,7 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
       : phase === "downloading"
         ? "ダウンロードと署名検証中"
         : phase === "ready"
-          ? "署名検証が完了しました。再起動して更新を適用できます。"
+          ? "署名検証が完了しました。更新して再起動できます。"
           : phase === "installing"
             ? "更新を適用して再起動中"
             : phase === "upToDate"
@@ -146,27 +141,9 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
         </div>
       )}
       {phase === "ready" && (
-        <div>
-          <p>
-            {t(
-              "再起動で開いているHTMLの未保存入力やCanvas・実行状態は失われます。各HTMLの保存操作を完了してから進めてください。アプリは未保存内容を自動判定・保存できません。",
-            )}
-          </p>
-          <label className="resident-toggle">
-            <input
-              type="checkbox"
-              checked={savedConfirmed}
-              disabled={busy}
-              onChange={(event) => setSavedConfirmed(event.target.checked)}
-            />
-            {t("必要な入力を保存し、アプリを終了して更新することを確認しました")}
-          </label>
-          <p>
-            {t(
-              "Windowsはインストーラーでアプリを終了・更新して再起動します。macOSはアプリを置換して再起動します。適用開始後は取り消せません。",
-            )}
-          </p>
-        </div>
+        <p id="settings-app-update-warning">
+          {t("未保存の入力は失われます。必要な内容を保存してから更新してください。")}
+        </p>
       )}
       <div className="resident-actions">
         <button
@@ -184,10 +161,11 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
         {phase === "ready" && (
           <button
             type="button"
-            disabled={busy || !savedConfirmed}
+            disabled={busy}
+            aria-describedby="settings-app-update-warning"
             onClick={() => void run("restart")}
           >
-            {t("再起動して更新を適用")}
+            {t("更新して再起動")}
           </button>
         )}
         {canCancel && (

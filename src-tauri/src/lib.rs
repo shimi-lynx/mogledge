@@ -28,6 +28,9 @@ mod test_fixtures;
 pub mod tree_mutations;
 pub mod tree_order;
 mod updater;
+#[cfg(test)]
+#[path = "../updater_build_config.rs"]
+mod updater_build_config;
 pub mod updater_model;
 pub mod watcher;
 pub mod workspace_settings;

@@ -63,10 +63,18 @@ for (const variant of [
       })
       .click();
     const restart = dialog.getByRole("button", {
-      name: variant.language === "ja" ? "再起動して更新を適用" : "Restart and apply update",
+      name: variant.language === "ja" ? "更新して再起動" : "Update and restart",
       exact: true,
     });
-    await expect(restart).toBeDisabled();
+    await expect(restart).toBeEnabled();
+    await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+    await expect(
+      dialog.getByText(
+        variant.language === "ja"
+          ? "未保存の入力は失われます。必要な内容を保存してから更新してください。"
+          : "Unsaved inputs will be lost. Save what you need before updating.",
+      ),
+    ).toBeVisible();
     for (const size of [
       { width: 760, height: 500 },
       { width: 320, height: 420 },
@@ -87,7 +95,6 @@ for (const variant of [
         path: test.info().outputPath(`updater-${variant.language}-${size.width}.png`),
       });
     }
-    await dialog.getByRole("checkbox").check();
     await expect(restart).toBeEnabled();
     await restart.click();
     expect(await page.evaluate("window.updateCalls")).toEqual({

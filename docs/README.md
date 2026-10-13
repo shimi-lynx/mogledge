@@ -11,6 +11,7 @@ These guides describe current Mogledge behavior. They separate user operations, 
 | [Updater dependency delta](in-app-update-licenses.md) | Exact target/material delta and remaining distribution conditions                   |
 | [Mac notice mapping](mac-mit-notice-map.md)           | Reviewed provenance and a proposed notice set, without legal clearance              |
 | [0.8.0 source integration](release-0.8.0.md)          | Update PR integration, version rationale and verification limits                    |
+| [0.8.1 update interaction](release-0.8.1.md)          | Verified update action, unsaved-input warning and Native verification limits        |
 | [Data management](data-management.md)                 | Saved inputs, independent backups and advanced management/transfer tools            |
 | [Storage API](document-storage.md)                    | Author HTML that explicitly restores and saves JSON input                           |
 | [Artifact export API](html-artifact-export.md)        | Export generated images and text through a user-confirmed save action               |

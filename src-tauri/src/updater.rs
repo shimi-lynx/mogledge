@@ -42,8 +42,7 @@ pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
                 reason = Some("unsupported");
             } else if let Some(value) = app.config().plugins.0.get("updater") {
                 if updater_model::secure_config(value)
-                    && app.config().bundle.create_updater_artifacts
-                        == tauri::utils::config::Updater::Bool(true)
+                    && option_env!("MOGLEDGE_SIGNED_UPDATE_BUILD") == Some("true")
                     && serde_json::from_value::<tauri_plugin_updater::Config>(value.clone()).is_ok()
                 {
                     reason = if installed_app() {
@@ -164,7 +163,6 @@ pub async fn restart_app_update(
     window: WebviewWindow,
     state: State<'_, UpdaterState>,
     core: State<'_, Arc<crate::core::Core>>,
-    saved_confirmed: bool,
 ) -> Result<Snapshot, String> {
     updater_model::main_host(window.label())?;
     #[cfg(feature = "distribution-updater")]
@@ -172,12 +170,11 @@ pub async fn restart_app_update(
         window.app_handle().clone(),
         state.0.clone(),
         core.inner().clone(),
-        saved_confirmed,
     )
     .await;
     #[cfg(not(feature = "distribution-updater"))]
     {
-        let _ = (state, core, saved_confirmed);
+        let _ = (state, core);
         Err("UpdateDisabled".into())
     }
 }
@@ -328,14 +325,13 @@ mod native {
         app: AppHandle,
         state: Arc<Mutex<Runtime>>,
         core: Arc<crate::core::Core>,
-        saved_confirmed: bool,
     ) -> Result<Snapshot, String> {
         let (id, update, bytes) = {
             let mut r = state.lock().map_err(|_| "UpdateUnavailable")?;
             if r.bytes.is_none() || r.update.is_none() {
                 return Err("UpdateNotReady".into());
             }
-            let id = r.session.install(saved_confirmed)?;
+            let id = r.session.install()?;
             let update = r.update.take().ok_or("UpdateNotReady")?;
             let bytes = r.bytes.take().ok_or("UpdateNotReady")?;
             publish(&app, &r);
@@ -343,7 +339,7 @@ mod native {
         };
         let result = tauri::async_runtime::spawn_blocking(move || {
             // Windows install exits directly; flush the host's pending settings first.
-            // Arbitrary HTML inputs must already have been saved by their own app.
+            // The update action warns that arbitrary HTML inputs need their own save operation.
             crate::workspace_settings::flush(&core).map_err(|_| "UpdateSaveFailed")?;
             update
                 .restart_after_install(true)
@@ -361,5 +357,28 @@ mod native {
         }
         // Windows hands relaunch to NSIS; on macOS applying the bundle needs relaunch.
         app.restart();
+    }
+}
+
+#[cfg(test)]
+mod build_enrollment_tests {
+    #[test]
+    fn enrollment_retains_the_selected_build_decision_after_codegen() {
+        let base = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let selected = crate::updater_build_config::signed_artifacts_enabled(
+            base,
+            option_env!("TAURI_CONFIG"),
+        )
+        .unwrap();
+        assert_eq!(
+            option_env!("MOGLEDGE_SIGNED_UPDATE_BUILD"),
+            Some(if selected { "true" } else { "false" })
+        );
+        // The pinned Tauri version intentionally drops bundle-only settings.
+        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        assert_eq!(
+            context.config().bundle.create_updater_artifacts,
+            tauri::utils::config::Updater::Bool(false)
+        );
     }
 }

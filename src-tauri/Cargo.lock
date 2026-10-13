@@ -2525,13 +2525,14 @@ dependencies = [
 
 [[package]]
 name = "my-knowledge"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "axum",
  "cap-std",
  "html5ever",
  "http-body",
  "http-body-util",
+ "json-patch",
  "notify",
  "percent-encoding",
  "rand",
@@ -2548,6 +2549,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-plugin-wdio-webdriver",
+ "tauri-utils",
  "tempfile",
  "tokio",
  "tower",
