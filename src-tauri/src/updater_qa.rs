@@ -8,6 +8,10 @@ pub const BINARY_NAME: &str = "mogledge-updater-qa";
 pub const MANIFEST_URL: &str = "http://127.0.0.1:47653/latest.json";
 pub const ARTIFACT_URL: &str = "http://127.0.0.1:47653/MogledgeUpdaterQA_0.8.0_x64-setup.exe";
 
+pub fn signed_artifacts_enrolled() -> bool {
+    option_env!("MOGLEDGE_QA_SIGNED_ARTIFACTS") == Some("true")
+}
+
 pub fn identity(
     identifier: &str,
     product_name: Option<&str>,

@@ -41,7 +41,7 @@ pub(crate) fn validate_qa_context(
         cfg!(windows),
         cfg!(debug_assertions),
         cfg!(feature = "e2e"),
-    ) || config.bundle.create_updater_artifacts != tauri::utils::config::Updater::Bool(true)
+    ) || !crate::updater_qa::signed_artifacts_enrolled()
         || !config
             .plugins
             .0
@@ -70,9 +70,13 @@ pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
                 let accepted = crate::updater_qa::config(value);
                 #[cfg(not(feature = "updater-loopback-qa"))]
                 let accepted = updater_model::secure_config(value);
+                #[cfg(feature = "updater-loopback-qa")]
+                let signed_artifacts = crate::updater_qa::signed_artifacts_enrolled();
+                #[cfg(not(feature = "updater-loopback-qa"))]
+                let signed_artifacts = app.config().bundle.create_updater_artifacts
+                    == tauri::utils::config::Updater::Bool(true);
                 if accepted
-                    && app.config().bundle.create_updater_artifacts
-                        == tauri::utils::config::Updater::Bool(true)
+                    && signed_artifacts
                     && serde_json::from_value::<tauri_plugin_updater::Config>(value.clone()).is_ok()
                 {
                     reason = if installed_app() {
@@ -90,6 +94,25 @@ pub fn initialize(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
     }
     state.0.lock().map_err(|_| "UpdateUnavailable")?.session = Session::new(version, reason);
     Ok(())
+}
+
+#[cfg(all(test, feature = "updater-loopback-qa"))]
+mod compiled_qa_tests {
+    #[test]
+    fn compiled_qa_enrollment_survives_tauri_packaging_field_elision() {
+        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        assert!(crate::updater_qa::signed_artifacts_enrolled());
+        assert!(context
+            .config()
+            .plugins
+            .0
+            .get("updater")
+            .is_some_and(crate::updater_qa::config));
+        assert_eq!(
+            context.config().bundle.create_updater_artifacts,
+            tauri::utils::config::Updater::Bool(false)
+        );
+    }
 }
 
 #[cfg(feature = "distribution-updater")]

@@ -1,4 +1,14 @@
 fn main() {
+    #[cfg(feature = "updater-loopback-qa")]
+    {
+        // Tauri codegen discards this packaging field from runtime Config.
+        // Retain only the compile-time decision, never the overlay's private paths.
+        let signed = std::env::var("TAURI_CONFIG")
+            .ok()
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok())
+            .is_some_and(|config| config["bundle"]["createUpdaterArtifacts"] == true);
+        println!("cargo:rustc-env=MOGLEDGE_QA_SIGNED_ARTIFACTS={signed}");
+    }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "storage_transition_request",

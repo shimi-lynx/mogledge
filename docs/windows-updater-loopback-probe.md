@@ -53,6 +53,14 @@ Use release/locked/jobs-one builds and monitor RAM. Keep compiled configuration
 and package metadata aligned. NSIS packaging selects the unsigned-packaging
 overlay; signing happens only after the target installer/hash/version are ready.
 
+Tauri's pinned code generator replaces runtime `createUpdaterArtifacts` with its
+default. The QA build script retains only that enrollment boolean from the
+compile-time overlay, without embedding its private paths. QA initialization uses
+this compiled decision plus the exact identity and signed loopback configuration;
+ordinary updater initialization remains unchanged. The initial baseline built and
+installed, but exited before profile initialization because it checked the elided
+runtime field. That failed probe is retained separately; it is not a launch pass.
+
 Install the baseline only at the confirmed new QA directory using `/NS` and the
 reviewed install path. Verify separate profile, database, registry and actual EXE
 paths before writing synthetic inputs. Preserve the ordinary app/process,
@@ -106,5 +114,12 @@ those fingerprint fields against the already committed storage specification;
 adapter/template bytes and API behavior are unchanged. An initial concurrent
 storage-test failure was not reproduced after generation and sequential rerun.
 
-No release probe binary, NSIS installation, real signature, Native download,
-relaunch or synthetic-input preservation pass is claimed by these checks.
+Preparation checks alone do not establish Native success. The first release
+baseline and isolated NSIS installation completed, but the startup guard rejected
+the elided packaging field before any QA profile was initialized. A real signature,
+Native download, relaunch and synthetic-input preservation remain unverified.
+
+The corrected QA enrollment passed an app-crate regression using the real
+`generate_context!` output: the packaging field is elided while the compiled
+enrollment and signed loopback policy are retained. App fmt and QA strict Clippy
+also passed. This regression does not replace the next installed launch probe.
