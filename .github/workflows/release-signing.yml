@@ -1,0 +1,142 @@
+name: Production updater signing (manual human approval)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_workflow_sha:
+        description: Reviewed full main commit containing the production tooling and candidate pins
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: production-updater-signing
+  cancel-in-progress: false
+
+env:
+  EXPECTED_WORKFLOW_SHA: ${{ inputs.expected_workflow_sha }}
+
+jobs:
+  prepare:
+    if: github.repository == 'shimi-lynx/mogledge' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ready: ${{ steps.validated.outputs.ready }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/release/
+            /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - name: Validate protection and all fixed production candidates without Secrets
+        id: validated
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/release/release.py prepare "$RUNNER_TEMP/production-input"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: production-validated-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/production-input/*
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  sign:
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    environment: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/release/
+            /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - name: Recheck approval protection after the owner's native GitHub approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release/release.py gate
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.11.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/production-input
+      - name: Provision integrity-pinned official signer without lifecycle scripts
+        run: python3 scripts/signing/control.py provision "$RUNNER_TEMP/signer-tool"
+      - name: Sign exact production bytes without application execution or secret diagnostics
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: python3 scripts/release/release.py sign "$RUNNER_TEMP/production-input" "$RUNNER_TEMP/signer-tool" "$RUNNER_TEMP/production-signatures"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: production-unverified-signatures-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/production-signatures/*.sig
+          if-no-files-found: error
+          retention-days: 3
+
+  verify:
+    needs: [prepare, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/release/
+            /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/production-input
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/production-signatures
+      - name: Build and test independent public-key verifier
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          cargo +1.99.0 test --locked --manifest-path scripts/signing/verifier/Cargo.toml --jobs 1
+          cargo +1.99.0 build --locked --release --manifest-path scripts/signing/verifier/Cargo.toml --target-dir "$RUNNER_TEMP/verifier" --jobs 1
+      - name: Verify all signed versions and generate the staged public feed
+        run: python3 scripts/release/release.py verify "$RUNNER_TEMP/production-input" "$RUNNER_TEMP/production-signatures" "$RUNNER_TEMP/verifier/release/mogledge-signature-verifier" "$RUNNER_TEMP/production-verified"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-verified-0.8.2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/production-verified/*
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0

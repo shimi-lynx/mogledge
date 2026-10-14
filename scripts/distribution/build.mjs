@@ -82,12 +82,12 @@ export function requireDistributionConfig(config) {
     throw new Error("Unexpected update public key identity");
 }
 
-export async function verifyBundledMaterials(staging, app) {
+export async function verifyBundledMaterials(staging, app, platform = "darwin") {
   const digest = async (file) =>
     createHash("sha256")
       .update(await readFile(file))
       .digest("hex");
-  const resources = path.join(app, "Contents/Resources");
+  const resources = platform === "win32" ? app : path.join(app, "Contents/Resources");
   for (const file of ["LICENSE", "source.zip", "BINARY-DISTRIBUTION.md"])
     if ((await digest(path.join(staging, file))) !== (await digest(path.join(resources, file))))
       throw new Error("Updater app omitted or changed bundled material");
@@ -140,6 +140,49 @@ export function macUpdaterBuildPlan(target, resources) {
       JSON.stringify({ bundle: { createUpdaterArtifacts: false } }),
     ],
   };
+}
+
+export function windowsUpdaterBuildPlan(resources) {
+  // The native x64 host is checked by the caller. Retain the existing cache's
+  // default-target layout and compile enrollment before disabling CLI signing.
+  const common = [
+    "--features",
+    "distribution-updater",
+    "--config",
+    "src-tauri/tauri.updater.distribution.json",
+    "--config",
+    JSON.stringify({ bundle: { resources } }),
+  ];
+  return {
+    build: ["build", ...common, "--no-bundle", "--", "--locked", "--jobs", "1"],
+    bundle: [
+      "bundle",
+      ...common,
+      "--bundles",
+      "nsis",
+      "--config",
+      JSON.stringify({ bundle: { createUpdaterArtifacts: false } }),
+    ],
+  };
+}
+
+export function requireNsisPayload(source, payload) {
+  // Tauri restores the cached EXE after patching only this unique bundle marker
+  // in the NSIS payload. Reject all other byte changes before recording its hash.
+  const original = Buffer.from("__TAURI_BUNDLE_TYPE_VAR_UNK");
+  const bundled = Buffer.from("__TAURI_BUNDLE_TYPE_VAR_NSS");
+  const offset = source.indexOf(original);
+  if (
+    offset < 0 ||
+    source.indexOf(original, offset + 1) >= 0 ||
+    payload.length !== source.length ||
+    payload.indexOf(bundled) !== offset ||
+    payload.indexOf(bundled, offset + 1) >= 0
+  )
+    throw new Error("Unexpected NSIS bundle marker");
+  const expected = Buffer.from(source);
+  bundled.copy(expected, offset);
+  if (!payload.equals(expected)) throw new Error("NSIS changed bytes outside the bundle marker");
 }
 
 export function requireAdhoc(description) {
@@ -200,8 +243,6 @@ async function main(platform, appOnly = false, updaterApp = false) {
   const selected = platforms[platform];
   if (!selected || process.platform !== selected.os || process.arch !== selected.arch)
     throw new Error("Use the matching native runner");
-  if (updaterApp && selected.os !== "darwin")
-    throw new Error("Updater app preparation currently supports Mac only");
   const repo = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
   process.chdir(repo);
   const product = await identity(repo);
@@ -241,6 +282,13 @@ async function main(platform, appOnly = false, updaterApp = false) {
     throw new Error("Unexpected Node/Rust toolchain");
   if (Object.hasOwn(process.env, "TAURI_CONFIG"))
     throw new Error("Distribution builds require unset TAURI_CONFIG");
+  if (
+    updaterApp &&
+    selected.os === "win32" &&
+    (process.env.CARGO_BUILD_TARGET ||
+      !/^host: x86_64-pc-windows-msvc\r?$/m.test(run("rustc", ["-vV"]).stdout))
+  )
+    throw new Error("Windows updater builds require the native x64 MSVC target");
   const targetDirectory = path.resolve(repo, process.env.CARGO_TARGET_DIR || "src-tauri/target");
   const cargoHome = path.resolve(repo, process.env.CARGO_HOME || path.join(os.homedir(), ".cargo"));
   const remappings = pathRemappings(
@@ -351,7 +399,10 @@ async function main(platform, appOnly = false, updaterApp = false) {
       [`../.tools/distribution/${name}/source.zip`]: "source.zip",
       "../docs/binary-distribution.md": "BINARY-DISTRIBUTION.md",
     };
-    const plan = macUpdaterBuildPlan(selected.target, resources);
+    const plan =
+      selected.os === "win32"
+        ? windowsUpdaterBuildPlan(resources)
+        : macUpdaterBuildPlan(selected.target, resources);
     run(process.execPath, [cli, ...plan.build], { stdio: "inherit", env: buildEnvironment });
     run(process.execPath, [cli, ...plan.bundle], { stdio: "inherit", env: buildEnvironment });
   } else {
@@ -360,7 +411,11 @@ async function main(platform, appOnly = false, updaterApp = false) {
     args.push("--", "--locked", "--jobs", "1");
     run(process.execPath, [cli, ...args], { stdio: "inherit", env: buildEnvironment });
   }
-  const release = path.join(targetDirectory, selected.target, "release");
+  const release = path.join(
+    targetDirectory,
+    updaterApp && selected.os === "win32" ? "" : selected.target,
+    "release",
+  );
   const verifyMac = (app) => {
     run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
     requireAdhoc(run("codesign", ["-dv", "--verbose=4", app]).stderr);
@@ -408,7 +463,7 @@ async function main(platform, appOnly = false, updaterApp = false) {
     updater: updaterApp,
     ...(updaterApp
       ? {
-          updaterSignature: "pending owner-local signing; not installable as an update yet",
+          updaterSignature: "pending separately approved signing; not installable as an update yet",
           updateFeed: "awaiting public HTTPS assets; no live service is claimed",
           enrollmentNativeQa: "not performed",
           distributionConfigSha256: await sha256(
@@ -428,7 +483,53 @@ async function main(platform, appOnly = false, updaterApp = false) {
   await assertCandidateLayout(staging, platform);
   const output = path.join(work, "output");
   await mkdir(output);
-  if (updaterApp) {
+  if (updaterApp && selected.os === "win32") {
+    const installer = path.join(
+      release,
+      "bundle/nsis",
+      `${product.productName}_${product.version}_x64-setup.exe`,
+    );
+    run("pwsh", [
+      "-NoProfile",
+      "-File",
+      "scripts/distribution/windows.ps1",
+      "-Action",
+      "verify-installer",
+      "-Source",
+      installer,
+      "-Expected",
+      product.version,
+      "-Output",
+      path.join(work, "installer-verification.json"),
+    ]);
+    assertBinaryPrivacy(await readFile(installer), remappings);
+    const extracted = path.join(work, "installer-extracted");
+    run("pwsh", [
+      "-NoProfile",
+      "-File",
+      "scripts/distribution/windows.ps1",
+      "-Action",
+      "unpack-installer",
+      "-Source",
+      installer,
+      "-Expected",
+      product.version,
+      "-Output",
+      extracted,
+    ]);
+    const restored = path.join(extracted, "my-knowledge.exe");
+    verifyWindows(restored, path.join(work, "installer-payload-verification.json"));
+    requireNsisPayload(await readFile(executable), await readFile(restored));
+    await cp(restored, executable);
+    assertBinaryPrivacy(await readFile(executable), remappings);
+    manifest.executableSha256 = await sha256(executable);
+    await verifyBundledMaterials(staging, extracted, "win32");
+    const updateArchive = path.join(output, `${name}-setup.exe`);
+    await cp(installer, updateArchive);
+    manifest.updateArchive = path.basename(updateArchive);
+    manifest.updateArchiveSha256 = await sha256(updateArchive);
+    await writeFile(path.join(staging, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  } else if (updaterApp) {
     await verifyBundledMaterials(staging, path.join(staging, "Mogledge.app"));
     const updateArchive = path.join(output, `${name}.app.tar.gz`);
     run("tar", ["-czf", updateArchive, "-C", staging, "Mogledge.app"]);

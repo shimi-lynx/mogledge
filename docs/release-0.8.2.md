@@ -1,6 +1,6 @@
 # Mogledge 0.8.2 saved-data corrections
 
-This patch prepares corrections to existing saved-data management. It does not publish a release, generate an installer or replace an installed application. A tab-session correction is being prepared separately and still requires its own integration and verification; the product version is updated once for the intended combined release.
+This patch combines the merged saved-data and tab-session corrections. Product version was updated once for that combined release. The [production distribution preparation](production-distribution.md) defines Windows NSIS/Mac packaging and separate native signing/publication approvals; its policies remain disabled until actual 0.8.2 artifact pins are reviewed. This document does not establish a published release, completed installer or installed-app replacement.
 
 Saved-data settings show the associated HTML filename and relative path, search all metadata before paging, and allow several eligible records on the current page to be selected. The explicit preview lists the count and input-removal effect. One confirmation quarantines every selected record in one transaction, retaining recovery copies and leaving HTML files unchanged. Changed, open or unavailable targets and insufficient recovery space reject the operation without partial removal. Tombstones continue to reject stale reads and resaves until explicit restoration. A lost aggregate plan does not become a false single-record success.
 

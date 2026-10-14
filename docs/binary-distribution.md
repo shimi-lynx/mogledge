@@ -1,5 +1,7 @@
 # Manual distribution candidate builds
 
+The explicitly selected updater mode now prepares unsigned Windows NSIS or enrolled Mac archives without production Secrets. The [0.8.2 production preparation](production-distribution.md) defines the final-source build sequence, artifact checks and separate GitHub signing/publication approvals. Those production policies remain disabled pending actual reviewed 0.8.2 artifact pins; this change does not establish completed builds or a live update feed.
+
 This guide describes the GitHub Actions workflow for building Mogledge distribution candidates from a fixed source revision. Local builds remain available. Initial preparation had no workflow-native build or downloaded-candidate evidence. Subsequently, [run 38495813692](https://github.com/shimi-lynx/mogledge/actions/runs/38495813692) successfully built and packaged the enrolled Intel Mac 0.8.1 candidate from source `ccdcccab85c6c2ad18b063989c049c0a013229eb`, producing artifact `11865015479`. The owner reported launching and using that downloaded app after removing its quarantine attribute. This establishes the reported 0.8.1 run and owner use, not a formal 0.8.2 distribution, an updater signature, a live feed or a real in-app update.
 
 Earlier owner checks of local builds remain separate: the Mac 0.7.4 close-menu startup defect was corrected in source, and the owner confirmed ordinary Mac operation, resident recall and Cmd+W tab closing. That earlier report did not identify an exact binary version/hash or validate an Actions artifact.

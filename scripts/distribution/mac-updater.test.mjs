@@ -7,6 +7,8 @@ import {
   macUpdaterBuildPlan,
   requireDistributionConfig,
   verifyBundledMaterials,
+  windowsUpdaterBuildPlan,
+  requireNsisPayload,
 } from "./build.mjs";
 import { collectNotices, materialReviewHash } from "./notices.mjs";
 
@@ -81,6 +83,75 @@ test("Mac plan compiles enrollment once and bundles that binary without requesti
     assert.deepEqual(JSON.parse(plan.bundle.at(-1)), { bundle: { createUpdaterArtifacts: false } });
   }
   assert.throws(() => macUpdaterBuildPlan("x86_64-pc-windows-msvc", resources), /Mac target/);
+});
+
+test("Windows enrollment uses the native cache and packages only NSIS without requesting a signing key", () => {
+  const resources = { "../LICENSE": "LICENSE" };
+  const plan = windowsUpdaterBuildPlan(resources);
+  assert.ok(plan.build.includes("--no-bundle"));
+  assert.deepEqual(plan.build.slice(-4), ["--", "--locked", "--jobs", "1"]);
+  assert.equal(plan.bundle[plan.bundle.indexOf("--bundles") + 1], "nsis");
+  for (const args of [plan.build, plan.bundle]) {
+    assert.ok(args.includes("distribution-updater"));
+    assert.ok(args.includes("src-tauri/tauri.updater.distribution.json"));
+    assert.equal(args.includes("--target"), false);
+    assert.equal(args.includes("--no-sign"), false);
+    assert.ok(args.includes(JSON.stringify({ bundle: { resources } })));
+  }
+  assert.deepEqual(JSON.parse(plan.bundle.at(-1)), { bundle: { createUpdaterArtifacts: false } });
+});
+
+test("NSIS permits only the unique Tauri UNK-to-NSS marker patch, preserving every other byte", () => {
+  const marker = "__TAURI_BUNDLE_TYPE_VAR_";
+  const source = Buffer.from(`prefix-${marker}UNK-suffix`);
+  const payload = Buffer.from(`prefix-${marker}NSS-suffix`);
+  requireNsisPayload(source, payload);
+  for (const changed of [
+    source,
+    Buffer.from(`changed-${marker}NSS-suffix`),
+    Buffer.from(`prefix-${marker}NSS-SUFFIX`),
+    Buffer.from(`prefix-${marker}NSS-suffix-extra`),
+  ])
+    assert.throws(() => requireNsisPayload(source, changed));
+  assert.throws(
+    () =>
+      requireNsisPayload(
+        Buffer.from(`${marker}UNK-${marker}UNK`),
+        Buffer.from(`${marker}NSS-${marker}UNK`),
+      ),
+    /marker/,
+  );
+  assert.throws(
+    () => requireNsisPayload(Buffer.from("prefix-UNK-suffix"), Buffer.from("prefix-NSS-suffix")),
+    /marker/,
+  );
+});
+
+test("Windows NSIS inspection must preserve embedded source and every legal file", async (t) => {
+  const root = await fixture(t);
+  const staging = path.join(root, "staging");
+  const extracted = path.join(root, "extracted");
+  await mkdir(path.join(staging, "third-party/package"), { recursive: true });
+  for (const file of [
+    "LICENSE",
+    "source.zip",
+    "BINARY-DISTRIBUTION.md",
+    "third-party/package/NOTICE",
+  ])
+    await writeFile(path.join(staging, file), `retained ${file}`);
+  await cp(staging, extracted, { recursive: true });
+  await verifyBundledMaterials(staging, extracted, "win32");
+  await writeFile(path.join(extracted, "third-party/package/NOTICE"), "changed notice");
+  await assert.rejects(
+    verifyBundledMaterials(staging, extracted, "win32"),
+    /material bytes differ/,
+  );
+  await cp(
+    path.join(staging, "third-party/package/NOTICE"),
+    path.join(extracted, "third-party/package/NOTICE"),
+  );
+  await rm(path.join(extracted, "source.zip"));
+  await assert.rejects(verifyBundledMaterials(staging, extracted, "win32"));
 });
 
 test("bundled and extracted apps must preserve every notice/source file rather than only its index", async (t) => {
