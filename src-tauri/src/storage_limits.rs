@@ -9,8 +9,7 @@ pub const DEFAULT_TOTAL_BYTES: i64 = 512 * MIB;
 pub const MAX_SAFE_BYTES: i64 = 9_007_199_254_740_991;
 pub const MAX_MIB: i64 = MAX_SAFE_BYTES / MIB;
 pub(crate) const LEGACY_DDL: &str = "CREATE TABLE storage_limits(singleton INTEGER PRIMARY KEY CHECK(singleton=1),document_bytes INTEGER NOT NULL CHECK(document_bytes BETWEEN 1048576 AND 8388608 AND document_bytes%1048576=0),total_bytes INTEGER NOT NULL CHECK(total_bytes BETWEEN 1048576 AND 1073741824 AND total_bytes%1048576=0 AND total_bytes>=document_bytes),revision INTEGER NOT NULL CHECK(revision>0))";
-pub(crate) const MIB_DDL: &str = "CREATE TABLE storage_limits(singleton INTEGER PRIMARY KEY CHECK(singleton=1),document_bytes INTEGER NOT NULL CHECK(document_bytes BETWEEN 1048576 AND 9007199253692416 AND document_bytes%1048576=0),total_bytes INTEGER NOT NULL CHECK(total_bytes BETWEEN 1048576 AND 9007199253692416 AND total_bytes%1048576=0 AND total_bytes>=document_bytes),revision INTEGER NOT NULL CHECK(revision>0))";
-pub(crate) const DDL: &str = "CREATE TABLE storage_limits(singleton INTEGER PRIMARY KEY CHECK(singleton=1),document_bytes INTEGER NOT NULL CHECK(document_bytes BETWEEN 1048576 AND 9007199253692416),total_bytes INTEGER NOT NULL CHECK(total_bytes BETWEEN 1048576 AND 9007199253692416 AND total_bytes>=document_bytes),revision INTEGER NOT NULL CHECK(revision>0))";
+pub(crate) const DDL: &str = "CREATE TABLE storage_limits(singleton INTEGER PRIMARY KEY CHECK(singleton=1),document_bytes INTEGER NOT NULL CHECK(document_bytes BETWEEN 1048576 AND 9007199253692416 AND document_bytes%1048576=0),total_bytes INTEGER NOT NULL CHECK(total_bytes BETWEEN 1048576 AND 9007199253692416 AND total_bytes%1048576=0 AND total_bytes>=document_bytes),revision INTEGER NOT NULL CHECK(revision>0))";
 
 #[derive(Clone, Copy, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -117,9 +116,7 @@ pub(crate) fn acknowledged_format(connection: &Connection) -> Result<bool, Migra
             |r| r.get(0),
         )
         .map_err(sql_error)?;
-    // Both numeric-range formats already acknowledged SQLite's intrinsic
-    // capacity. Decimal editing must not lower an existing database's file cap.
-    Ok(normalized(&sql) == normalized(DDL) || normalized(&sql) == normalized(MIB_DDL))
+    Ok(normalized(&sql) == normalized(DDL))
 }
 pub(crate) fn schema_ddl(connection: &Connection) -> Result<&'static str, MigrationError> {
     let sql: String = connection
@@ -131,8 +128,6 @@ pub(crate) fn schema_ddl(connection: &Connection) -> Result<&'static str, Migrat
         .map_err(sql_error)?;
     if normalized(&sql) == normalized(DDL) {
         Ok(DDL)
-    } else if normalized(&sql) == normalized(MIB_DDL) {
-        Ok(MIB_DDL)
     } else if normalized(&sql) == normalized(LEGACY_DDL) {
         Ok(LEGACY_DDL)
     } else {
@@ -205,7 +200,8 @@ pub(crate) fn read(connection: &Connection) -> Result<Limits, MigrationError> {
         || !(MIB..=MAX_MIB * MIB).contains(&total)
         || (ddl == LEGACY_DDL && (document > 8 * MIB || total > 1024 * MIB))
         || total < document
-        || (ddl != DDL && (document % MIB != 0 || total % MIB != 0))
+        || document % MIB != 0
+        || total % MIB != 0
         || revision <= 0
     {
         return Err(MigrationError::Corrupt);
@@ -263,8 +259,6 @@ pub(crate) fn cap_database(connection: &Connection) -> Result<(), MigrationError
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
-    pub document_bytes: i64,
-    pub total_bytes: i64,
     pub document_mi_b: i64,
     pub total_mi_b: i64,
     pub revision: i64,
@@ -282,12 +276,8 @@ pub struct SetRequest {
     pub context: Context,
     pub expected_revision: i64,
     pub expected_generation: i64,
-    #[serde(default)]
     pub document_mi_b: i64,
-    #[serde(default)]
     pub total_mi_b: i64,
-    pub document_bytes: Option<i64>,
-    pub total_bytes: Option<i64>,
     pub acknowledge_compatibility: bool,
 }
 #[derive(Serialize, Debug)]
@@ -297,7 +287,7 @@ pub struct LimitsError {
 }
 pub(crate) fn failure(code: &'static str) -> LimitsError {
     let message = match code {
-        "limits_invalid" => "Use an exact whole-byte capacity within the supported range, at least 1048576 bytes, with total at least document.",
+        "limits_invalid" => "Use positive whole MiB representable as exact bytes, total at least document.",
         "limits_changed" => "Saved data or limits changed. Inspect the current limits again.",
         "limits_below_usage" => "The limits are below active usage or an active/recovery document. Existing values and limits are preserved.",
         "limits_compatibility_required" => "Back up the profile and acknowledge that older apps may reject this saved format.",
@@ -379,8 +369,6 @@ fn snapshot(connection: &Connection) -> Result<Snapshot, MigrationError> {
         (None, None)
     };
     Ok(Snapshot {
-        document_bytes: limits.document_bytes as i64,
-        total_bytes: limits.total_bytes,
         document_mi_b: limits.document_bytes as i64 / MIB,
         total_mi_b: limits.total_bytes / MIB,
         revision: limits.revision,
@@ -389,8 +377,7 @@ fn snapshot(connection: &Connection) -> Result<Snapshot, MigrationError> {
         largest_document_bytes: largest,
         recovery_bytes,
         largest_recovery_document_bytes: largest_recovery,
-        requires_compatibility_acknowledgement: !table_exists(connection)?
-            || schema_ddl(connection)? != DDL,
+        requires_compatibility_acknowledgement: !acknowledged_format(connection)?,
         capabilities,
     })
 }
@@ -447,20 +434,10 @@ pub fn get(core: &Core, context: &Context) -> Result<Snapshot, LimitsError> {
     })
 }
 pub fn set(core: &Core, request: &SetRequest) -> Result<Snapshot, LimitsError> {
-    let (document, total) = match (request.document_bytes, request.total_bytes) {
-        (Some(document), Some(total)) if request.document_mi_b == 0 && request.total_mi_b == 0 => {
-            (document, total)
-        }
-        (None, None) => (
-            mib_bytes(request.document_mi_b).ok_or_else(|| failure("limits_invalid"))?,
-            mib_bytes(request.total_mi_b).ok_or_else(|| failure("limits_invalid"))?,
-        ),
-        _ => return Err(failure("limits_invalid")),
-    };
-    if !(MIB..=MAX_MIB * MIB).contains(&document)
-        || !(MIB..=MAX_MIB * MIB).contains(&total)
-        || usize::try_from(document).is_err()
-        || total < document
+    if mib_bytes(request.document_mi_b).is_none()
+        || mib_bytes(request.total_mi_b).is_none()
+        || usize::try_from(request.document_mi_b.checked_mul(MIB).unwrap_or(-1)).is_err()
+        || request.total_mi_b < request.document_mi_b
         || request.expected_revision < 0
         || request.expected_generation < 0
     {
@@ -473,10 +450,13 @@ pub fn set(core: &Core, request: &SetRequest) -> Result<Snapshot, LimitsError> {
         {
             return Err(failure("limits_changed"));
         }
-        if current.document_bytes == document && current.total_bytes == total {
+        if current.document_mi_b == request.document_mi_b
+            && current.total_mi_b == request.total_mi_b
+        {
             return Ok(current);
         }
-        if current.usage_bytes > total
+        let document = request.document_mi_b * MIB;
+        if current.usage_bytes > request.total_mi_b * MIB
             || current.largest_document_bytes > document
             || current.largest_recovery_document_bytes.unwrap_or(0) > document
         {
@@ -503,7 +483,7 @@ pub fn set(core: &Core, request: &SetRequest) -> Result<Snapshot, LimitsError> {
             .generation
             .checked_add(1)
             .ok_or_else(|| failure("state_corrupt"))?;
-        connection.execute("INSERT INTO storage_limits VALUES(1,?1,?2,?3) ON CONFLICT(singleton) DO UPDATE SET document_bytes=excluded.document_bytes,total_bytes=excluded.total_bytes,revision=excluded.revision",params![document,total,revision]).map_err(|error|backend(sql_error(error)))?;
+        connection.execute("INSERT INTO storage_limits VALUES(1,?1,?2,?3) ON CONFLICT(singleton) DO UPDATE SET document_bytes=excluded.document_bytes,total_bytes=excluded.total_bytes,revision=excluded.revision",params![document,request.total_mi_b*MIB,revision]).map_err(|error|backend(sql_error(error)))?;
         connection
             .execute(
                 "UPDATE quota SET generation=?1 WHERE singleton=1",

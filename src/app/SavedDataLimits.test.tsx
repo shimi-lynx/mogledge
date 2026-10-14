@@ -37,14 +37,14 @@ test("read-only initial values and defaults/cancel require explicit edits and ne
   fireEvent.click(screen.getByRole("button", { name: "Cancel limit edits" }));
   expect(api.set).not.toHaveBeenCalled();
 });
-test("fractional-byte values are rejected; acknowledgement precedes an immediate apply without a restart notice", async () => {
+test("values outside whole-MiB precision are rejected; acknowledgement precedes an immediate apply without a restart notice", async () => {
   const api = limitsFixtureApi(),
     session = new StorageLimitsSession(api);
   render(<SavedDataLimits context={limitsContext} session={session} />);
   await screen.findByText("5.243 MB per document · 536.871 MB total");
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
   const document = screen.getByRole("textbox", { name: "Document limit" });
-  fireEvent.change(document, { target: { value: "1.0000001" } });
+  fireEvent.change(document, { target: { value: "1.5" } });
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Apply storage limits" }).disabled,
   ).toBe(true);

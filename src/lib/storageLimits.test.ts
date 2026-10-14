@@ -16,13 +16,13 @@ import { limitsContext, limitsFixture, limitsFixtureApi } from "./storageLimits.
 import { translate } from "./i18n";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => vi.useRealTimers());
-test("main-only set IPC sends exact byte fields without mixed legacy unit fields", async () => {
+test("decimal editing retains the existing whole-MiB IPC fields", async () => {
   await storageLimitsApi.set({
     context: limitsContext,
     expectedRevision: 2,
     expectedGeneration: 7,
-    documentMiB: 1_500_001 / MIB,
-    totalMiB: 2_000_001 / MIB,
+    documentMiB: 5,
+    totalMiB: 512,
     acknowledgeCompatibility: true,
   });
   expect(invoke).toHaveBeenLastCalledWith("set_storage_limits", {
@@ -30,40 +30,32 @@ test("main-only set IPC sends exact byte fields without mixed legacy unit fields
       context: limitsContext,
       expectedRevision: 2,
       expectedGeneration: 7,
-      documentBytes: 1_500_001,
-      totalBytes: 2_000_001,
+      documentMiB: 5,
+      totalMiB: 512,
       acknowledgeCompatibility: true,
     },
   });
 });
 test("opening existing bytes and switching every decimal unit preserves exact values without writes", async () => {
   const api = limitsFixtureApi();
-  api.get = vi.fn(async () => ({
-    ...limitsFixture,
-    documentBytes: 1_500_001,
-    totalBytes: 2_000_001,
-    documentMiB: 1,
-    totalMiB: 1,
-  }));
+  api.get = vi.fn(async () => ({ ...limitsFixture }));
   const session = new StorageLimitsSession(api);
   session.bind(limitsContext);
   await session.load();
   session.edit();
-  expect(session.getSnapshot().document).toBe("1.500001");
+  expect(session.getSnapshot().document).toBe("5.24288");
   for (const unit of ["B", "KB", "GB", "MB"] as const) {
     session.changeUnit("document", unit);
     session.changeUnit("total", unit);
     expect(session.changed()).toBe(false);
     await session.apply();
   }
-  expect(session.getSnapshot().document).toBe("1.500001");
+  expect(session.getSnapshot().document).toBe("5.24288");
   expect(api.set).not.toHaveBeenCalled();
-  session.change("document", "1.500002");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
-  expect(api.set).toHaveBeenCalledWith(
-    expect.objectContaining({ documentMiB: 1_500_002 / MIB, totalMiB: 2_000_001 / MIB }),
-  );
+  expect(api.set).toHaveBeenCalledWith(expect.objectContaining({ documentMiB: 8, totalMiB: 512 }));
   expect(session.getSnapshot().notice).toBe("applied");
 });
 async function prepared(api = limitsFixtureApi()) {
@@ -73,7 +65,7 @@ async function prepared(api = limitsFixtureApi()) {
   session.edit();
   return session;
 }
-test("decimal capacities reject fractional bytes, nonfinite, unsafe and out-of-range values without rounding", () => {
+test("decimal capacities require exact whole-MiB values and reject invalid input without rounding", () => {
   for (const pair of [
     ["", "512"],
     ["NaN", "512"],
@@ -88,7 +80,12 @@ test("decimal capacities reject fractional bytes, nonfinite, unsafe and out-of-r
   ])
     expect(parseLimits(...(pair as [string, string]))).toBeNull();
   expect(parseLimits("1.048576", "1.048576")).toEqual({ documentMiB: 1, totalMiB: 1 });
-  expect(parseLimits("1.5", "2")).toEqual({ documentMiB: 1500000 / MIB, totalMiB: 2000000 / MIB });
+  expect(parseLimits("1.5", "2")).toBeNull();
+  expect(parseLimits("5.242881", "536.870912")).toBeNull();
+  expect(parseLimits("8388.608", "1.073741824", "KB", "GB")).toEqual({
+    documentMiB: 8,
+    totalMiB: 1024,
+  });
   expect(parseLimits("8.388608", "1073.741824")).toEqual({ documentMiB: 8, totalMiB: 1024 });
   expect(parseLimits(String(MAX_LIMITS_MIB * MIB), String(MAX_LIMITS_MIB * MIB), "B", "B")).toEqual(
     {

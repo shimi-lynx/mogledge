@@ -16,8 +16,6 @@ function responseDeadline<T>(operation: Promise<T>): Promise<T> {
   return Promise.race([operation, deadline]).finally(() => clearTimeout(timer));
 }
 export type LimitsSnapshot = {
-  documentBytes?: number;
-  totalBytes?: number;
   documentMiB: number;
   totalMiB: number;
   revision: number;
@@ -48,14 +46,11 @@ export type LimitsApi = {
 };
 export const storageLimitsApi: LimitsApi = {
   get: (context) => invoke("get_storage_limits", { context }),
-  set: ({ documentMiB, totalMiB, ...request }) =>
-    invoke("set_storage_limits", {
-      request: { ...request, documentBytes: documentMiB * MIB, totalBytes: totalMiB * MIB },
-    }),
+  set: (request) => invoke("set_storage_limits", { request }),
 };
 export const limitsMessages: Readonly<Record<string, string>> = {
   limits_invalid:
-    "正確なバイト数になる容量を指定してください。最小値は1.048576 MBで、全体は文書以上です",
+    "1.048576 MBの整数倍になる容量を指定してください。最小値は1.048576 MBで、全体は文書以上です",
   limits_changed: "保存データまたは上限が変わりました。現在値を確認してから適用してください",
   limits_below_usage: "現在の保存量や文書・回復コピーの最大容量を下回る上限にはできません",
   limits_compatibility_required: "旧版との互換性とbackupを確認してください",
@@ -85,16 +80,11 @@ const safe = (value: unknown): value is number => Number.isSafeInteger(value) &&
 export function limitsSnapshot(value: unknown): LimitsSnapshot | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const fields = value as Record<string, unknown>;
-  const hasBytes = Object.hasOwn(fields, "documentBytes") || Object.hasOwn(fields, "totalBytes");
   if (
-    Object.keys(fields)
-      .filter((key) => !["documentBytes", "totalBytes"].includes(key))
-      .sort()
-      .join() !==
+    Object.keys(fields).sort().join() !==
     "capabilities,documentMiB,generation,largestDocumentBytes,largestRecoveryDocumentBytes,recoveryBytes,requiresCompatibilityAcknowledgement,revision,totalMiB,usageBytes"
   )
     return null;
-  if (hasBytes && (!safe(fields.documentBytes) || !safe(fields.totalBytes))) return null;
   for (const key of [
     "documentMiB",
     "totalMiB",
@@ -117,18 +107,7 @@ export function limitsSnapshot(value: unknown): LimitsSnapshot | null {
   for (const capacity of Object.values(capabilities))
     if (!safe(capacity) || capacity === 0) return null;
   // All numeric/null fields and exact keys were validated before this boundary cast.
-  const snapshot = { ...fields } as LimitsSnapshot;
-  if (hasBytes) {
-    if (
-      Math.floor(snapshot.documentBytes! / MIB) !== snapshot.documentMiB ||
-      Math.floor(snapshot.totalBytes! / MIB) !== snapshot.totalMiB
-    )
-      return null;
-    // Preserve the session's existing MiB comparisons with an exact binary
-    // ratio, rather than the Native legacy fields' whole-MiB floor.
-    snapshot.documentMiB = snapshot.documentBytes! / MIB;
-    snapshot.totalMiB = snapshot.totalBytes! / MIB;
-  }
+  const snapshot = fields as LimitsSnapshot;
   if (
     snapshot.documentMiB < 1 ||
     snapshot.documentMiB > MAX_LIMITS_MIB ||
@@ -156,6 +135,9 @@ export function parseLimits(
     totalBytes = parseByteAmount(total, totalUnit);
   return documentBytes !== null &&
     totalBytes !== null &&
+    // Keep the existing whole-MiB wire/storage format; never round user input.
+    documentBytes % MIB === 0 &&
+    totalBytes % MIB === 0 &&
     documentBytes >= MIB &&
     documentBytes <= MAX_LIMITS_MIB * MIB &&
     totalBytes >= documentBytes &&

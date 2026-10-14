@@ -13,11 +13,11 @@ async function prepareLimits(page: Page) {
       import { storageLimitsApi } from '/src/lib/storageLimits.ts';
       import { managementApi } from '/src/lib/stateManagement.ts';
       window.limitsCalls = {get:0,set:[]};
-      let limits = {documentBytes:5242880,totalBytes:536870912,documentMiB:5,totalMiB:512,revision:3,generation:7,usageBytes:80,largestDocumentBytes:80,recoveryBytes:20,largestRecoveryDocumentBytes:20,requiresCompatibilityAcknowledgement:true,capabilities:{maximumDocumentBytes:1000000000,maximumRequestBytes:1000001024,maximumDatabaseBytes:17592186036224,recoveryBudgetBytes:536870912}};
+      let limits = {documentMiB:5,totalMiB:512,revision:3,generation:7,usageBytes:80,largestDocumentBytes:80,recoveryBytes:20,largestRecoveryDocumentBytes:20,requiresCompatibilityAcknowledgement:true,capabilities:{maximumDocumentBytes:1000000000,maximumRequestBytes:1000001024,maximumDatabaseBytes:17592186036224,recoveryBudgetBytes:536870912}};
       storageLimitsApi.get = async context => { window.limitsCalls.get++; return {...limits}; };
       storageLimitsApi.set = async request => {
         window.limitsCalls.set.push({...request});
-        limits = {...limits,documentMiB:Math.floor(request.documentMiB),totalMiB:Math.floor(request.totalMiB),documentBytes:request.documentMiB*1048576,totalBytes:request.totalMiB*1048576,revision:request.expectedRevision+1,generation:request.expectedGeneration+1,requiresCompatibilityAcknowledgement:false};
+        limits = {...limits,documentMiB:request.documentMiB,totalMiB:request.totalMiB,revision:request.expectedRevision+1,generation:request.expectedGeneration+1,requiresCompatibilityAcknowledgement:false};
         throw {code:'/private/transport/state.db'};
       };
       managementApi.list = async request => ({snapshotId:'inspection',databaseSchemaVersion:2,usage:{logicalBytes:80,records:0,recoveryLogicalBytes:20,recoveryRecords:0,databaseBytes:8192,journalBytes:0,freeDatabasePageBytes:4096},entries:[],offset:0,limit:20,hasMore:false});
@@ -84,7 +84,7 @@ for (const language of ["ja", "en"] as const) {
     // Narrow layouts stack amount/unit fields instead of shrinking the amount
     // into a few clipped digits or overlapping their accessible labels.
     expect((await documentLimit.boundingBox())!.width).toBeGreaterThan(90);
-    await documentLimit.fill("1.0000001");
+    await documentLimit.fill("1.5");
     await expect(apply).toBeDisabled();
     await expect(documentLimit).not.toHaveAttribute("max", /.+/);
     await expect(total).not.toHaveAttribute("max", /.+/);

@@ -23,10 +23,8 @@ export function limitsFixtureApi(): LimitsApi {
     get: vi.fn<LimitsApi["get"]>(async () => ({ ...limitsFixture })),
     set: vi.fn<LimitsApi["set"]>(async (request) => ({
       ...limitsFixture,
-      documentMiB: Math.floor(request.documentMiB),
-      documentBytes: request.documentMiB * 1048576,
-      totalMiB: Math.floor(request.totalMiB),
-      totalBytes: request.totalMiB * 1048576,
+      documentMiB: request.documentMiB,
+      totalMiB: request.totalMiB,
       revision: request.expectedRevision + 1,
       generation: request.expectedGeneration + 1,
       requiresCompatibilityAcknowledgement: false,

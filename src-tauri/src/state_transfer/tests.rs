@@ -174,8 +174,6 @@ fn configured_document_limit_is_used_by_cli_import_and_restart_validation() {
             expected_generation: current.generation,
             document_mi_b: 8,
             total_mi_b: 16,
-            document_bytes: None,
-            total_bytes: None,
             acknowledge_compatibility: true,
         },
     )

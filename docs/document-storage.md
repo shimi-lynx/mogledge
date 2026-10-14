@@ -85,13 +85,13 @@ One MiB is 1,048,576 bytes. Logical document size is the server-serialized UTF-8
 
 Count all appIds, keys, schema/data envelopes, JSON syntax and escaping, rather than characters or one appId's raw data. Each appId does not get a separate document allowance. Updates subtract old map bytes and add new map bytes; deletes count the reduced map. An empty document retains the two bytes of `{}` and its revision record.
 
-| Limit                                       | Default and scope                                                          |
-| ------------------------------------------- | -------------------------------------------------------------------------- |
-| Active JSON per physical document           | Default 5,242,880 B; exact bytes from 1,048,576 to 9,007,199,253,692,416 B |
-| Active JSON across all roots in one profile | Default 536,870,912 B; same range, at least the document limit             |
-| AppIds per document                         | 128; fixed                                                                 |
-| Historical active identities                | 4,096; fixed                                                               |
-| Internal recovery area                      | Separate 512 MiB / 4,096 entries, including restored copies; fixed         |
+| Limit                                       | Default and scope                                                              |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| Active JSON per physical document           | Default 5,242,880 B; whole-MiB steps from 1,048,576 to 9,007,199,253,692,416 B |
+| Active JSON across all roots in one profile | Default 536,870,912 B; same range, at least the document limit                 |
+| AppIds per document                         | 128; fixed                                                                     |
+| Historical active identities                | 4,096; fixed                                                                   |
+| Internal recovery area                      | Separate 512 MiB / 4,096 entries, including restored copies; fixed             |
 
 The setting range keeps byte conversion within JavaScript safe integers. It is not actual capacity, memory reservation or a free-disk guarantee. Changes apply without restart to subsequent Native writes/imports/restores. Lowering total below active usage, or document below the largest active/recovery document, is rejected without changing values/settings; equality is allowed. Recovery totals are separate, but restore rechecks current active/document/count limits. A document above 512 MiB cannot be quarantined into recovery even when ordinary saving is allowed; refusal preserves its active value.
 
@@ -105,7 +105,7 @@ Only trusted main UI can call `get_storage_limits` / `set_storage_limits`. Reque
 
 Under the lifecycle gate, database mutex and SQLite IMMEDIATE transaction, Native rechecks usage/revision/generation and commits setting revision and database generation together. Stale requests are refused; read current values again. Failure rolls back state/settings. A lost response requires reconciliation, not automatic reapplication.
 
-Settings use an optional `storage_limits` table. Absent-table reads return 5 / 512 MiB. Known older capped and whole-MiB DDL and the current exact-byte DDL are strictly validated. Reads and same-value writes preserve format without creating/rebuilding the table. The main-only snapshot includes exact `documentBytes` / `totalBytes` and legacy integer MiB fields. The current main-only set request sends exact bytes; older whole-MiB requests remain accepted, but mixed or partial unit fields are rejected. UI decimal units use powers of 1,000 and preserve exact stored bytes; they do not change Native JSON accounting or adapter budgets.
+Settings use the existing optional `storage_limits` table and strictly validated capped/wide whole-MiB DDL. Absent-table reads return 5 / 512 MiB. Reads and same-value writes preserve format without creating/rebuilding the table. The main-only snapshot and set request retain integer `documentMiB` / `totalMiB` fields. UI decimal units use powers of 1,000, accept only exact whole-MiB quantities and preserve stored bytes. This display/editor correction introduces no new DDL, migration or IPC shape; Native JSON accounting and adapter budgets are unchanged.
 
 The first different setting that creates a table or rebuilds older DDL requires an **independent whole-profile backup and explicit acknowledgement of older-app incompatibility**. Format/settings change in one transaction without changing `user_version` v1/v2. Older apps rejecting unknown tables/DDL may no longer open the DB. Returning numbers to 5 / 512 MiB does not restore format or compatibility. No table deletion or automatic downgrade is provided. Internal recovery copies are not an independent backup.
 
