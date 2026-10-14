@@ -19,15 +19,19 @@ test("read-only initial values and defaults/cancel require explicit edits and ne
   const api = limitsFixtureApi(),
     session = new StorageLimitsSession(api);
   render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
-  expect(screen.queryByRole("spinbutton")).toBeNull();
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
+  expect(screen.getByText(/Summary capacities are rounded to three decimal places/)).toBeTruthy();
+  expect(screen.queryByRole("textbox")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Document limit" }).value).toBe(
+    "5.24288",
+  );
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Apply storage limits" }).disabled,
   ).toBe(true);
   expect(screen.queryByRole("checkbox")).toBeNull();
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Document limit (MiB)" }), {
-    target: { value: "8" },
+  fireEvent.change(screen.getByRole("textbox", { name: "Document limit" }), {
+    target: { value: "8.388608" },
   });
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Apply storage limits" }).disabled,
@@ -37,18 +41,18 @@ test("read-only initial values and defaults/cancel require explicit edits and ne
   fireEvent.click(screen.getByRole("button", { name: "Cancel limit edits" }));
   expect(api.set).not.toHaveBeenCalled();
 });
-test("fractional values are rejected; acknowledgement precedes an immediate apply without a restart notice", async () => {
+test("values outside whole-MiB precision are rejected; acknowledgement precedes an immediate apply without a restart notice", async () => {
   const api = limitsFixtureApi(),
     session = new StorageLimitsSession(api);
   render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
-  const document = screen.getByRole("spinbutton", { name: "Document limit (MiB)" });
+  const document = screen.getByRole("textbox", { name: "Document limit" });
   fireEvent.change(document, { target: { value: "1.5" } });
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Apply storage limits" }).disabled,
   ).toBe(true);
-  fireEvent.change(document, { target: { value: "8" } });
+  fireEvent.change(document, { target: { value: "8.388608" } });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Apply storage limits" }));
   await screen.findByText("Storage limits applied. They take effect for the next save.");
@@ -60,17 +64,17 @@ test("large limits show technical capacities separately, stay editable, and old-
   api.get = vi.fn(async () => ({ ...limitsFixture, revision: 3 }));
   const session = new StorageLimitsSession(api);
   render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
   expect(screen.getByText("Technical document capacity")).toBeTruthy();
-  expect(screen.getByText("1,000,000,000 bytes")).toBeTruthy();
+  expect(screen.getAllByText("1 GB")).toHaveLength(2);
   expect(screen.getByText("Technical database capacity")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
-  const document = screen.getByRole("spinbutton", { name: "Document limit (MiB)" });
-  const total = screen.getByRole("spinbutton", { name: "Total limit (MiB)" });
+  const document = screen.getByRole("textbox", { name: "Document limit" });
+  const total = screen.getByRole("textbox", { name: "Total limit" });
   expect(document.getAttribute("max")).toBeNull();
   expect(total.getAttribute("max")).toBeNull();
-  fireEvent.change(document, { target: { value: "2048" } });
-  fireEvent.change(total, { target: { value: "20000000" } });
+  fireEvent.change(document, { target: { value: "2147.483648" } });
+  fireEvent.change(total, { target: { value: "20971520" } });
   expect(screen.getByText(/Larger limits may require more memory/)).toBeTruthy();
   expect(
     screen.getByText(/Your limits exceed a technical document or database capacity/),
@@ -101,10 +105,10 @@ test("closing and reopening unknown outcomes keeps draft, hides private diagnost
   });
   const session = new StorageLimitsSession(api);
   const first = render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Document limit (MiB)" }), {
-    target: { value: "8" },
+  fireEvent.change(screen.getByRole("textbox", { name: "Document limit" }), {
+    target: { value: "8.388608" },
   });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Apply storage limits" }));
@@ -144,10 +148,10 @@ test("pending requests survive page closure without a duplicate read or save", a
   );
   const session = new StorageLimitsSession(api);
   const first = render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Document limit (MiB)" }), {
-    target: { value: "8" },
+  fireEvent.change(screen.getByRole("textbox", { name: "Document limit" }), {
+    target: { value: "8.388608" },
   });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Apply storage limits" }));
@@ -180,11 +184,11 @@ test("deadline outcomes survive reopening and explicit get reports current value
   );
   const session = new StorageLimitsSession(api);
   const first = render(<SavedDataLimits context={limitsContext} session={session} />);
-  await screen.findByText("5 MiB per document · 512 MiB total");
+  await screen.findByText("5.243 MB per document · 536.871 MB total");
   vi.useFakeTimers();
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Document limit (MiB)" }), {
-    target: { value: "8" },
+  fireEvent.change(screen.getByRole("textbox", { name: "Document limit" }), {
+    target: { value: "8.388608" },
   });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Apply storage limits" }));
@@ -212,13 +216,13 @@ test("deadline outcomes survive reopening and explicit get reports current value
       "Current effective limits checked. This does not prove that a past change request completed.",
     ),
   ).toBeTruthy();
-  expect(screen.getByText("6 MiB per document · 512 MiB total")).toBeTruthy();
+  expect(screen.getByText("6.291 MB per document · 536.871 MB total")).toBeTruthy();
   await act(async () => {
     reply({ ...limitsFixture, documentMiB: 8, revision: 1, generation: 8 });
   });
   expect(
     screen.queryByText("Storage limits applied. They take effect for the next save."),
   ).toBeNull();
-  expect(screen.getByText("6 MiB per document · 512 MiB total")).toBeTruthy();
+  expect(screen.getByText("6.291 MB per document · 536.871 MB total")).toBeTruthy();
   expect(api.set).toHaveBeenCalledOnce();
 });

@@ -14,7 +14,6 @@ import { HtmlAuthoringSettings } from "./HtmlAuthoringSettings";
 import type { HtmlAuthoringApi, HtmlAuthoringContext } from "../lib/htmlAuthoring";
 import { LanguagePicker } from "./LanguagePicker";
 import { ResidentSettings } from "./ResidentSettings";
-import { StorageIdentityAction } from "./StorageIdentityAction";
 import type { AppState } from "../lib/types";
 import type { WindowChrome } from "./windowChrome";
 import type { AppUpdaterApi } from "../lib/appUpdater";
@@ -215,7 +214,6 @@ export function SettingsDialog({
           </Suspense>
         ) : (
           <section id="settings-saved-data-panel" aria-label={t("保存データ")}>
-            <StorageIdentityAction platform={platform} />
             <Suspense fallback={<p role="status">{t("保存データを確認中")}</p>}>
               <SavedDataSettings
                 context={managementContext ?? { workspaceId: null, viewId: "" }}

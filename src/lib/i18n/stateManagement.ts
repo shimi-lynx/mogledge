@@ -1,4 +1,14 @@
 export const stateManagementMessages: Readonly<Record<string, string>> = {
+  "HTMLのファイル名・相対パスを検索": "Search HTML filename or relative path",
+  全件から検索: "Search all saved data",
+  検索を解除: "Clear search",
+  "削除する保存入力を選択（複数可）": "Select saved input to remove (multiple allowed)",
+  "選択した保存済み入力を削除（復旧可能）": "Remove selected saved input (recoverable)",
+  "選択した{count}件の削除を確認": "Review removal of {count} selected records",
+  "選択したHTML: {count}件": "Selected HTML documents: {count}",
+  "対象の確定済み入力: {count} appId、{size}": "Selected committed input: {count} appIds, {size}",
+  "選択したHTMLの保存入力を削除し、回復コピーを残します。HTMLファイル本体は変更しません。古い画面からの保存読込・再保存は停止されます。復旧するまで入力は戻りません。":
+    "Remove saved input for the selected HTML and retain recovery copies. HTML files remain unchanged. Reads and resaves from old views are blocked; input returns only after restoration.",
   "DBの技術上限またはdiskの容量制約に達しました。既存の保存値と入力を保持します":
     "A database technical limit or disk capacity constraint was reached. Existing saved values and input are retained.",
   "処理に必要なメモリなどの資源を確保できません。既存の保存値と入力を保持します":

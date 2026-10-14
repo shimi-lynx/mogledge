@@ -1,5 +1,6 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import { useLanguage, useT } from "../lib/i18n";
+import { byteUnits, formatBytes, type ByteUnit } from "../lib/byteUnits";
 import {
   limitsDiagnostic,
   MIB,
@@ -28,10 +29,12 @@ export function SavedDataLimits({
   const current = session.matches(context);
   const snapshot = current ? view.snapshot : null;
   const bytes = (value: number | null) =>
-    value === null ? t("不明") : value.toLocaleString(language) + " bytes";
+    value === null ? t("不明") : formatBytes(value, language);
   const locked = view.busy || view.uncertain || !current;
   const compatibility = snapshot?.requiresCompatibilityAcknowledgement && session.changed();
-  const values = view.editing ? parseLimits(view.document, view.total) : snapshot;
+  const values = view.editing
+    ? parseLimits(view.document, view.total, view.documentUnit, view.totalUnit)
+    : snapshot;
   const largerThanDefaults = values && (values.documentMiB > 5 || values.totalMiB > 512);
   const exceedsTechnicalCapacity =
     values &&
@@ -41,15 +44,19 @@ export function SavedDataLimits({
   return (
     <div className="saved-data-limits" role="group" aria-labelledby="saved-data-limits-heading">
       <h3 id="saved-data-limits-heading">{t("保存入力の容量上限")}</h3>
-      <p>{t("同じ保存先profileの全ルートに適用します。既定値は文書5MiB・全体512MiBです。")}</p>
+      <p>
+        {t(
+          "同じ保存先profileの全ルートに適用します。既定値は文書5.24288 MB・全体536.870912 MBです。",
+        )}
+      </p>
       {snapshot && (
         <dl className="saved-data-usage">
           <div>
             <dt>{t(view.uncertain ? "最後に確認した上限" : "現在の上限")}</dt>
             <dd>
-              {t("文書{document}MiB・全体{total}MiB", {
-                document: snapshot.documentMiB,
-                total: snapshot.totalMiB,
+              {t("文書{document}・全体{total}", {
+                document: bytes(snapshot.documentMiB * MIB),
+                total: bytes(snapshot.totalMiB * MIB),
               })}
             </dd>
           </div>
@@ -87,10 +94,19 @@ export function SavedDataLimits({
           </div>
         </dl>
       )}
-      <p>{t("1以上の整数MiBで、全体は文書以上です。1MiBは1,048,576 bytesです。")}</p>
       <p>
         {t(
-          "全体上限はactiveの保存JSONです。回復コピーは別枠512MiBで、DB・journal・backupのdisk容量とは異なります。HTML原本・media・生成ファイルの書き出し上限も別です。",
+          "1 KB = 1,000 B、1 MB = 1,000 KB、1 GB = 1,000 MBです。従来の保存形式を保つため、1.048576 MB（1 MiB）の整数倍で指定してください。丸めは行いません。全体は文書以上です。",
+        )}
+      </p>
+      <p>
+        {t(
+          "概要の容量表示は小数第3位まで丸めます。編集欄は保存済みの正確な値を表示し、入力値や単位切替では丸めません。",
+        )}
+      </p>
+      <p>
+        {t(
+          "全体上限は保存入力のJSONに適用します。回復コピーは別枠536.870912 MBで、DB・journal・backupのdisk容量とは異なります。HTML原本・media・生成ファイルの書き出し上限も別です。",
         )}
       </p>
       <p>{t("古いHTMLの保存処理は更新が必要な場合があります")}</p>
@@ -148,30 +164,35 @@ export function SavedDataLimits({
         <>
           <fieldset disabled={locked} className="saved-data-limits-fields">
             <legend>{t("変更する保存上限")}</legend>
-            <label>
-              {t("文書上限（MiB）")}
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1"
-                step="1"
-                value={view.document}
-                onChange={(event) => session.change("document", event.target.value)}
-              />
-            </label>
-            <label>
-              {t("全体上限（MiB）")}
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1"
-                step="1"
-                value={view.total}
-                onChange={(event) => session.change("total", event.target.value)}
-              />
-            </label>
+            {(["document", "total"] as const).map((field) => (
+              <div className="saved-data-limit-row" key={field}>
+                <label>
+                  {t(field === "document" ? "文書上限" : "全体上限")}
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    maxLength={32}
+                    value={view[field]}
+                    onChange={(event) => session.change(field, event.target.value)}
+                  />
+                </label>
+                <label>
+                  {t(field === "document" ? "文書上限の単位" : "全体上限の単位")}
+                  <select
+                    value={view[field === "document" ? "documentUnit" : "totalUnit"]}
+                    onChange={(event) => session.changeUnit(field, event.target.value as ByteUnit)}
+                  >
+                    {byteUnits.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ))}
           </fieldset>
-          {!parseLimits(view.document, view.total) && (
+          {!parseLimits(view.document, view.total, view.documentUnit, view.totalUnit) && (
             <p role="alert">{t(limitsDiagnostic("limits_invalid"))}</p>
           )}
           {session.belowUsage() && <p role="alert">{t(limitsDiagnostic("limits_below_usage"))}</p>}

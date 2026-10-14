@@ -1,4 +1,19 @@
 export const storageLimitsMessages: Readonly<Record<string, string>> = {
+  "全体上限は保存入力のJSONに適用します。回復コピーは別枠536.870912 MBで、DB・journal・backupのdisk容量とは異なります。HTML原本・media・生成ファイルの書き出し上限も別です。":
+    "The total limit covers saved-input JSON. Recovery copies have a separate 536.870912 MB budget. Database, journal and backup disk usage is different. HTML source, media and generated-file export limits are separate too.",
+  "1.048576 MBの整数倍になる容量を指定してください。最小値は1.048576 MBで、全体は文書以上です":
+    "Enter an exact multiple of 1.048576 MB, with total at least the document limit.",
+  "同じ保存先profileの全ルートに適用します。既定値は文書5.24288 MB・全体536.870912 MBです。":
+    "Applies to all roots in the same storage profile. Defaults are 5.24288 MB per document and 536.870912 MB in total.",
+  "文書{document}・全体{total}": "{document} per document · {total} total",
+  "概要の容量表示は小数第3位まで丸めます。編集欄は保存済みの正確な値を表示し、入力値や単位切替では丸めません。":
+    "Summary capacities are rounded to three decimal places. Editors show exact saved values; input and unit changes are never rounded.",
+  "1 KB = 1,000 B、1 MB = 1,000 KB、1 GB = 1,000 MBです。従来の保存形式を保つため、1.048576 MB（1 MiB）の整数倍で指定してください。丸めは行いません。全体は文書以上です。":
+    "1 KB = 1,000 B, 1 MB = 1,000 KB and 1 GB = 1,000 MB. Use exact multiples of 1.048576 MB (1 MiB) to preserve the existing saved format. Values are never rounded. Total must be at least the document limit.",
+  文書上限: "Document limit",
+  全体上限: "Total limit",
+  文書上限の単位: "Document limit unit",
+  全体上限の単位: "Total limit unit",
   "DBの技術上限またはdiskの容量制約に達しました。既存の保存値と入力を保持します":
     "A database technical limit or disk capacity constraint was reached. Existing saved values and input are retained.",
   "処理に必要なメモリなどの資源を確保できません。既存の保存値と入力を保持します":

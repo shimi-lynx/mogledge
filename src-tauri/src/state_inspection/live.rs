@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -38,6 +38,8 @@ pub struct PageRequest {
     pub offset: usize,
     pub limit: usize,
     pub snapshot_id: Option<String>,
+    #[serde(default)]
+    pub query: Option<String>,
 }
 #[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -61,6 +63,8 @@ pub struct PrepareRequest {
     pub context: Context,
     pub operation: Operation,
     pub candidate_id: Option<String>,
+    #[serde(default)]
+    pub candidate_ids: Option<Vec<String>>,
     pub snapshot_id: String,
 }
 #[derive(Deserialize)]
@@ -102,17 +106,21 @@ impl From<&Record> for RecordMetadata {
 struct Plan {
     context: Context,
     operation: Operation,
-    candidate_id: String,
     snapshot_id: String,
     database_id: String,
     root_identity: Option<String>,
     workspace_revision: u64,
-    record: Option<RecordMetadata>,
-    path: Option<String>,
-    app_count: usize,
+    selections: Vec<Selection>,
     issued: Instant,
     cancelled: AtomicBool,
     phase: Mutex<Phase>,
+}
+struct Selection {
+    candidate_id: String,
+    operation_id: String,
+    record: RecordMetadata,
+    path: String,
+    app_count: usize,
 }
 #[derive(Default)]
 pub(crate) struct Service {
@@ -221,7 +229,10 @@ fn target(
     }
     Ok(path)
 }
-struct Budget<'a>(&'a Connection);
+struct Budget<'a> {
+    connection: &'a Connection,
+    deadline: Instant,
+}
 impl<'a> Budget<'a> {
     fn new(connection: &'a Connection, plan: Option<Arc<Plan>>) -> Result<Self, InspectionError> {
         let deadline = Instant::now() + Duration::from_secs(2);
@@ -236,12 +247,22 @@ impl<'a> Budget<'a> {
                 }),
             )
             .map_err(sql)?;
-        Ok(Self(connection))
+        Ok(Self {
+            connection,
+            deadline,
+        })
+    }
+    fn check(&self) -> Result<(), InspectionError> {
+        if Instant::now() >= self.deadline {
+            Err(fail("inspection_limit"))
+        } else {
+            Ok(())
+        }
     }
 }
 impl Drop for Budget<'_> {
     fn drop(&mut self) {
-        let _ = self.0.progress_handler(0, None::<fn() -> bool>);
+        let _ = self.connection.progress_handler(0, None::<fn() -> bool>);
     }
 }
 struct Transaction<'a>(Option<rusqlite::Transaction<'a>>);
@@ -304,7 +325,12 @@ pub fn inspect(
     request: PageRequest,
     recovery: bool,
 ) -> Result<Value, InspectionError> {
-    if !(1..=MAX_PAGE).contains(&request.limit) || request.offset > 4096 {
+    let query = request.query.as_deref().unwrap_or("").trim();
+    if !(1..=MAX_PAGE).contains(&request.limit)
+        || request.offset > 4096
+        || query.len() > 1024
+        || query.chars().any(char::is_control)
+    {
         return Err(fail("invalid_arguments"));
     }
     let _gate = core.gate.lock().map_err(|_| fail("state_unavailable"))?;
@@ -316,8 +342,8 @@ pub fn inspect(
         let root=connected(core,profile); let observation=root.as_ref().map(ConnectedRoot::scan);
         let mut entries=Vec::new();
         if recovery && report.database_schema_version>=2 {
-            let mut query=transaction.prepare("SELECT operation_id,document_id,root,path,revision,bytes,status,restored_revision FROM recovery_records ORDER BY operation_id LIMIT ?1 OFFSET ?2").map_err(sql)?;
-            let rows=query.query_map([request.limit as i64,request.offset as i64],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,i64>(4)?,r.get::<_,i64>(5)?,r.get::<_,String>(6)?,r.get::<_,Option<i64>>(7)?))).map_err(sql)?;
+            let mut statement=transaction.prepare("SELECT operation_id,document_id,root,path,revision,bytes,status,restored_revision FROM recovery_records WHERE instr(lower(path),lower(?1))>0 ORDER BY operation_id LIMIT ?2 OFFSET ?3").map_err(sql)?;
+            let rows=statement.query_map(rusqlite::params![query,request.limit as i64,request.offset as i64],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,i64>(4)?,r.get::<_,i64>(5)?,r.get::<_,String>(6)?,r.get::<_,Option<i64>>(7)?))).map_err(sql)?;
             for row in rows {
                 let (recovery_id,id,root_id,path,revision,bytes,status,restored_revision)=row.map_err(sql)?;
                 let (source,current_path)=availability(root.as_ref(),observation.as_ref(),&id,&root_id,&path);
@@ -326,20 +352,41 @@ pub fn inspect(
                 entries.push(json!({"recoveryId":recovery_id,"documentIdentity":id,"rootIdentity":root_id,"relativePath":path,"sourceRevision":revision,"logicalBytes":bytes,"status":status,"restoredRevision":restored_revision,"sourceAvailability":source_name(source),"restorable":hold.is_none(),"holdReason":hold}));
             }
         } else if !recovery {
-            for candidate in &report.candidates {
-                let path:String=transaction.query_row("SELECT path FROM documents WHERE id=?1",[&candidate.document_identity],|r|r.get(0)).map_err(sql)?;
-                let (source,current_path)=availability(root.as_ref(),observation.as_ref(),&candidate.document_identity,&candidate.root_identity,&path);
-                let hold=if !matches!(source,Availability::SameIdentity) {Some("source_unavailable_hold")} else if in_use(core,&candidate.document_identity,&[&path,current_path.as_deref().unwrap_or(&path)]) {Some("in_use_hold")} else if !matches!(report.database_schema_version,2|3) {Some("explicit_upgrade_required")} else {None};
-                entries.push(json!({"documentIdentity":candidate.document_identity,"rootIdentity":candidate.root_identity,"relativePath":path,"logicalBytes":candidate.logical_bytes,"revision":candidate.revision,"sourceAvailability":source_name(source),"lastViewedAt":null,"eligible":hold.is_none(),"holdReason":hold}));
+            // The global snapshot validates all bounded metadata. Filter the
+            // complete metadata set before paging; never select saved payloads.
+            let mut statement=transaction.prepare("SELECT id,root,path,bytes,revision FROM documents WHERE instr(lower(path),lower(?1))>0 ORDER BY id LIMIT ?2 OFFSET ?3").map_err(sql)?;
+            let rows=statement.query_map(rusqlite::params![query,request.limit as i64,request.offset as i64],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,i64>(3)?,r.get::<_,i64>(4)?))).map_err(sql)?;
+            for row in rows {
+                let (id,root_id,path,bytes,revision)=row.map_err(sql)?;
+                let (source,current_path)=availability(root.as_ref(),observation.as_ref(),&id,&root_id,&path);
+                let hold=if !matches!(source,Availability::SameIdentity) {Some("source_unavailable_hold")} else if in_use(core,&id,&[&path,current_path.as_deref().unwrap_or(&path)]) {Some("in_use_hold")} else if !matches!(report.database_schema_version,2|3) {Some("explicit_upgrade_required")} else {None};
+                entries.push(json!({"documentIdentity":id,"rootIdentity":root_id,"relativePath":path,"logicalBytes":bytes,"revision":revision,"sourceAvailability":source_name(source),"lastViewedAt":null,"eligible":hold.is_none(),"holdReason":hold}));
             }
         }
-        let total=if recovery {report.recovery_records.unwrap_or(0)}else{report.usage.records};
-        let value=json!({"snapshotId":report.snapshot_id,"databaseSchemaVersion":report.database_schema_version,"usage":usage(&report),"entries":entries,"offset":request.offset,"limit":request.limit,"hasMore":request.offset.saturating_add(request.limit)<total as usize});
+        let total:i64=if recovery && report.database_schema_version<2 {0}else {
+            let table=if recovery {"recovery_records"}else{"documents"};
+            transaction.query_row(&format!("SELECT count(*) FROM {table} WHERE instr(lower(path),lower(?1))>0"),[query],|r|r.get(0)).map_err(sql)?
+        };
+        let value=json!({"snapshotId":report.snapshot_id,"databaseSchemaVersion":report.database_schema_version,"usage":usage(&report),"entries":entries,"offset":request.offset,"limit":request.limit,"matchedRecords":total,"hasMore":request.offset.saturating_add(request.limit)<total as usize});
         Ok(value)
     })
 }
 
 pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, InspectionError> {
+    let candidate_ids = match &request.candidate_ids {
+        Some(ids) => {
+            if request.operation != Operation::Quarantine
+                || request.candidate_id.is_some()
+                || !(1..=MAX_PAGE).contains(&ids.len())
+                || ids.iter().any(|id| !super::digest_id(id))
+                || ids.iter().collect::<BTreeSet<_>>().len() != ids.len()
+            {
+                return Err(fail("invalid_arguments"));
+            }
+            ids.clone()
+        }
+        None => request.candidate_id.clone().into_iter().collect(),
+    };
     let _gate = core.gate.lock().map_err(|_| fail("state_unavailable"))?;
     let workspace_revision = check_context(core, &request.context)?;
     let mut plans = core
@@ -362,32 +409,70 @@ pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, Inspection
         return Err(fail("plan_limit"));
     }
     let (plan,preview)=core.document_state.get().ok_or_else(||fail("state_unavailable"))?.management_connection(|connection,profile,database_id,bytes| {
-        let _budget=Budget::new(connection,None)?;let transaction=Transaction::begin(connection)?;
+        let budget=Budget::new(connection,None)?;let transaction=Transaction::begin(connection)?;
         let report=snapshot(&transaction,bytes,database_id,1,0,Some(&request.snapshot_id))?;
         let root=connected(core,profile);
         let candidate_id=request.candidate_id.clone().unwrap_or_default();
-        let (record,path,app_count)=if request.operation==Operation::Upgrade {
+        let plan_id=crate::core::random_token();
+        let mut selections=Vec::new();
+        let mut entries=Vec::new();
+        let mut logical_bytes=0i64;
+        let mut app_count=0usize;
+        if request.operation==Operation::Upgrade {
             if report.database_schema_version!=1||!candidate_id.is_empty() {return Err(fail("upgrade_not_needed"));}
-            (None,None,0)
         } else {
             if !matches!(report.database_schema_version,2|3) {return Err(fail("explicit_upgrade_required"));}
-            let record=management::read_record(&transaction,&candidate_id,request.operation==Operation::Restore)?;
+            if candidate_ids.is_empty() {return Err(fail("invalid_arguments"));}
             let observation=root.as_ref().map(ConnectedRoot::scan);
-            let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
-            let app_count=recovery_store::validated_app_count(&record.data,record.bytes).map_err(backend_error)?;
-            if request.operation==Operation::Restore {
-                let exists:bool=transaction.query_row("SELECT EXISTS(SELECT 1 FROM documents WHERE id=?1)",[&record.id],|r|r.get(0)).map_err(sql)?;
-                super::assessment::check_restore_budget_with_limits(report.usage.logical_bytes,report.usage.records,record.bytes,app_count,exists,crate::storage_limits::read(&transaction).map_err(backend_error)?).map_err(|_|fail("restore_conflict_or_quota"))?;
+            for id in &candidate_ids {
+                budget.check()?;
+                let record=management::read_record(&transaction,id,request.operation==Operation::Restore)?;
+                let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
+                let count=recovery_store::validated_app_count(&record.data,record.bytes).map_err(backend_error)?;
+                if request.operation==Operation::Restore {
+                    let exists:bool=transaction.query_row("SELECT EXISTS(SELECT 1 FROM documents WHERE id=?1)",[&record.id],|r|r.get(0)).map_err(sql)?;
+                    super::assessment::check_restore_budget_with_limits(report.usage.logical_bytes,report.usage.records,record.bytes,count,exists,crate::storage_limits::read(&transaction).map_err(backend_error)?).map_err(|_|fail("restore_conflict_or_quota"))?;
+                }
+                logical_bytes=logical_bytes.checked_add(record.bytes).ok_or_else(||fail("inspection_limit"))?;
+                app_count=app_count.checked_add(count).ok_or_else(||fail("inspection_limit"))?;
+                entries.push(json!({"documentIdentity":record.id,"relativePath":path,"logicalBytes":record.bytes,"appCount":count}));
+                selections.push(Selection{candidate_id:id.clone(),operation_id:if candidate_ids.len()==1 {plan_id.clone()}else{crate::core::random_token()},record:RecordMetadata::from(&record),path,app_count:count});
             }
-            (Some(record),Some(path),app_count)
-        };
-        let plan_id=crate::core::random_token();
-        let preview=json!({"planId":plan_id,"operation":request.operation.name(),"snapshotId":report.snapshot_id,"candidateId":candidate_id,"documentIdentity":record.as_ref().map(|r|&r.id),"relativePath":path,"logicalBytes":record.as_ref().map_or(0,|r|r.bytes),"appCount":app_count,"canConfirm":true,"blockedReason":null,"expiresInMs":300000});
-        let plan=Plan{context:request.context.clone(),operation:request.operation,candidate_id,snapshot_id:report.snapshot_id,database_id:report.database_id,root_identity:root.map(|r|r.identity),workspace_revision,record:record.as_ref().map(RecordMetadata::from),path,app_count,issued:Instant::now(),cancelled:AtomicBool::new(false),phase:Mutex::new(Phase::Pending)};
+        }
+        if request.operation==Operation::Quarantine {
+            check_archive_budget(&transaction,logical_bytes,selections.len())?;
+        }
+        budget.check()?;
+        let single=if selections.len()==1 {selections.first()}else{None};
+        let preview=json!({"planId":plan_id,"operation":request.operation.name(),"snapshotId":report.snapshot_id,"candidateId":candidate_id,"documentIdentity":single.map(|s|&s.record.id),"relativePath":single.map(|s|&s.path),"logicalBytes":logical_bytes,"appCount":app_count,"documentCount":selections.len(),"entries":entries,"canConfirm":true,"blockedReason":null,"expiresInMs":300000});
+        let plan=Plan{context:request.context.clone(),operation:request.operation,snapshot_id:report.snapshot_id,database_id:report.database_id,root_identity:root.map(|r|r.identity),workspace_revision,selections,issued:Instant::now(),cancelled:AtomicBool::new(false),phase:Mutex::new(Phase::Pending)};
         Ok((Arc::new(plan),preview))
     })?;
     plans.insert(preview["planId"].as_str().unwrap().to_owned(), plan);
     Ok(preview)
+}
+fn check_archive_budget(
+    connection: &Connection,
+    bytes: i64,
+    count: usize,
+) -> Result<(), InspectionError> {
+    let (archive_bytes, archive_count): (i64, i64) = connection
+        .query_row(
+            "SELECT coalesce(sum(bytes),0),count(*) FROM recovery_records",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(sql)?;
+    if archive_bytes
+        .checked_add(bytes)
+        .is_none_or(|total| total > recovery_store::MAX_ARCHIVE_BYTES)
+        || archive_count
+            .checked_add(count as i64)
+            .is_none_or(|total| total > recovery_store::MAX_ARCHIVE_RECORDS)
+    {
+        return Err(fail("recovery_capacity_reached"));
+    }
+    Ok(())
 }
 fn find(core: &Core, context: &Context, id: &str) -> Result<Arc<Plan>, InspectionError> {
     if !super::digest_id(id) {
@@ -433,7 +518,7 @@ pub fn confirm(core: &Core, confirmation: Confirmation) -> Result<Value, Inspect
     let result = (|| {
         check_plan(core, &plan)?;
         core.document_state.get().ok_or_else(||fail("state_unavailable"))?.management_connection(|connection,profile,database_id,bytes| {
-            let _budget=Budget::new(connection,Some(plan.clone()))?;
+            let budget=Budget::new(connection,Some(plan.clone()))?;
             let transaction=Transaction::begin(connection)?;
             let report=snapshot(&transaction,bytes,database_id,1,0,Some(&plan.snapshot_id))?;
             if report.database_id!=plan.database_id {return Err(fail("state_changed"));}
@@ -448,17 +533,40 @@ pub fn confirm(core: &Core, confirmation: Confirmation) -> Result<Value, Inspect
                 recovery_store::validate(&transaction).map_err(backend_error)?;
                 json!({"operationId":confirmation.plan_id,"operation":"upgrade","schemaVersion":2,"recoverable":true,"permanentDeletion":false})
             } else {
-                let record=management::read_record(&transaction,&plan.candidate_id,plan.operation==Operation::Restore)?;
-                let expected=plan.record.as_ref().ok_or_else(||fail("state_changed"))?;
-                if record.id!=expected.id||record.root!=expected.root||record.path!=expected.path||record.revision!=expected.revision||record.generation!=expected.generation||record.bytes!=expected.bytes||recovery_store::payload_hash(&record.data)!=expected.hash {return Err(fail("state_changed"));}
                 let observation=root.as_ref().map(ConnectedRoot::scan);
-                let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
-                if Some(&path)!=plan.path.as_ref() {return Err(fail("source_changed"));}
-                let (revision,generation)=management::apply_record(&transaction,&record,&path,&confirmation.plan_id,&plan.candidate_id,plan.app_count,plan.operation==Operation::Restore)?;
+                // Validate every selection before any mutation; only metadata
+                // and hashes survive between reads, keeping payload memory bounded.
+                for selection in &plan.selections {
+                    budget.check()?;
+                    check_plan(core,&plan)?;
+                    let record=management::read_record(&transaction,&selection.candidate_id,plan.operation==Operation::Restore)?;
+                    let expected=&selection.record;
+                    if record.id!=expected.id||record.root!=expected.root||record.path!=expected.path||record.revision!=expected.revision||record.generation!=expected.generation||record.bytes!=expected.bytes||recovery_store::payload_hash(&record.data)!=expected.hash {return Err(fail("state_changed"));}
+                    let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
+                    if path!=selection.path {return Err(fail("source_changed"));}
+                }
+                if plan.operation==Operation::Quarantine {
+                    check_archive_budget(&transaction,plan.selections.iter().map(|s|s.record.bytes).sum(),plan.selections.len())?;
+                }
+                let mut entries=Vec::new();
+                for selection in &plan.selections {
+                    budget.check()?;
+                    check_plan(core,&plan)?;
+                    let record=management::read_record(&transaction,&selection.candidate_id,plan.operation==Operation::Restore)?;
+                    let (revision,generation)=management::apply_record(&transaction,&record,&selection.path,&selection.operation_id,&selection.candidate_id,selection.app_count,plan.operation==Operation::Restore)?;
+                    entries.push(json!({"documentIdentity":record.id,"relativePath":selection.path,"logicalBytes":record.bytes,"appCount":selection.app_count,"revision":revision,"databaseGeneration":generation,"recoveryId":if plan.operation==Operation::Restore {&selection.candidate_id}else{&selection.operation_id}}));
+                }
                 recovery_store::validate_metadata(&transaction).map_err(backend_error)?;
-                if root.as_ref().and_then(|r|r.identity_at(&path).ok()).as_deref()!=Some(&record.id)||in_use(core,&record.id,&[&record.path,&path]) {return Err(fail("source_unavailable_hold"));}
-                json!({"operationId":confirmation.plan_id,"operation":plan.operation.name(),"documentIdentity":record.id,"revision":revision,"databaseGeneration":generation,"recoveryId":if plan.operation==Operation::Restore {&plan.candidate_id}else{&confirmation.plan_id},"recoverable":true,"permanentDeletion":false})
+                for selection in &plan.selections {
+                    if root.as_ref().and_then(|r|r.identity_at(&selection.path).ok()).as_deref()!=Some(&selection.record.id)||in_use(core,&selection.record.id,&[&selection.record.path,&selection.path]) {return Err(fail("source_unavailable_hold"));}
+                }
+                let mut receipt=json!({"operationId":confirmation.plan_id,"operation":plan.operation.name(),"documentCount":entries.len(),"logicalBytes":plan.selections.iter().map(|s|s.record.bytes).sum::<i64>(),"appCount":plan.selections.iter().map(|s|s.app_count).sum::<usize>(),"entries":entries,"recoverable":true,"permanentDeletion":false});
+                if entries.len()==1 {
+                    for key in ["documentIdentity","revision","databaseGeneration","recoveryId"] {receipt[key]=entries[0][key].clone();}
+                }
+                receipt
             };
+            budget.check()?;
             check_plan(core,&plan)?;
             core.document_state.get().ok_or_else(||fail("state_unavailable"))?.verify_management()?;
             transaction.commit()?;Ok(receipt)
@@ -497,6 +605,7 @@ pub fn cancel(core: &Core, context: &Context, id: &str) -> Result<Value, Inspect
 pub fn verify(core: &Core, context: &Context, id: &str) -> Result<Value, InspectionError> {
     let mut failed_code = None;
     let mut failed_upgrade = false;
+    let mut failed_bulk = None;
     if let Ok(plan) = find(core, context, id) {
         match plan.phase.try_lock() {
             Ok(phase) => match &*phase {
@@ -507,6 +616,9 @@ pub fn verify(core: &Core, context: &Context, id: &str) -> Result<Value, Inspect
                 Phase::Failed(code) => {
                     failed_code = Some(*code);
                     failed_upgrade = plan.operation == Operation::Upgrade;
+                    if plan.selections.len() > 1 {
+                        failed_bulk = Some(plan.clone());
+                    }
                 }
                 Phase::Completed(receipt) => {
                     return Ok(json!({"status":"completed","receipt":receipt}))
@@ -528,6 +640,22 @@ pub fn verify(core: &Core, context: &Context, id: &str) -> Result<Value, Inspect
         if failed_upgrade {return Ok(json!({"status":"unknown","currentSchemaVersion":version}));}
         if !matches!(version,2|3) {return Ok(json!({"status":"unknown"}));}
         recovery_store::validate_metadata(connection).map_err(backend_error)?;
+        if let Some(plan)=&failed_bulk {
+            // Every child ID must match its bound metadata. A surviving plan
+            // can reconcile a lost COMMIT response, never just one archive row.
+            // Without that plan the main bulk ID has no durable row, so the
+            // fallback below honestly returns unknown instead of partial success.
+            let mut entries=Vec::new();
+            for selection in &plan.selections {
+                let exists:bool=connection.query_row("SELECT EXISTS(SELECT 1 FROM recovery_records WHERE operation_id=?1 AND document_id=?2 AND revision=?3 AND bytes=?4 AND payload_hash=?5 AND root=?6 AND path=?7)",rusqlite::params![selection.operation_id,selection.record.id,selection.record.revision,selection.record.bytes,selection.record.hash,selection.record.root,selection.path],|r|r.get(0)).map_err(sql)?;
+                if exists {entries.push(json!({"documentIdentity":selection.record.id,"relativePath":selection.path,"logicalBytes":selection.record.bytes,"appCount":selection.app_count,"revision":selection.record.revision,"recoveryId":selection.operation_id}));}
+            }
+            return Ok(if entries.len()==plan.selections.len() {
+                json!({"status":"completed","receipt":{"operationId":id,"operation":"quarantine","documentCount":entries.len(),"logicalBytes":plan.selections.iter().map(|s|s.record.bytes).sum::<i64>(),"appCount":plan.selections.iter().map(|s|s.app_count).sum::<usize>(),"entries":entries,"recoverable":true,"permanentDeletion":false}})
+            } else if entries.is_empty() {
+                json!({"status":"failed","code":failed_code})
+            } else {json!({"status":"unknown"})});
+        }
         let receipt=connection.query_row("SELECT operation_id,document_id,revision,restore_operation_id,restored_revision FROM recovery_records WHERE operation_id=?1 OR restore_operation_id=?1",[id],|r|{
             let recovery_id:String=r.get(0)?;let restore_id:Option<String>=r.get(3)?;let restore=restore_id.as_deref()==Some(id);
             Ok(json!({"operationId":id,"operation":if restore {"restore"}else{"quarantine"},"documentIdentity":r.get::<_,String>(1)?,"revision":if restore {r.get::<_,Option<i64>>(4)?.unwrap_or(0)}else{r.get::<_,i64>(2)?},"recoveryId":recovery_id,"recoverable":true,"permanentDeletion":false}))

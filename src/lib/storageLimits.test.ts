@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vite-plus/test";
+import { invoke } from "@tauri-apps/api/core";
 import {
   limitsDiagnostic,
   limitsSnapshot,
@@ -7,12 +8,56 @@ import {
   MIB,
   parseLimits,
   StorageLimitsSession,
+  storageLimitsApi,
   type LimitsApi,
   type LimitsSnapshot,
 } from "./storageLimits";
 import { limitsContext, limitsFixture, limitsFixtureApi } from "./storageLimits.test-fixtures";
 import { translate } from "./i18n";
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => vi.useRealTimers());
+test("decimal editing retains the existing whole-MiB IPC fields", async () => {
+  await storageLimitsApi.set({
+    context: limitsContext,
+    expectedRevision: 2,
+    expectedGeneration: 7,
+    documentMiB: 5,
+    totalMiB: 512,
+    acknowledgeCompatibility: true,
+  });
+  expect(invoke).toHaveBeenLastCalledWith("set_storage_limits", {
+    request: {
+      context: limitsContext,
+      expectedRevision: 2,
+      expectedGeneration: 7,
+      documentMiB: 5,
+      totalMiB: 512,
+      acknowledgeCompatibility: true,
+    },
+  });
+});
+test("opening existing bytes and switching every decimal unit preserves exact values without writes", async () => {
+  const api = limitsFixtureApi();
+  api.get = vi.fn(async () => ({ ...limitsFixture }));
+  const session = new StorageLimitsSession(api);
+  session.bind(limitsContext);
+  await session.load();
+  session.edit();
+  expect(session.getSnapshot().document).toBe("5.24288");
+  for (const unit of ["B", "KB", "GB", "MB"] as const) {
+    session.changeUnit("document", unit);
+    session.changeUnit("total", unit);
+    expect(session.changed()).toBe(false);
+    await session.apply();
+  }
+  expect(session.getSnapshot().document).toBe("5.24288");
+  expect(api.set).not.toHaveBeenCalled();
+  session.change("document", "8.388608");
+  session.accept(true);
+  await session.apply();
+  expect(api.set).toHaveBeenCalledWith(expect.objectContaining({ documentMiB: 8, totalMiB: 512 }));
+  expect(session.getSnapshot().notice).toBe("applied");
+});
 async function prepared(api = limitsFixtureApi()) {
   const session = new StorageLimitsSession(api);
   session.bind(limitsContext);
@@ -20,28 +65,34 @@ async function prepared(api = limitsFixtureApi()) {
   session.edit();
   return session;
 }
-test("input parsing rejects fractional, nonfinite, unsafe and out-of-range values without rounding", () => {
+test("decimal capacities require exact whole-MiB values and reject invalid input without rounding", () => {
   for (const pair of [
     ["", "512"],
     ["NaN", "512"],
     ["Infinity", "512"],
-    ["1.5", "512"],
+    ["1.0000001", "512"],
     ["1e0", "512"],
     ["0", "512"],
     ["5", "4"],
-    [String(MAX_LIMITS_MIB + 1), String(MAX_LIMITS_MIB + 1)],
-    ["1", String(MAX_LIMITS_MIB + 1)],
+    [String((MAX_LIMITS_MIB + 1) * MIB), String((MAX_LIMITS_MIB + 1) * MIB)],
     ["9007199254740992", "512"],
     ["1".repeat(100), "512"],
   ])
     expect(parseLimits(...(pair as [string, string]))).toBeNull();
-  expect(parseLimits("1", "1")).toEqual({ documentMiB: 1, totalMiB: 1 });
-  expect(parseLimits("8", "1024")).toEqual({ documentMiB: 8, totalMiB: 1024 });
-  expect(parseLimits("9", "1025")).toEqual({ documentMiB: 9, totalMiB: 1025 });
-  expect(parseLimits(String(MAX_LIMITS_MIB), String(MAX_LIMITS_MIB))).toEqual({
-    documentMiB: MAX_LIMITS_MIB,
-    totalMiB: MAX_LIMITS_MIB,
+  expect(parseLimits("1.048576", "1.048576")).toEqual({ documentMiB: 1, totalMiB: 1 });
+  expect(parseLimits("1.5", "2")).toBeNull();
+  expect(parseLimits("5.242881", "536.870912")).toBeNull();
+  expect(parseLimits("8388.608", "1.073741824", "KB", "GB")).toEqual({
+    documentMiB: 8,
+    totalMiB: 1024,
   });
+  expect(parseLimits("8.388608", "1073.741824")).toEqual({ documentMiB: 8, totalMiB: 1024 });
+  expect(parseLimits(String(MAX_LIMITS_MIB * MIB), String(MAX_LIMITS_MIB * MIB), "B", "B")).toEqual(
+    {
+      documentMiB: MAX_LIMITS_MIB,
+      totalMiB: MAX_LIMITS_MIB,
+    },
+  );
   expect(Number.isSafeInteger(MAX_LIMITS_MIB * MIB)).toBe(true);
   expect(Number.isSafeInteger((MAX_LIMITS_MIB + 1) * MIB)).toBe(false);
 });
@@ -52,6 +103,8 @@ test("snapshot boundary rejects unsafe stats/shape and diagnostics never disclos
     { ...limitsFixture, revision: Number.MAX_SAFE_INTEGER + 1 },
     { ...limitsFixture, documentMiB: MAX_LIMITS_MIB + 1 },
     { ...limitsFixture, totalMiB: 1 },
+    { ...limitsFixture, documentBytes: 1_500_001, totalBytes: 2_000_001 },
+    { ...limitsFixture, documentBytes: 5 * MIB },
     { ...limitsFixture, usageBytes: -1 },
     { ...limitsFixture, recoveryBytes: 513 * MIB },
     { ...limitsFixture, privatePath: "/private/state.db" },
@@ -96,8 +149,10 @@ test("large representable quotas can exceed runtime capacities while an existing
   const api = limitsFixtureApi();
   api.get = vi.fn(async () => ({ ...limitsFixture, revision: 3 }));
   const session = await prepared(api);
-  session.change("document", String(MAX_LIMITS_MIB));
-  session.change("total", String(MAX_LIMITS_MIB));
+  session.changeUnit("document", "B");
+  session.changeUnit("total", "B");
+  session.change("document", String(MAX_LIMITS_MIB * MIB));
+  session.change("total", String(MAX_LIMITS_MIB * MIB));
   expect(session.canApply()).toBe(false);
   session.accept(true);
   expect(session.canApply()).toBe(true);
@@ -123,10 +178,10 @@ test("no-root context is valid but editing/default/cancel/no-change never writes
   session.accept(true);
   await session.apply();
   expect(api.set).not.toHaveBeenCalled();
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   session.cancel();
-  expect(session.getSnapshot().document).toBe("5");
+  expect(session.getSnapshot().document).toBe("5.24288");
   expect(api.set).not.toHaveBeenCalled();
   session.bind({ ...limitsContext, viewId: "" });
   await session.load();
@@ -135,7 +190,7 @@ test("no-root context is valid but editing/default/cancel/no-change never writes
 test("explicit acknowledgement and one finite set apply immediately even when called twice", async () => {
   const api = limitsFixtureApi(),
     session = await prepared(api);
-  session.change("document", "8");
+  session.change("document", "8.388608");
   await session.apply();
   expect(api.set).not.toHaveBeenCalled();
   session.accept(true);
@@ -161,15 +216,15 @@ test("active and recovery floors reject lowering before dispatch", async () => {
     largestRecoveryDocumentBytes: 3 * MIB,
   }));
   const session = await prepared(api);
-  session.change("document", "2");
+  session.change("document", "2.097152");
   session.accept(true);
   expect(session.belowUsage()).toBe(true);
   await session.apply();
-  session.change("document", "3");
-  session.change("total", "3");
+  session.change("document", "3.145728");
+  session.change("total", "3.145728");
   session.accept(true);
   expect(session.canApply()).toBe(true);
-  session.change("total", "2");
+  session.change("total", "2.097152");
   await session.apply();
   expect(api.set).not.toHaveBeenCalled();
 });
@@ -180,11 +235,11 @@ test("usage/CAS conflict refreshes by get only and retains draft while resetting
     throw { code: "limits_changed" };
   });
   api.get = vi.fn(async () => ({ ...limitsFixture, generation: 8, usageBytes: 81 }));
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
   expect(session.getSnapshot()).toMatchObject({
-    document: "8",
+    document: "8.388608",
     accepted: false,
     uncertain: false,
     error: "limits_changed",
@@ -206,7 +261,7 @@ test.each([
   api.set = vi.fn(async () => {
     throw error;
   });
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
   expect(session.getSnapshot().uncertain).toBe(true);
@@ -224,7 +279,7 @@ test.each([
   expect(session.getSnapshot()).toMatchObject({
     uncertain: false,
     notice: "current",
-    document: "8",
+    document: "8.388608",
   });
   expect(api.set).toHaveBeenCalledOnce();
 });
@@ -232,13 +287,13 @@ test("invalid or wrong save responses are unknown and stale read/set responses c
   const api = limitsFixtureApi(),
     session = await prepared(api);
   api.set = vi.fn(async () => ({ ...limitsFixture, revision: 1, generation: 8 }));
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
   expect(session.getSnapshot().uncertain).toBe(true);
   await session.load();
   session.edit();
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   let resolve!: (value: LimitsSnapshot) => void;
   api.set = vi.fn<LimitsApi["set"]>(
@@ -278,7 +333,7 @@ test("a never-resolved save has one deadline, preserves draft, and late replies 
         reply = resolve;
       }),
   );
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   const save = session.apply();
   expect(vi.getTimerCount()).toBe(1);
@@ -286,7 +341,7 @@ test("a never-resolved save has one deadline, preserves draft, and late replies 
   await save;
   expect(vi.getTimerCount()).toBe(0);
   expect(session.getSnapshot()).toMatchObject({
-    document: "8",
+    document: "8.388608",
     editing: true,
     busy: false,
     uncertain: true,
@@ -304,7 +359,7 @@ test("a never-resolved save has one deadline, preserves draft, and late replies 
   await session.load(true);
   expect(session.getSnapshot()).toMatchObject({
     uncertain: false,
-    document: "8",
+    document: "8.388608",
     notice: "current",
     snapshot: { documentMiB: 6, revision: 2 },
   });
@@ -322,7 +377,7 @@ test("get deadlines leave unknown outcomes unresolved and never attach a late pr
   api.set = vi.fn(async () => {
     throw "transport_failure";
   });
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
   vi.useFakeTimers();
@@ -341,7 +396,7 @@ test("get deadlines leave unknown outcomes unresolved and never attach a late pr
     busy: false,
     uncertain: true,
     error: "state_unavailable",
-    document: "8",
+    document: "8.388608",
   });
   expect(vi.getTimerCount()).toBe(0);
   reply({ ...limitsFixture, documentMiB: 8, revision: 1, generation: 8 });
@@ -352,7 +407,7 @@ test("get deadlines leave unknown outcomes unresolved and never attach a late pr
 test("later reads replace prior apply notices and failed reads cannot retain a success claim", async () => {
   const api = limitsFixtureApi(),
     session = await prepared(api);
-  session.change("document", "8");
+  session.change("document", "8.388608");
   session.accept(true);
   await session.apply();
   expect(session.getSnapshot().notice).toBe("applied");
@@ -365,7 +420,11 @@ test("later reads replace prior apply notices and failed reads cannot retain a s
     requiresCompatibilityAcknowledgement: false,
   }));
   await session.load();
-  expect(session.getSnapshot()).toMatchObject({ notice: "current", document: "6", total: "600" });
+  expect(session.getSnapshot()).toMatchObject({
+    notice: "current",
+    document: "6.291456",
+    total: "629.1456",
+  });
   api.get = vi.fn(async () => {
     throw "/private/read.db";
   });
@@ -380,13 +439,13 @@ test.each(["capacity_exceeded", "resource_unavailable"])(
     api.set = vi.fn(async () => {
       throw { code, message: "/private/state.db secret payload" };
     });
-    session.change("document", "9");
+    session.change("document", "9.437184");
     session.accept(true);
     await session.apply();
     expect(session.getSnapshot()).toMatchObject({
       error: code,
       uncertain: true,
-      document: "9",
+      document: "9.437184",
       snapshot: { documentMiB: 5 },
     });
     const message = limitsDiagnostic({ code, message: "/private/state.db" });

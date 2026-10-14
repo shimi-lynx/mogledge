@@ -58,7 +58,7 @@ Recycle actions do not make a saved-input database into an independent file back
 
 Saving input requires an HTML app that uses the [storage API](document-storage.md). It is separate from HTML files and the search cache. Save/flush acknowledgements establish persistence; unload does not guarantee a completed save. Renaming/moving the same physical HTML preserves its identity. Replacing/copying a file can require confirmed recovery rather than automatic reuse.
 
-Settings provides saved-data inspection/management and explicit capacity settings. HTML menus provide confirmed export/import of saved inputs. The [artifact export API](html-artifact-export.md) instead writes generated images or text through a confirmed save action; it is not an input backup.
+Settings provides saved-data inspection/management and explicit capacity settings. Search all saved metadata by HTML filename or relative path, select eligible records on the current page, and review the document count before confirming removal. Removal retains recovery copies and leaves HTML unchanged. Capacity fields support decimal B/KB/MB/GB amounts in exact 1 MiB steps, preserving the existing saved format without rounding; opening existing limits preserves their bytes. See [data management](data-management.md) for restoration and compatibility rules. HTML menus provide confirmed export/import of saved inputs. The [artifact export API](html-artifact-export.md) instead writes generated images or text through a confirmed save action; it is not an input backup.
 
 ## Settings, residency and help
 

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ManagementContext } from "./stateManagement";
+import { exactByteAmount, parseByteAmount, type ByteUnit } from "./byteUnits";
 
 export type LimitsContext = ManagementContext;
 export const MIB = 1024 * 1024;
@@ -48,7 +49,8 @@ export const storageLimitsApi: LimitsApi = {
   set: (request) => invoke("set_storage_limits", { request }),
 };
 export const limitsMessages: Readonly<Record<string, string>> = {
-  limits_invalid: "正確に扱える範囲の1以上の整数MiBを指定し、全体を文書以上にしてください",
+  limits_invalid:
+    "1.048576 MBの整数倍になる容量を指定してください。最小値は1.048576 MBで、全体は文書以上です",
   limits_changed: "保存データまたは上限が変わりました。現在値を確認してから適用してください",
   limits_below_usage: "現在の保存量や文書・回復コピーの最大容量を下回る上限にはできません",
   limits_compatibility_required: "旧版との互換性とbackupを確認してください",
@@ -123,18 +125,24 @@ export function limitsSnapshot(value: unknown): LimitsSnapshot | null {
     return null;
   return { ...snapshot, capabilities: { ...snapshot.capabilities } };
 }
-export function parseLimits(document: string, total: string) {
-  if (document.length > 16 || total.length > 16) return null;
-  if (!/^\d+$/.test(document) || !/^\d+$/.test(total)) return null;
-  const documentMiB = Number(document),
-    totalMiB = Number(total);
-  return safe(documentMiB) &&
-    safe(totalMiB) &&
-    documentMiB >= 1 &&
-    documentMiB <= MAX_LIMITS_MIB &&
-    totalMiB >= documentMiB &&
-    totalMiB <= MAX_LIMITS_MIB
-    ? { documentMiB, totalMiB }
+export function parseLimits(
+  document: string,
+  total: string,
+  documentUnit: ByteUnit = "MB",
+  totalUnit: ByteUnit = "MB",
+) {
+  const documentBytes = parseByteAmount(document, documentUnit),
+    totalBytes = parseByteAmount(total, totalUnit);
+  return documentBytes !== null &&
+    totalBytes !== null &&
+    // Keep the existing whole-MiB wire/storage format; never round user input.
+    documentBytes % MIB === 0 &&
+    totalBytes % MIB === 0 &&
+    documentBytes >= MIB &&
+    documentBytes <= MAX_LIMITS_MIB * MIB &&
+    totalBytes >= documentBytes &&
+    totalBytes <= MAX_LIMITS_MIB * MIB
+    ? { documentMiB: documentBytes / MIB, totalMiB: totalBytes / MIB }
     : null;
 }
 const sameContext = (a: LimitsContext, b: LimitsContext) =>
@@ -151,6 +159,8 @@ type LimitsView = {
   snapshot: LimitsSnapshot | null;
   document: string;
   total: string;
+  documentUnit: ByteUnit;
+  totalUnit: ByteUnit;
   editing: boolean;
   accepted: boolean;
   busy: boolean;
@@ -160,8 +170,10 @@ type LimitsView = {
 };
 const initial = (): LimitsView => ({
   snapshot: null,
-  document: "5",
-  total: "512",
+  document: "5.24288",
+  total: "536.870912",
+  documentUnit: "MB",
+  totalUnit: "MB",
   editing: false,
   accepted: false,
   busy: false,
@@ -222,8 +234,8 @@ export class StorageLimitsSession {
         notice: showCurrentNotice ? "current" : null,
         ...(!preserveDraft
           ? {
-              document: String(snapshot.documentMiB),
-              total: String(snapshot.totalMiB),
+              document: exactByteAmount(snapshot.documentMiB * MIB, this.view.documentUnit),
+              total: exactByteAmount(snapshot.totalMiB * MIB, this.view.totalUnit),
               editing: false,
               accepted: false,
             }
@@ -240,8 +252,8 @@ export class StorageLimitsSession {
     if (!snapshot || this.view.busy || this.view.uncertain) return;
     this.set({
       editing: true,
-      document: String(snapshot.documentMiB),
-      total: String(snapshot.totalMiB),
+      document: exactByteAmount(snapshot.documentMiB * MIB, this.view.documentUnit),
+      total: exactByteAmount(snapshot.totalMiB * MIB, this.view.totalUnit),
       accepted: false,
       error: null,
       notice: null,
@@ -249,32 +261,55 @@ export class StorageLimitsSession {
   }
   change(field: "document" | "total", value: string) {
     if (!this.view.editing || this.view.busy || this.view.uncertain) return;
-    if (value.length > 16) {
+    if (value.length > 32) {
       this.set({ accepted: false, error: "limits_invalid" });
       return;
     }
     this.set({ [field]: value, accepted: false, error: null, notice: null });
+  }
+  changeUnit(field: "document" | "total", unit: ByteUnit) {
+    if (!this.view.editing || this.view.busy || this.view.uncertain) return;
+    const bytes = parseByteAmount(
+      this.view[field],
+      this.view[field === "document" ? "documentUnit" : "totalUnit"],
+    );
+    this.set({
+      [field + "Unit"]: unit,
+      ...(bytes === null ? {} : { [field]: exactByteAmount(bytes, unit) }),
+      accepted: false,
+      error: null,
+    });
   }
   accept(value: boolean) {
     if (this.view.editing && !this.view.busy && !this.view.uncertain) this.set({ accepted: value });
   }
   defaults() {
     if (this.view.editing && !this.view.busy && !this.view.uncertain)
-      this.set({ document: "5", total: "512", accepted: false, error: null });
+      this.set({
+        document: exactByteAmount(5 * MIB, this.view.documentUnit),
+        total: exactByteAmount(512 * MIB, this.view.totalUnit),
+        accepted: false,
+        error: null,
+      });
   }
   cancel() {
     const snapshot = this.view.snapshot;
     if (snapshot && !this.view.busy && !this.view.uncertain)
       this.set({
-        document: String(snapshot.documentMiB),
-        total: String(snapshot.totalMiB),
+        document: exactByteAmount(snapshot.documentMiB * MIB, this.view.documentUnit),
+        total: exactByteAmount(snapshot.totalMiB * MIB, this.view.totalUnit),
         editing: false,
         accepted: false,
         error: null,
       });
   }
   changed() {
-    const values = parseLimits(this.view.document, this.view.total),
+    const values = parseLimits(
+        this.view.document,
+        this.view.total,
+        this.view.documentUnit,
+        this.view.totalUnit,
+      ),
       snapshot = this.view.snapshot;
     return (
       !!values &&
@@ -283,7 +318,12 @@ export class StorageLimitsSession {
     );
   }
   belowUsage() {
-    const values = parseLimits(this.view.document, this.view.total),
+    const values = parseLimits(
+        this.view.document,
+        this.view.total,
+        this.view.documentUnit,
+        this.view.totalUnit,
+      ),
       snapshot = this.view.snapshot;
     return (
       !!values &&
@@ -308,7 +348,12 @@ export class StorageLimitsSession {
   }
   async apply() {
     if (!this.canApply() || this.pendingSet || !validContext(this.context)) return;
-    const values = parseLimits(this.view.document, this.view.total)!;
+    const values = parseLimits(
+      this.view.document,
+      this.view.total,
+      this.view.documentUnit,
+      this.view.totalUnit,
+    )!;
     const snapshot = this.view.snapshot!;
     const epoch = this.epoch;
     const request: LimitsRequest = {
@@ -337,8 +382,8 @@ export class StorageLimitsSession {
         throw "invalid_response";
       this.set({
         snapshot: result,
-        document: String(result.documentMiB),
-        total: String(result.totalMiB),
+        document: exactByteAmount(result.documentMiB * MIB, this.view.documentUnit),
+        total: exactByteAmount(result.totalMiB * MIB, this.view.totalUnit),
         editing: false,
         accepted: false,
         uncertain: false,

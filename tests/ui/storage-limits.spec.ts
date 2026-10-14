@@ -60,11 +60,11 @@ for (const language of ["ja", "en"] as const) {
       exact: true,
     });
     await expect(limits).toContainText(
-      label("文書5MiB・全体512MiB", "5 MiB per document · 512 MiB total"),
+      label("文書5.243 MB・全体536.871 MB", "5.243 MB per document · 536.871 MB total"),
     );
-    await expect(limits.getByRole("spinbutton")).toHaveCount(0);
+    await expect(limits.getByRole("textbox")).toHaveCount(0);
     await expect(limits).toContainText(label("文書保存の技術上限", "Technical document capacity"));
-    await expect(limits).toContainText("1,000,000,000 bytes");
+    await expect(limits).toContainText("1 GB");
     expect(await page.evaluate("window.limitsCalls.set")).toEqual([]);
     await limits
       .getByRole("button", { name: label("保存上限を編集", "Edit storage limits"), exact: true })
@@ -75,18 +75,21 @@ for (const language of ["ja", "en"] as const) {
     });
     await expect(apply).toBeDisabled();
     await expect(limits.getByRole("checkbox")).toHaveCount(0);
-    const documentLimit = limits.getByRole("spinbutton", {
-      name: label("文書上限（MiB）", "Document limit (MiB)"),
+    const documentLimit = limits.getByRole("textbox", {
+      name: label("文書上限", "Document limit"),
     });
-    const total = limits.getByRole("spinbutton", {
-      name: label("全体上限（MiB）", "Total limit (MiB)"),
+    const total = limits.getByRole("textbox", {
+      name: label("全体上限", "Total limit"),
     });
+    // Narrow layouts stack amount/unit fields instead of shrinking the amount
+    // into a few clipped digits or overlapping their accessible labels.
+    expect((await documentLimit.boundingBox())!.width).toBeGreaterThan(90);
     await documentLimit.fill("1.5");
     await expect(apply).toBeDisabled();
     await expect(documentLimit).not.toHaveAttribute("max", /.+/);
     await expect(total).not.toHaveAttribute("max", /.+/);
-    await documentLimit.fill("2048");
-    await total.fill("20000000");
+    await documentLimit.fill("2147.483648");
+    await total.fill("20971520");
     await expect(limits).toContainText(
       label("大きい上限ではメモリ", "Larger limits may require more memory"),
     );
@@ -145,14 +148,14 @@ for (const language of ["ja", "en"] as const) {
       label("現在の適用値を確認しました", "Current effective limits checked"),
     );
     await expect(limits).toContainText(
-      label("文書2048MiB・全体20000000MiB", "2048 MiB per document · 20000000 MiB total"),
+      label("文書2.147 GB・全体20,971.52 GB", "2.147 GB per document · 20,971.52 GB total"),
     );
     await expect(apply).toBeDisabled();
     await limits
       .getByRole("button", { name: label("既定値を入力", "Fill in defaults"), exact: true })
       .click();
-    await expect(documentLimit).toHaveValue("5");
-    await expect(total).toHaveValue("512");
+    await expect(documentLimit).toHaveValue("5.24288");
+    await expect(total).toHaveValue("536.870912");
     expect(await page.evaluate("window.limitsCalls.set.length")).toBe(1);
     await limits
       .getByRole("button", {
@@ -160,7 +163,7 @@ for (const language of ["ja", "en"] as const) {
         exact: true,
       })
       .click();
-    await expect(limits.getByRole("spinbutton")).toHaveCount(0);
+    await expect(limits.getByRole("textbox")).toHaveCount(0);
     await expect(dialog).not.toContainText(
       label(
         "変更を適用するには、アプリの再起動が必要です",

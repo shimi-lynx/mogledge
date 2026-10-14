@@ -16,7 +16,17 @@
   gap: 4px;
   margin: 8px 0;
 }
-.saved-data-limits-fields input {
+.saved-data-limit-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 8px;
+}
+.saved-data-limit-row label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.saved-data-limits-fields input,
+.saved-data-limits-fields select {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;

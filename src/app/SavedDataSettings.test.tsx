@@ -9,19 +9,73 @@ afterEach(() => {
   cleanup();
   setLanguage("ja");
 });
+test("multiple HTML filenames and relative paths produce an explicit counted preview before one confirmation", async () => {
+  const api = fixtureApi();
+  const entries = [
+    page.entries[0],
+    { ...page.entries[0], documentIdentity: "d".repeat(64), relativePath: "folder/second.html" },
+  ];
+  api.list = vi.fn(async () => ({ ...page, entries }));
+  api.prepare = vi.fn(async () => ({
+    ...plan,
+    candidateId: "",
+    documentIdentity: null,
+    relativePath: null,
+    documentCount: 2,
+    appCount: 4,
+    logicalBytes: 160,
+    entries: entries.map((entry) => ({
+      documentIdentity: entry.documentIdentity,
+      relativePath: entry.relativePath,
+      logicalBytes: entry.logicalBytes,
+      appCount: 2,
+    })),
+  }));
+  api.confirm = vi.fn(async () => ({ ...receipt, documentCount: 2 }));
+  render(<SavedDataSettings context={context} session={new ManagementSession(api)} />);
+  fireEvent.click(await screen.findByRole("checkbox", { name: /second.html/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /<img/ }));
+  expect(screen.getByText("second.html")).toBeTruthy();
+  expect(screen.getByText("folder/second.html")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Review removal of 2 selected records" }));
+  await screen.findByText("Selected HTML documents: 2");
+  expect(screen.getByText(/HTML files remain unchanged/)).toBeTruthy();
+  expect(api.confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: /I reviewed the target/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Run the reviewed operation" }));
+  await screen.findByText("The reviewed operation completed");
+  expect(api.confirm).toHaveBeenCalledOnce();
+});
+test("search submits the query explicitly without per-keystroke inspection", async () => {
+  const api = fixtureApi();
+  render(<SavedDataSettings context={context} session={new ManagementSession(api)} />);
+  await screen.findByRole("checkbox", { name: /<img/ });
+  fireEvent.change(
+    screen.getByRole("searchbox", { name: "Search HTML filename or relative path" }),
+    { target: { value: "folder/second" } },
+  );
+  expect(api.list).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Search all saved data" }));
+  await waitFor(() =>
+    expect(api.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: "folder/second", offset: 0 }),
+    ),
+  );
+});
 test("bounded inspection starts with nothing selected and renders untrusted names as text", async () => {
   const api = fixtureApi();
   const session = new ManagementSession(api);
   const { container } = render(<SavedDataSettings context={context} session={session} />);
-  await screen.findByText(page.entries[0].relativePath!);
+  await screen.findByRole("checkbox", { name: /<img/ });
   expect(container.querySelectorAll("img")).toHaveLength(0);
-  for (const radio of screen.getAllByRole<HTMLInputElement>("radio"))
-    expect(radio.checked).toBe(false);
+  for (const checkbox of screen.getAllByRole<HTMLInputElement>("checkbox"))
+    expect(checkbox.checked).toBe(false);
   expect(
-    screen.getByRole<HTMLInputElement>("radio", { name: "Source location is unverified" }).disabled,
+    screen.getByRole<HTMLInputElement>("checkbox", { name: "Source location is unverified" })
+      .disabled,
   ).toBe(true);
   expect(
-    screen.getByRole<HTMLButtonElement>("button", { name: "Review impact on the selected record" })
+    screen.getByRole<HTMLButtonElement>("button", { name: "Review removal of 0 selected records" })
       .disabled,
   ).toBe(true);
   expect(screen.getAllByText("Last used: unknown (not collected)")).toHaveLength(2);
@@ -32,9 +86,9 @@ test("explicit record choice and impact acknowledgement precede quarantine", asy
   const api = fixtureApi();
   const session = new ManagementSession(api);
   render(<SavedDataSettings context={context} session={session} />);
-  fireEvent.click(await screen.findByRole("radio", { name: page.entries[0].relativePath! }));
-  fireEvent.click(screen.getByRole("button", { name: "Review impact on the selected record" }));
-  await screen.findByText("Selected committed input: 2 appIds, 80 bytes");
+  fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp("<img") }));
+  fireEvent.click(screen.getByRole("button", { name: "Review removal of 1 selected records" }));
+  await screen.findByText("Selected committed input: 2 appIds, 80 B");
   expect(api.prepare).toHaveBeenCalledWith({
     context,
     operation: "quarantine",
@@ -66,8 +120,8 @@ test("lost responses survive page closure without retry and require explicit ver
   });
   const session = new ManagementSession(api);
   const first = render(<SavedDataSettings context={context} session={session} />);
-  fireEvent.click(await screen.findByRole("radio", { name: page.entries[0].relativePath! }));
-  fireEvent.click(screen.getByRole("button", { name: "Review impact on the selected record" }));
+  fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp("<img") }));
+  fireEvent.click(screen.getByRole("button", { name: "Review removal of 1 selected records" }));
   await screen.findByRole("checkbox");
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Run the reviewed operation" }));
@@ -84,11 +138,13 @@ test("language changes preserve selection and plan without another inspection", 
   const api = fixtureApi();
   const session = new ManagementSession(api);
   render(<SavedDataSettings context={context} session={session} />);
-  fireEvent.click(await screen.findByRole("radio", { name: page.entries[0].relativePath! }));
-  fireEvent.click(screen.getByRole("button", { name: "Review impact on the selected record" }));
+  fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp("<img") }));
+  fireEvent.click(screen.getByRole("button", { name: "Review removal of 1 selected records" }));
   await screen.findByRole("checkbox");
   setLanguage("ja");
-  await waitFor(() => expect(screen.getByText("選択した保存済み入力を隔離")).toBeTruthy());
+  await waitFor(() =>
+    expect(screen.getByText("選択した保存済み入力を削除（復旧可能）")).toBeTruthy(),
+  );
   expect(session.getSnapshot().plan?.planId).toBe("plan");
   expect(api.list).toHaveBeenCalledOnce();
 });
@@ -104,8 +160,8 @@ test.each([
     });
     const session = new ManagementSession(api);
     const { container } = render(<SavedDataSettings context={context} session={session} />);
-    fireEvent.click(await screen.findByRole("radio", { name: page.entries[0].relativePath! }));
-    fireEvent.click(screen.getByRole("button", { name: "Review impact on the selected record" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp("<img") }));
+    fireEvent.click(screen.getByRole("button", { name: "Review removal of 1 selected records" }));
     await screen.findByRole("checkbox");
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Run the reviewed operation" }));

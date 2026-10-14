@@ -88,3 +88,25 @@
     gap: 3px;
   }
 }
+.saved-data-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin: 12px 0;
+}
+.saved-data-search label {
+  display: grid;
+  flex: 1 1 220px;
+  min-width: 0;
+  gap: 4px;
+}
+.saved-data-search input {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+.saved-data-path strong,
+.saved-data-path small {
+  display: block;
+}

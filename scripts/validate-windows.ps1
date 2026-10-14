@@ -82,10 +82,10 @@ try {
             passed = ($null -eq $taskFailure)
             failure = $taskFailure
             checks = @($taskResults.ToArray())
-            installer = if ($Release -and (Test-Path -LiteralPath 'src-tauri\target\release\bundle\nsis\Mogledge_0.8.1_x64-setup.exe')) {
+            installer = if ($Release -and (Test-Path -LiteralPath 'src-tauri\target\release\bundle\nsis\Mogledge_0.8.2_x64-setup.exe')) {
                 [ordered]@{
-                    path = 'src-tauri/target/release/bundle/nsis/Mogledge_0.8.1_x64-setup.exe'
-                    sha256 = (Get-FileHash -LiteralPath 'src-tauri\target\release\bundle\nsis\Mogledge_0.8.1_x64-setup.exe').Hash.ToLowerInvariant()
+                    path = 'src-tauri/target/release/bundle/nsis/Mogledge_0.8.2_x64-setup.exe'
+                    sha256 = (Get-FileHash -LiteralPath 'src-tauri\target\release\bundle\nsis\Mogledge_0.8.2_x64-setup.exe').Hash.ToLowerInvariant()
                     installedBinaryTest = 'Not run by this script; perform separately when installer behavior changes.'
                 }
             } else { $null }
