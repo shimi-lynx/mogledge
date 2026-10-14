@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-tab-session"
+description = "Enables the get_tab_session command without any pre-configured scope."
+commands.allow = ["get_tab_session"]
+
+[[permission]]
+identifier = "deny-get-tab-session"
+description = "Denies the get_tab_session command without any pre-configured scope."
+commands.deny = ["get_tab_session"]
