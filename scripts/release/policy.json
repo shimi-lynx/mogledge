@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "version": "0.8.2",
+  "source_sha": null,
+  "approval": {
+    "enabled": false,
+    "environment": "release",
+    "environment_id": 24269235524,
+    "reviewer_user_id": 56603283,
+    "private_required_reviewers_entitlement_verified": false
+  },
+  "candidates": [],
+  "publication": {
+    "enabled": false,
+    "tag": "v0.8.2",
+    "verification_run_id": null,
+    "verification_tooling_sha": null,
+    "artifact_id": null,
+    "artifact_size": null,
+    "artifact_sha256": null,
+    "artifact_name": null,
+    "expires_at": null,
+    "notes": "Corrections to saved-data management and tab-session restoration. Windows is not Authenticode-signed; macOS uses ad-hoc signing and is not notarized. Signed in-app update and restart QA follows publication."
+  }
+}
