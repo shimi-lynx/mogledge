@@ -97,7 +97,7 @@ def source_context(env):
 
 
 def approval_gate(approval, repository, environment, branches):
-    # A committed false default cannot be enabled through workflow inputs or variables.
+    # The committed kill switch cannot be overridden by workflow inputs or variables.
     require(
         approval["enabled"] is True,
         "Signing disabled: effective human approval gate has not been verified",

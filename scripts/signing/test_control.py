@@ -99,12 +99,12 @@ class SourceTests(unittest.TestCase):
                 candidate, dt.datetime(2026, 10, 17, 1, 57, 50, tzinfo=dt.timezone.utc)
             )
 
-    def test_default_stops_before_api_or_secrets_job(self):
-        self.assertIs(control.policy()["approval"]["enabled"], False)
-        self.assertIsNone(control.policy()["approval"]["environment_id"])
+    def test_disabled_policy_stops_before_api_or_secrets_job(self):
+        disabled = copy.deepcopy(control.policy())
+        disabled["approval"].update(enabled=False, environment_id=None)
         with patch.dict(os.environ, context(), clear=True), patch.object(
-            control, "api"
-        ) as api:
+            control, "policy", return_value=disabled
+        ), patch.object(control, "api") as api:
             with self.assertRaisesRegex(ValueError, "Signing disabled"):
                 control.prepare(Path("unused"))
             api.assert_not_called()
