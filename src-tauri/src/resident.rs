@@ -477,15 +477,7 @@ pub fn menu_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
         match event.id().as_ref() {
             "resident-show" => restore(app, true),
             "resident-quit" => {
-                // Mark before requesting exit so a queued tray/keyboard recall
-                // cannot show the window during shutdown.
-                app.state::<ResidentState>()
-                    .closing
-                    .store(true, Ordering::Release);
-                if let Ok(mut runtime) = app.state::<ResidentState>().runtime.try_lock() {
-                    runtime.shutting_down = true;
-                }
-                app.exit(0);
+                crate::tab_session_exit::request_exit(app, 0);
             }
             _ => (),
         }

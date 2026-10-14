@@ -23,6 +23,7 @@ pub mod state_transfer;
 pub mod storage_identity_transition;
 pub mod storage_limits;
 mod storage_transition_window;
+mod tab_session_exit;
 #[cfg(all(test, unix))]
 mod test_fixtures;
 pub mod tree_mutations;
@@ -105,10 +106,12 @@ pub fn run() {
     let result = builder
         .plugin(tauri_plugin_dialog::init())
         .manage(core.clone())
+        .manage(profile_runtime.clone())
         .manage(native_chrome::ChromeState::default())
         .manage(native_chrome::ShortcutState::default())
         .manage(resident::ResidentState::default())
         .manage(updater::UpdaterState::default())
+        .manage(tab_session_exit::ExitState::default())
         .manage(storage_transition_window::LaunchState::default())
         .on_menu_event(|app, event| resident::menu_event(app, &event))
         .invoke_handler(move |invoke| {
@@ -159,6 +162,9 @@ pub fn run() {
                 commands::links::validate_document_navigation,
                 commands::links::open_external_document_link,
                 commands::mutate_tree,
+                tab_session_exit::confirm_tab_session_flush,
+                commands::workspace::get_tab_session,
+                commands::workspace::capture_tab_session,
                 commands::workspace::get_workspace_sets,
                 commands::workspace::capture_workspace_set,
                 commands::workspace::edit_workspace_set,
@@ -194,9 +200,18 @@ pub fn run() {
         })
         .build(context)
         .map(|app| {
-            app.run(|app, event| match event {
+            let exit_runtime = profile_runtime.clone();
+            app.run(move |app, event| match event {
                 #[cfg(target_os = "macos")]
                 tauri::RunEvent::Reopen { .. } => resident::restore(app, false),
+                tauri::RunEvent::ExitRequested { code, api, .. }
+                    if exit_runtime.allows_ipc()
+                        && app.get_webview_window("main").is_some()
+                        && !tab_session_exit::allowed(app) =>
+                {
+                    api.prevent_exit();
+                    tab_session_exit::request_exit(app, code.unwrap_or(0));
+                }
                 tauri::RunEvent::Exit => resident::shutdown(app),
                 _ => (),
             })

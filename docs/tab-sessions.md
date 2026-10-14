@@ -1,0 +1,17 @@
+# Restarting with the previous tabs
+
+Mogledge automatically remembers the open tabs for each knowledge root: their order, left and right panes, active tabs and pane, document zoom, and the bundled help tab. The same HTML can remain open independently in both panes. Named workspace sets remain a separate, explicit feature.
+
+On startup, the saved root must first pass the existing root recovery and identity checks. Only visible documents are loaded. Other restored tabs remain placeholders until selected; their HTML, iframe and document grants are not created in advance. Missing files remain marked tabs without blocking the other pane or startup. A replacement file is checked against the saved physical document identity before loading.
+
+Tab layouts contain document references, not HTML input values or JavaScript state. Save inputs through the document's storage API before quitting. Opening the same tabs again does not restore unsaved inputs, timers, Canvas state or a previous JavaScript heap.
+
+Normal Quit and an updater restart create a new process that restores the last successfully saved layout. Tray residency only hides the existing process and retains its live tabs. Switching roots restores the selected root's own layout; references from a different physical root are never reused. Closing all tabs explicitly saves an empty layout, while renderer teardown does not save its temporary empty state. Collapsing two panes retains the hidden pane assignments, and independently opened copies remain distinct even after moving them into the same pane.
+
+Controlled Quit, non-resident window close, updater restart and root switching first wait for a bounded session flush. The main window stays alive for the handshake; only its token-matched acknowledgment is accepted. A timeout or save failure cancels the controlled operation and reports an error instead of forcing termination. Startup recovery exits before the main renderer exists remain available. OS force-termination can recover only the last successful layout.
+
+The main UI coalesces synchronous layout changes and serializes writes. Input keystrokes, document-ready notifications and URL changes do not themselves write a session. Persistence uses the existing no-follow workspace preference directory, stored-hash conflict detection and atomic replacement. A failed read prevents automatic session writes; a failed write preserves the previous successfully stored layout and reports an error. The existing 256 KiB preference-file budget applies to the whole root's settings; automatic sessions do not inherit the manual workspace set's 30-item limit. A layout that exceeds the budget fails without truncating tabs or discarding saved preferences.
+
+Workspace preference format v5 adds the optional automatic session and reads formats v1–v4. Older apps reject v5 safely instead of overwriting it; rolling back the app therefore leaves these preferences read-only until a compatible version is used.
+
+Synthetic tests cover large lazy layouts, pane duplicates, missing references, help position, empty sessions, stale root responses, admission checks and persistence conflicts. Live Windows/macOS Quit, updater restart, tray recall, sudden process termination, power-loss durability and device appearance require Native QA on the integrated release. A successful unit test is not evidence that those device checks passed.

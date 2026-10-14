@@ -168,3 +168,31 @@ pub async fn resolve_workspace_set(
     .await
     .map_err(|_| "作業セットを確認できません".to_owned())?
 }
+
+#[tauri::command]
+pub async fn get_tab_session(
+    core: State<'_, Arc<Core>>,
+    workspace_id: String,
+    view_id: String,
+) -> Result<Option<workspace_settings::TabSession>, String> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        workspace_settings::get_session(&core, &workspace_id, &view_id)
+    })
+    .await
+    .map_err(|_| "TabSessionReadFailed".to_owned())?
+}
+#[tauri::command]
+pub async fn capture_tab_session(
+    core: State<'_, Arc<Core>>,
+    workspace_id: String,
+    view_id: String,
+    session: workspace_settings::SessionCapture,
+) -> Result<(), String> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        workspace_settings::capture_session(&core, &workspace_id, &view_id, session)
+    })
+    .await
+    .map_err(|_| "TabSessionSaveFailed".to_owned())?
+}

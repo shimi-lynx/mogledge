@@ -85,6 +85,13 @@ export type WorkspaceSet = {
   active: [number | null, number | null];
   activeColumn: Column;
 };
+export type TabSession = {
+  items: WorkspaceSetItem[];
+  active: [number | null, number | null];
+  activeColumn: Column;
+  split: boolean;
+  help?: { index: number; column: Column; zoom: number; active: boolean } | null;
+};
 export type WorkspaceSetShortcutSlot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export type WorkspaceSetShortcuts = [
   string | null,
@@ -216,6 +223,22 @@ export interface Bridge {
     fragment: string,
     tabId?: string,
   ): Promise<WorkspaceDocument>;
+  listenSessionFlush?(
+    this: void,
+    flush: () => Promise<boolean>,
+    failed: () => void,
+  ): Promise<() => void>;
+  getTabSession?(this: void, workspaceId: string, viewId: string): Promise<TabSession | null>;
+  captureTabSession?(
+    this: void,
+    workspaceId: string,
+    viewId: string,
+    items: WorkspaceCaptureItem[],
+    active: [number | null, number | null],
+    activeColumn: Column,
+    split: boolean,
+    help?: TabSession["help"],
+  ): Promise<void>;
   getWorkspaceSets?(this: void, workspaceId: string, viewId: string): Promise<WorkspaceSets>;
   captureWorkspaceSet?(
     this: void,

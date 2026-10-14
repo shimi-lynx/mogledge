@@ -326,6 +326,9 @@ mod native {
         state: Arc<Mutex<Runtime>>,
         core: Arc<crate::core::Core>,
     ) -> Result<Snapshot, String> {
+        crate::tab_session_exit::flush(&app)
+            .await
+            .map_err(|_| "UpdateSaveFailed")?;
         let (id, update, bytes) = {
             let mut r = state.lock().map_err(|_| "UpdateUnavailable")?;
             if r.bytes.is_none() || r.update.is_none() {
@@ -356,6 +359,7 @@ mod native {
             return Ok(r.session.snapshot.clone());
         }
         // Windows hands relaunch to NSIS; on macOS applying the bundle needs relaunch.
+        crate::tab_session_exit::allow_restart(&app);
         app.restart();
     }
 }
