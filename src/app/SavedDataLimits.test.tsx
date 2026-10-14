@@ -20,8 +20,12 @@ test("read-only initial values and defaults/cancel require explicit edits and ne
     session = new StorageLimitsSession(api);
   render(<SavedDataLimits context={limitsContext} session={session} />);
   await screen.findByText("5.243 MB per document · 536.871 MB total");
+  expect(screen.getByText(/Summary capacities are rounded to three decimal places/)).toBeTruthy();
   expect(screen.queryByRole("textbox")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Edit storage limits" }));
+  expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Document limit" }).value).toBe(
+    "5.24288",
+  );
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Apply storage limits" }).disabled,
   ).toBe(true);

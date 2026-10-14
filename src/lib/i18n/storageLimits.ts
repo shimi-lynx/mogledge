@@ -6,6 +6,8 @@ export const storageLimitsMessages: Readonly<Record<string, string>> = {
   "同じ保存先profileの全ルートに適用します。既定値は文書5.24288 MB・全体536.870912 MBです。":
     "Applies to all roots in the same storage profile. Defaults are 5.24288 MB per document and 536.870912 MB in total.",
   "文書{document}・全体{total}": "{document} per document · {total} total",
+  "概要の容量表示は小数第3位まで丸めます。編集欄は保存済みの正確な値を表示し、入力値や単位切替では丸めません。":
+    "Summary capacities are rounded to three decimal places. Editors show exact saved values; input and unit changes are never rounded.",
   "1 KB = 1,000 B、1 MB = 1,000 KB、1 GB = 1,000 MBです。従来の保存形式を保つため、1.048576 MB（1 MiB）の整数倍で指定してください。丸めは行いません。全体は文書以上です。":
     "1 KB = 1,000 B, 1 MB = 1,000 KB and 1 GB = 1,000 MB. Use exact multiples of 1.048576 MB (1 MiB) to preserve the existing saved format. Values are never rounded. Total must be at least the document limit.",
   文書上限: "Document limit",
