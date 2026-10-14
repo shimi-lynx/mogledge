@@ -187,9 +187,13 @@ def download(url, maximum, token=None):
 def api(path):
     token = os.environ.get("GH_TOKEN")
     require(bool(token), "Read-only Actions token missing")
+    # GitHub returns 404 for repository metadata with a trailing slash.
+    url = "https://api.github.com/repos/shimi-lynx/mogledge"
+    if path:
+        url += "/" + path
     return read_json(
         download(
-            "https://api.github.com/repos/shimi-lynx/mogledge/" + path,
+            url,
             MAX_METADATA,
             token,
         )

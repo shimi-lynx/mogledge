@@ -52,6 +52,8 @@ Actual anonymous HTTPS hosting, production feed, final source/version, Windows p
 
 ## Targeted checks
 
+The first authorized run, [38566864433](https://github.com/shimi-lynx/mogledge/actions/runs/38566864433), stopped in preparation before producing an input artifact. Signing and verification were skipped, and no Environment approval was pending. On 2026-10-14, read-only reproduction with API version `2022-11-28` confirmed the repository endpoint returns HTTP 200 without a trailing slash and HTTP 404 with it; Environment and branch-policy endpoints return HTTP 200. The repository metadata URL is corrected without changing token permissions, approval protection or candidate pins. Regression tests cover the canonical repository URL, unchanged subresource URLs and the required read-only token. A recovery dispatch remains subject to the same native human approval.
+
 Run without any production Secrets:
 
 ```sh
