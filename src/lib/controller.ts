@@ -74,6 +74,7 @@ type TabRequest = {
   registered: boolean;
   nativeId?: string;
   lazyDocument?: WorkspaceDocument;
+  sessionAdmitted?: boolean;
   request: number;
   closing: boolean;
   registrationFailed: boolean;
@@ -508,7 +509,17 @@ export class KnowledgeController {
   }
   private tabSessionFingerprint(state: AppState) {
     return JSON.stringify([
-      state.tabs.map((tab) => [tab.id, tab.path, tab.column, tab.zoom]),
+      state.tabs.map((tab) => {
+        const record = this.requests.get(tab.id);
+        // A successful first retry changes persistence eligibility without changing layout.
+        return [
+          tab.id,
+          tab.path,
+          tab.column,
+          tab.zoom,
+          !!(record?.lazyDocument || record?.sessionAdmitted),
+        ];
+      }),
       state.columns,
       state.activeColumn,
       state.split,
@@ -519,9 +530,15 @@ export class KnowledgeController {
       this.sessionQueued = false;
       const state = this.state;
       const generation = this.sessionGeneration;
-      const documents = state.tabs.filter((tab) => tab.kind !== "help");
-      if (!state.snapshot.workspaceId || documents.some((tab) => tab.loading || tab.closing))
+      const documentTabs = state.tabs.filter((tab) => tab.kind !== "help");
+      if (!state.snapshot.workspaceId || documentTabs.some((tab) => tab.loading || tab.closing))
         return;
+      // A failed first open has no Native-owned identity to persist. Keep its
+      // error tab usable, but do not let it prevent Quit or replace admitted refs.
+      const documents = documentTabs.filter((tab) => {
+        const record = this.requests.get(tab.id);
+        return record?.lazyDocument || record?.sessionAdmitted;
+      });
       const fingerprint = this.tabSessionFingerprint(state);
       if (fingerprint === this.sessionFingerprint) continue;
       try {
@@ -556,9 +573,11 @@ export class KnowledgeController {
           (() => {
             const index = state.tabs.findIndex((tab) => tab.kind === "help");
             const tab = state.tabs[index];
+            const documentIds = new Set(documents.map((document) => document.id));
             return tab
               ? {
-                  index,
+                  index: state.tabs.slice(0, index).filter((item) => documentIds.has(item.id))
+                    .length,
                   column: tab.column ?? 0,
                   zoom: tab.zoom ?? 100,
                   active: state.columns.includes(tab.id),
@@ -2437,6 +2456,7 @@ export class KnowledgeController {
     record.registered = true;
     record.nativeId = undefined;
     record.registrationFailed = false;
+    record.sessionAdmitted = false;
     record.registrationPath = path;
     const registration = record.expectedIdentity
       ? this.api.createTab(record.workspace, record.view, path, record.expectedIdentity)
@@ -2480,6 +2500,7 @@ export class KnowledgeController {
         return;
       record.expectedIdentity = undefined;
       record.lazyDocument = undefined;
+      record.sessionAdmitted = true;
       this.updateTab(id, { url, deferred: false, dirty: this.state.snapshot.revision > revision });
     } catch (error) {
       const latest = this.state.tabs.find((item) => item.id === id);

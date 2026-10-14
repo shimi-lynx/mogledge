@@ -58,6 +58,66 @@ function fixture(saved: TabSession | null = session()) {
   };
 }
 describe("automatic tab session", () => {
+  it.each(["read", "registration"])(
+    "does not let a never-admitted %s error tab block Quit or root switching",
+    async (failure) => {
+      const { controller, api } = fixture(null);
+      const create = api.createTab;
+      api.createTab = vi.fn(async (workspace, view, path) => {
+        if (failure === "registration" && path === "1.html") throw new Error("InvalidUtf8");
+        return create(workspace, view, path);
+      });
+      api.openDocument = vi.fn(async (_workspace, _view, id) => {
+        if (id === "native-2") throw new Error("InvalidUtf8");
+        return `http://fixture/s/${id}/0.html`;
+      });
+      api.captureTabSession = vi.fn<NonNullable<Bridge["captureTabSession"]>>(
+        async (_workspace, _view, items) => {
+          if (items.some((item) => item.tabId === "native-2")) throw new Error("TabSessionInvalid");
+        },
+      );
+      await controller.start();
+      await controller.select("0.html");
+      await controller.select("1.html");
+      expect(controller.getSnapshot().tabs[1].error).toContain("InvalidUtf8");
+      expect(await controller.flushTabSession()).toBe(true);
+      const capture = vi.mocked(api.captureTabSession!).mock.calls.at(-1)!;
+      expect(capture[2]).toEqual([{ tabId: "native-1", column: 0, zoom: 100 }]);
+      expect(capture[3]).toEqual([0, null]);
+      controller.openHelp();
+      expect(await controller.flushTabSession()).toBe(true);
+      expect(vi.mocked(api.captureTabSession!).mock.calls.at(-1)![6]).toEqual({
+        index: 1,
+        column: 0,
+        zoom: 100,
+        active: true,
+      });
+      await controller.choose();
+      expect(api.chooseRoot).toHaveBeenCalledTimes(1);
+      controller.stop();
+    },
+  );
+  it("includes an initially failed tab after a successful retry and retains it after later failures", async () => {
+    const { controller, api } = fixture(null);
+    api.openDocument = vi
+      .fn()
+      .mockRejectedValueOnce("InvalidUtf8")
+      .mockResolvedValueOnce("http://fixture/s/native-1/0.html")
+      .mockRejectedValueOnce("MissingFile");
+    await controller.start();
+    await controller.select("0.html");
+    expect(await controller.flushTabSession()).toBe(true);
+    expect(vi.mocked(api.captureTabSession!).mock.calls.at(-1)![2]).toEqual([]);
+    const tab = controller.getSnapshot().tabs[0];
+    await controller.reload(tab.id);
+    expect(await controller.flushTabSession()).toBe(true);
+    expect(vi.mocked(api.captureTabSession!).mock.calls.at(-1)![2][0].tabId).toBe("native-1");
+    await controller.reload(tab.id);
+    controller.zoomTab(tab.id, "in");
+    expect(await controller.flushTabSession()).toBe(true);
+    expect(vi.mocked(api.captureTabSession!).mock.calls.at(-1)![2][0].tabId).toBe("native-1");
+    controller.stop();
+  });
   it("restores 101 ordered tabs, independent duplicate panes, zoom and active column with only two grants", async () => {
     const { controller, api } = fixture();
     await controller.start();
