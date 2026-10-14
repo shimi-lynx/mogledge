@@ -994,3 +994,51 @@ fn identifier_bundle_marker_is_backed_up_and_checked_before_transition() {
         }
     }
 }
+
+#[test]
+fn session_sidecar_is_sealed_and_backed_up_without_weakening_closed_filename_validation() {
+    let fixture = Fixture::new();
+    let (_, dir) = knowledge::open_root(&fixture.root).unwrap();
+    let identity = knowledge::storage_root_identity(&dir).unwrap();
+    let leaf = format!(
+        "{:x}.json",
+        Sha256::digest(format!("mogledge-tab-session-v1\0{identity}").as_bytes())
+    );
+    let bytes = serde_json::to_vec(&json!({"version":1,"kind":"tab-session","rootIdentity":identity,"session":{"items":[],"active":[null,null],"activeColumn":0,"split":false,"help":null}})).unwrap();
+    let path = fixture.config.join("workspace-settings").join(&leaf);
+    fs::write(&path, &bytes).unwrap();
+    let mut session = fixture.session();
+    let preview = session.prepare(None, None).unwrap();
+    let name = preview["backupDirectory"].as_str().unwrap().to_owned();
+    let backup_path = fixture.backups.join(&name);
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(backup_path.join("manifest.json")).unwrap()).unwrap();
+    assert!(manifest["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|file| file["path"].as_str()
+            == Some(format!("config/workspace-settings/{leaf}").as_str())));
+    assert_eq!(
+        fs::read(backup_path.join("config/workspace-settings").join(&leaf)).unwrap(),
+        bytes
+    );
+    assert_eq!(fs::read(&path).unwrap(), bytes);
+    session
+        .confirm(
+            preview["planId"].as_str().unwrap(),
+            preview["confirmation"].as_str().unwrap(),
+        )
+        .unwrap();
+    // Recovery exercises the existing manifest loader and rejects later unknown leaves.
+    session.prepare_rollback(&name).unwrap();
+    fs::write(
+        fixture
+            .config
+            .join("workspace-settings")
+            .join("unknown.tabs.json"),
+        b"{}",
+    )
+    .unwrap();
+    assert!(config_files(&session.config).is_err());
+}

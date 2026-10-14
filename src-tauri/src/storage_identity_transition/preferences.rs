@@ -243,6 +243,71 @@ mod tests {
         connection
     }
 
+    #[test]
+    fn session_sidecar_leaves_production_v4_preferences_accepted_by_retained_transition() {
+        let fixture = tempfile::tempdir().unwrap();
+        let config = fixture.path().join("config");
+        let root = fixture.path().join("knowledge");
+        std::fs::create_dir(&config).unwrap();
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("a.html"), "<input>").unwrap();
+        let core = crate::core::Core::new(12345);
+        core.settings_path
+            .set(config.join("settings.json"))
+            .unwrap();
+        let snapshot = core.select(&root, false).unwrap();
+        core.watcher.lock().unwrap().take();
+        let workspace = snapshot.workspace_id.as_deref().unwrap();
+        let view = &snapshot.view_id;
+        workspace_settings::favorite(&core, workspace, view, "a.html", true).unwrap();
+        let tab = core.create_tab(workspace, view, "a.html").unwrap();
+        core.open(workspace, view, &tab, 1).unwrap();
+        workspace_settings::capture_session(
+            &core,
+            workspace,
+            view,
+            workspace_settings::SessionCapture {
+                items: vec![workspace_settings::CaptureItem {
+                    tab_id: Some(tab),
+                    document: None,
+                    column: 0,
+                    zoom: 100.0,
+                }],
+                active: [Some(0), None],
+                active_column: 0,
+                split: false,
+                help: None,
+            },
+        )
+        .unwrap();
+        let (_, dir) = crate::knowledge::open_root(&root).unwrap();
+        let identity = crate::knowledge::storage_root_identity(&dir).unwrap();
+        let path = config
+            .join("workspace-settings")
+            .join(format!("{identity}.json"));
+        let bytes = std::fs::read(&path).unwrap();
+        let connection = database();
+        let prepared = prepare(&connection, &identity, &id('b'), &bytes, false).unwrap();
+        assert_eq!(prepared.preview["sourceVersion"], 4);
+        assert_eq!(prepared.preview["outputVersion"], 4);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(
+            std::fs::read_dir(config.join("workspace-settings"))
+                .unwrap()
+                .filter(|entry| entry
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension == "json"))
+                .count(),
+            2
+        );
+        let mut same_file: Value = serde_json::from_slice(&bytes).unwrap();
+        same_file["session"] = json!(null);
+        assert!(decode(&serde_json::to_vec(&same_file).unwrap(), &identity).is_err());
+    }
+
     fn approve(connection: &Connection, source: char, target: char, operation: char, root: char) {
         connection
             .execute(
