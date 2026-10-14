@@ -359,7 +359,7 @@ mod native {
             return Ok(r.session.snapshot.clone());
         }
         // Windows hands relaunch to NSIS; on macOS applying the bundle needs relaunch.
-        crate::tab_session_exit::allow_restart(&app);
+        crate::tab_session_exit::allow_exit(&app);
         app.restart();
     }
 }

@@ -455,6 +455,16 @@ pub fn close_to_tray(window: &WebviewWindow) -> bool {
         && state.recall_allowed.load(Ordering::Acquire)
         && window.hide().is_ok()
 }
+pub(crate) fn prepare_exit(app: &AppHandle) {
+    // Mark only after the bounded session flush succeeds. A queued recall cannot
+    // show the window during exit, while a failed flush leaves residency usable.
+    app.state::<ResidentState>()
+        .closing
+        .store(true, Ordering::Release);
+    if let Ok(mut runtime) = app.state::<ResidentState>().runtime.try_lock() {
+        runtime.shutting_down = true;
+    }
+}
 pub fn shutdown(app: &AppHandle) {
     let state = app.state::<ResidentState>();
     state.closing.store(true, Ordering::Release);

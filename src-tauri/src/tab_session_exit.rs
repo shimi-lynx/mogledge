@@ -15,7 +15,8 @@ pub struct ExitState {
 pub fn allowed(app: &AppHandle) -> bool {
     app.state::<ExitState>().allowed.load(Ordering::Acquire)
 }
-pub fn allow_restart(app: &AppHandle) {
+pub fn allow_exit(app: &AppHandle) {
+    crate::resident::prepare_exit(app);
     app.state::<ExitState>()
         .allowed
         .store(true, Ordering::Release);
@@ -76,7 +77,7 @@ pub fn confirm_tab_session_flush(
 pub fn request_exit(app: &AppHandle, code: i32) {
     // Partial startup cannot service main IPC and has no admitted layout to flush.
     if !app.state::<crate::startup_profile::Runtime>().allows_ipc() {
-        allow_restart(app);
+        allow_exit(app);
         app.exit(code);
         return;
     }
@@ -87,7 +88,7 @@ pub fn request_exit(app: &AppHandle, code: i32) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if flush(&app).await.is_ok() {
-            allow_restart(&app);
+            allow_exit(&app);
             app.exit(code);
         } else {
             // Never force termination or silently discard a layout on timeout/failure.

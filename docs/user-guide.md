@@ -18,6 +18,8 @@ Choose a knowledge folder, then open an HTML file from the tree. Save text files
 
 The same document can be open in both columns. Move a tab between columns or reorder it by dragging; this keeps its live input, JavaScript and Canvas state. Right-click a tab for column actions, reload, close or close tabs to its right. Closing a tab discards unsaved runtime state. Reopening restores a document, not its previous JavaScript heap.
 
+On restart, Mogledge automatically restores the last successfully saved tabs, their order, both panes and active selections, including independent copies of the same HTML. Hidden documents load when selected; missing or replaced sources remain safe placeholders. This restores the layout, not unsaved input or JavaScript state. See [tab sessions](tab-sessions.md) for root-specific persistence, controlled Quit/update behavior and failure handling.
+
 Document zoom is 50–200%, with 25% keyboard/menu steps. Zoom affects the active document rather than the application UI. Document shortcuts respect editable controls, IME and synchronous HTML cancellation. Pinch behavior and physical-key coverage depend on the platform; see [known limitations](known-limitations.md).
 
 Each column keeps up to 32 navigation-history entries while the app is running. Back/forward reuses an existing document frame in that column when possible. History and arbitrary live state are not synchronized or automatically restored after restarting.

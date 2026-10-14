@@ -42,7 +42,7 @@ use std::sync::Arc;
 use tauri::{
     utils::config::Csp,
     webview::{NewWindowResponse, PermissionResponse, WebviewWindowBuilder},
-    WebviewUrl,
+    Manager, WebviewUrl,
 };
 
 pub fn shell_csp(origin: &str, dev: bool) -> String {

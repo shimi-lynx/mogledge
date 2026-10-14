@@ -1293,8 +1293,46 @@ pub fn capture_session(
     if state.settings.read_only {
         return Err(state.settings.error.clone().unwrap_or_default());
     }
+    // A previously persisted reference remains a placeholder even if its loaded
+    // source disappeared or was replaced. Reuse only that exact admitted reference;
+    // restoration still validates identity before issuing any new document grant.
+    let items = capture
+        .items
+        .into_iter()
+        .map(|mut item| {
+            if item.document.is_none() {
+                if let Some(tab) = item
+                    .tab_id
+                    .as_ref()
+                    .and_then(|id| state.tabs.get(id))
+                    .filter(|tab| !tab.browser)
+                {
+                    if let Some(document) = state
+                        .settings
+                        .session
+                        .as_ref()
+                        .and_then(|saved| {
+                            saved.items.iter().find(|saved| {
+                                saved.document.relative_path == tab.entry
+                                    && tab.session.as_ref().is_some_and(|session| {
+                                        session.entry == tab.entry
+                                            && session.storage_identity.as_ref()
+                                                == Some(&saved.document.identity)
+                                    })
+                            })
+                        })
+                        .map(|saved| saved.document.clone())
+                    {
+                        item.tab_id = None;
+                        item.document = Some(document);
+                    }
+                }
+            }
+            item
+        })
+        .collect();
     let session = TabSession {
-        items: capture_items(&state, capture.items)?,
+        items: capture_items(&state, items)?,
         active: capture.active,
         active_column: capture.active_column,
         split: capture.split,
@@ -2982,6 +3020,28 @@ mod tests {
         assert!(capture_session(&core, scope.0, scope.1, changed).is_err());
         assert_eq!(external, fs::read(&path).unwrap());
         assert_eq!(get_session(&core, scope.0, scope.1).unwrap(), prior);
+    }
+    #[test]
+    fn session_retains_admitted_missing_loaded_views_without_blocking_other_layout_changes() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        let identity = get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
+            .document
+            .identity
+            .clone();
+        fs::remove_file(fixture.path().join("knowledge/a.html")).unwrap();
+        let mut next = session_capture(&tab);
+        next.items[0].zoom = 150.0;
+        capture_session(&core, scope.0, scope.1, next).unwrap();
+        let saved = get_session(&core, scope.0, scope.1).unwrap().unwrap();
+        assert_eq!(saved.items[0].zoom, 150.0);
+        assert_eq!(saved.items[0].document.identity, identity);
+        fs::write(fixture.path().join("knowledge/a.html"), "replacement").unwrap();
+        assert!(core
+            .create_tab_checked(scope.0, scope.1, "a.html", Some(identity))
+            .is_err());
     }
     #[test]
     fn session_supports_more_than_manual_set_limit_and_empty_layout() {
