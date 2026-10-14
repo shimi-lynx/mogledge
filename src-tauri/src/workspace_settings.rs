@@ -51,6 +51,52 @@ pub struct WorkingSet {
     pub active: [Option<usize>; 2],
     pub active_column: u8,
 }
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionHelp {
+    pub index: usize,
+    pub column: u8,
+    pub zoom: f64,
+    pub active: bool,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TabSession {
+    pub items: Vec<SetItem>,
+    pub active: [Option<usize>; 2],
+    pub active_column: u8,
+    pub split: bool,
+    #[serde(default)]
+    pub help: Option<SessionHelp>,
+}
+fn valid_session(session: &TabSession) -> bool {
+    session.help.as_ref().is_none_or(|help| {
+        help.index <= session.items.len()
+            && help.column <= 1
+            && help.zoom.is_finite()
+            && (50.0..=200.0).contains(&help.zoom)
+    }) && session.active_column <= 1
+        && (session.split || session.active_column == 0)
+        && session.items.iter().all(|item| {
+            valid_document(&item.document)
+                && item.column <= 1
+                && item.zoom.is_finite()
+                && (50.0..=200.0).contains(&item.zoom)
+        })
+        && (0..2).all(|column| match session.active[column] {
+            Some(index) => session
+                .items
+                .get(index)
+                .is_some_and(|item| usize::from(item.column) == column),
+            None => {
+                (!session.split && column == 1)
+                    || !session
+                        .items
+                        .iter()
+                        .any(|item| usize::from(item.column) == column)
+            }
+        })
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct LegacyStored {
@@ -100,6 +146,25 @@ pub struct Settings {
     stored_hash: Option<String>,
     sets: Vec<WorkingSet>,
     set_shortcuts: SetShortcuts,
+    session: Option<TabSession>,
+    session_file: SessionFile,
+}
+
+#[derive(Clone, Default)]
+struct SessionFile {
+    stored_hash: Option<String>,
+    error: Option<String>,
+    read_only: bool,
+    dirty: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredSession {
+    version: u8,
+    kind: String,
+    root_identity: String,
+    session: TabSession,
 }
 
 #[derive(Serialize)]
@@ -281,24 +346,25 @@ type LoadedLists = (
     SetShortcuts,
     Option<String>,
 );
-fn load_lists(core: &Core, identity: &str) -> Result<LoadedLists, String> {
+fn read_sidecar(core: &Core, name: &str) -> Result<Option<Vec<u8>>, String> {
     let parent = core
         .settings_path
         .get()
         .and_then(|path| path.parent())
         .ok_or("端末設定の保存先が未初期化です")?;
     match std::fs::symlink_metadata(parent.join("workspace-settings")) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok((Lists::default(), vec![], vec![], Default::default(), None))
-        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err("端末設定フォルダーを読み取れません".into()),
         Ok(_) => {}
     }
     let (root, original, locked) = directory(core, false)?;
-    let file = match read_file(locked.dir(), &format!("{identity}.json")) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok((Lists::default(), vec![], vec![], Default::default(), None))
-        }
+    let data = read_sidecar_bytes(locked.dir(), name)?;
+    locked.revalidate(&root, &original)?;
+    Ok(data)
+}
+fn read_sidecar_bytes(dir: &Dir, name: &str) -> Result<Option<Vec<u8>>, String> {
+    let file = match read_file(dir, name) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err("端末設定を読み取れません。保存済みの内容は保持します".into()),
         Ok(file) => file,
     };
@@ -313,8 +379,12 @@ fn load_lists(core: &Core, identity: &str) -> Result<LoadedLists, String> {
     if data.len() > MAX_BYTES {
         return Err("端末設定が256KiBを超えています".into());
     }
-    // Each old version retains its strict topology. Older readers reject v4;
-    // malformed/unknown future data is never silently replaced.
+    Ok(Some(data))
+}
+fn load_lists(core: &Core, identity: &str) -> Result<LoadedLists, String> {
+    let Some(data) = read_sidecar(core, &format!("{identity}.json"))? else {
+        return Ok((Lists::default(), vec![], vec![], Default::default(), None));
+    };
     let value: serde_json::Value = serde_json::from_slice(&data)
         .map_err(|_| "端末設定JSONが壊れています。上書きせず保持します")?;
     let stored = match value.get("version").and_then(serde_json::Value::as_u64) {
@@ -369,7 +439,6 @@ fn load_lists(core: &Core, identity: &str) -> Result<LoadedLists, String> {
     {
         return Err("端末設定の形式が無効です。上書きせず保持します".into());
     }
-    locked.revalidate(&root, &original)?;
     Ok((
         stored.lists,
         stored.folder_favorites,
@@ -377,6 +446,65 @@ fn load_lists(core: &Core, identity: &str) -> Result<LoadedLists, String> {
         stored.set_shortcuts,
         Some(content_hash(&data)),
     ))
+}
+// A domain-separated hash keeps the existing closed 64-hex filename contract.
+// The envelope independently binds the physical root; the name grants no authority.
+fn session_name(identity: &str) -> String {
+    format!(
+        "{}.json",
+        content_hash(format!("mogledge-tab-session-v1\0{identity}").as_bytes())
+    )
+}
+fn encoded_session(settings: &Settings) -> Result<Vec<u8>, String> {
+    let session = settings.session.as_ref().ok_or("TabSessionInvalid")?;
+    if !valid_identity(&settings.root_identity) || !valid_session(session) {
+        return Err("TabSessionInvalid".into());
+    }
+    let data = serde_json::to_vec(&StoredSession {
+        version: 1,
+        kind: "tab-session".into(),
+        root_identity: settings.root_identity.clone(),
+        session: session.clone(),
+    })
+    .map_err(|_| "TabSessionInvalid")?;
+    if data.len() > MAX_BYTES {
+        return Err("タブ配置は256KiB以下にしてください。保存済みの内容は保持します".into());
+    }
+    Ok(data)
+}
+fn load_session(
+    core: &Core,
+    identity: &str,
+) -> Result<(Option<TabSession>, Option<String>), String> {
+    let Some(data) = read_sidecar(core, &session_name(identity))? else {
+        return Ok((None, None));
+    };
+    let stored: StoredSession = serde_json::from_slice(&data).map_err(|_| "TabSessionInvalid")?;
+    if stored.version != 1
+        || stored.kind != "tab-session"
+        || stored.root_identity != identity
+        || !valid_session(&stored.session)
+    {
+        return Err("TabSessionInvalid".into());
+    }
+    Ok((Some(stored.session), Some(content_hash(&data))))
+}
+fn save_session(core: &Core, settings: &mut Settings, guarded: bool) -> Result<(), String> {
+    if settings.session_file.read_only {
+        return Err(settings
+            .session_file
+            .error
+            .clone()
+            .unwrap_or_else(|| "タブ配置は読み取り専用です".into()));
+    }
+    let data = encoded_session(settings)?;
+    publish_sidecar(
+        core,
+        &session_name(&settings.root_identity),
+        &data,
+        &mut settings.session_file.stored_hash,
+        guarded,
+    )
 }
 pub fn load(core: &Core, dir: &Dir) -> Settings {
     let identity = knowledge::storage_root_identity(dir)
@@ -391,7 +519,17 @@ pub fn load(core: &Core, dir: &Dir) -> Settings {
                 load_lists(core, identity)
             }
         });
-    match loaded {
+    let session_loaded = identity
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|identity| {
+            if core.settings_path.get().is_none() {
+                Ok((None, None))
+            } else {
+                load_session(core, identity)
+            }
+        });
+    let mut settings = match loaded {
         Ok((lists, folder_favorites, sets, set_shortcuts, stored_hash)) => Settings {
             root_identity: identity.unwrap(),
             lists,
@@ -407,12 +545,23 @@ pub fn load(core: &Core, dir: &Dir) -> Settings {
             read_only: true,
             ..Default::default()
         },
+    };
+    match session_loaded {
+        Ok((session, stored_hash)) => {
+            settings.session = session;
+            settings.session_file.stored_hash = stored_hash;
+        }
+        Err(error) => {
+            settings.session_file.error = Some(error);
+            settings.session_file.read_only = true;
+        }
     }
+    settings
 }
 pub fn check_switch(core: &Core, loaded: &Settings) -> Result<(), String> {
     let state = core.workspace.lock().unwrap();
     let pending = core.pending_workspace_settings.lock().unwrap();
-    if state.settings.dirty
+    if (state.settings.dirty || state.settings.session_file.dirty)
         && state.settings.root_identity != loaded.root_identity
         && pending.len() >= 8
         && !pending.contains_key(&state.settings.root_identity)
@@ -428,7 +577,7 @@ pub fn switch(core: &Core, loaded: Settings) -> Result<Settings, String> {
     check_switch(core, &loaded)?;
     let state = core.workspace.lock().unwrap();
     let mut pending = core.pending_workspace_settings.lock().unwrap();
-    if state.settings.dirty {
+    if state.settings.dirty || state.settings.session_file.dirty {
         let mut retained = state.settings.clone();
         retained.flush_pending = false;
         pending.insert(state.settings.root_identity.clone(), retained);
@@ -450,6 +599,21 @@ fn save_with_publication(
             .unwrap_or_else(|| "端末設定は読み取り専用です".into()));
     }
     let data = encoded(settings)?;
+    publish_sidecar(
+        core,
+        &format!("{}.json", settings.root_identity),
+        &data,
+        &mut settings.stored_hash,
+        guarded,
+    )
+}
+fn publish_sidecar(
+    core: &Core,
+    name: &str,
+    data: &[u8],
+    stored_hash: &mut Option<String>,
+    guarded: bool,
+) -> Result<(), String> {
     #[cfg(windows)]
     let _ordinary_parent = if guarded {
         let profile = core
@@ -463,35 +627,20 @@ fn save_with_publication(
         None
     };
     let (root, original, locked) = directory(core, true)?;
-    let name = format!("{}.json", settings.root_identity);
-    let current = match read_file(locked.dir(), &name) {
-        Ok(file) => {
-            let metadata = file.metadata().map_err(|_| "端末設定を検証できません")?;
-            if crate::write_fs::rejected_link(&metadata) || !metadata.is_file() {
-                return Err("端末設定の保存先が通常ファイルではありません".into());
-            }
-            let mut bytes = Vec::new();
-            file.take((MAX_BYTES + 1) as u64)
-                .read_to_end(&mut bytes)
-                .map_err(|_| "端末設定を検証できません")?;
-            Some(content_hash(&bytes))
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(_) => return Err("端末設定の保存先を検証できません".into()),
-    };
-    if current != settings.stored_hash {
+    let current = read_sidecar_bytes(locked.dir(), name)?.map(|bytes| content_hash(&bytes));
+    if current != *stored_hash {
         return Err("端末設定が外部で変更されました。上書きせず保持します。保存できない最近の記録はアプリ終了まで保持します".into());
     }
     let (temporary, mut file) =
         crate::write_fs::create_temporary(locked.dir()).map_err(|_| "端末設定を保存できません")?;
     let result = (|| {
-        file.write_all(&data)
+        file.write_all(data)
             .and_then(|_| file.sync_all())
             .map_err(|_| "端末設定を保存できません。元の保存内容は保持します")?;
         #[cfg(windows)]
         if guarded {
             locked.revalidate(&root, &original)?;
-            crate::write_fs::replace_workspace_preferences(&locked, &temporary, &file, &name)
+            crate::write_fs::replace_workspace_preferences(&locked, &temporary, &file, name)
                 .map_err(|_| {
                     "端末設定の保存を確認できません。ファイルを保持し、自動再試行しません"
                 })?;
@@ -502,7 +651,7 @@ fn save_with_publication(
         locked.revalidate(&root, &original)?;
         locked
             .dir()
-            .rename(&temporary, locked.dir(), &name)
+            .rename(&temporary, locked.dir(), name)
             .map_err(|_| "端末設定を保存できません。元の保存内容は保持します")?;
         Ok(())
     })();
@@ -510,57 +659,61 @@ fn save_with_publication(
         let _ = locked.dir().remove_file(&temporary);
     }
     if result.is_ok() {
-        settings.stored_hash = Some(content_hash(&data));
+        *stored_hash = Some(content_hash(data));
     }
     result
+}
+fn flush_settings(core: &Core, settings: &mut Settings, guarded: bool) -> Result<(), String> {
+    let mut error = None;
+    if settings.dirty {
+        match save_with_publication(core, settings, guarded) {
+            Ok(()) => {
+                settings.dirty = false;
+                settings.error = None;
+            }
+            Err(message) => {
+                settings.error = Some(message.clone());
+                settings.read_only |= guarded;
+                error = Some(message);
+            }
+        }
+    }
+    if settings.session_file.dirty {
+        match save_session(core, settings, guarded) {
+            Ok(()) => {
+                settings.session_file.dirty = false;
+                settings.session_file.error = None;
+            }
+            Err(message) => {
+                settings.session_file.error = Some(message.clone());
+                settings.session_file.read_only |= guarded;
+                error.get_or_insert(message);
+            }
+        }
+    }
+    if guarded && error.is_some() {
+        // Uncertain retained-handle publication cannot fall back to a delayed writer.
+        settings.flush_pending = false;
+    }
+    error.map_or(Ok(()), Err)
 }
 /// Only verified Cloud namespace changes use retained-handle publication in
 /// the existing ordinary profile directory. Unknown never reaches this entry.
 #[cfg(windows)]
 pub(crate) fn flush_cloud_move_locked(core: &Core) -> Result<(), String> {
     let mut state = core.workspace.lock().unwrap();
-    if !state.settings.dirty {
-        return Ok(());
-    }
-    match save_with_publication(core, &mut state.settings, true) {
-        Ok(()) => {
-            state.settings.dirty = false;
-            state.settings.error = None;
-            Ok(())
-        }
-        Err(error) => {
-            // Do not schedule the ordinary delayed writer after an uncertain
-            // publication. Keep remapped references available in memory.
-            state.settings.flush_pending = false;
-            state.settings.error = Some(error.clone());
-            state.settings.read_only = true;
-            Err(error)
-        }
-    }
+    flush_settings(core, &mut state.settings, true)
 }
 pub fn flush_locked(core: &Core) -> Result<(), String> {
     let mut state = core.workspace.lock().unwrap();
-    if !state.settings.dirty {
-        return Ok(());
-    }
-    match save(core, &mut state.settings) {
-        Ok(()) => {
-            state.settings.dirty = false;
-            state.settings.error = None;
-            Ok(())
-        }
-        Err(error) => {
-            state.settings.error = Some(error.clone());
-            Err(error)
-        }
-    }
+    flush_settings(core, &mut state.settings, false)
 }
 pub fn flush(core: &Core) -> Result<(), String> {
     let _gate = core.gate.lock().unwrap();
     let current = flush_locked(core);
     let mut pending = core.pending_workspace_settings.lock().unwrap();
     let mut error = current.err();
-    pending.retain(|_, settings| match save(core, settings) {
+    pending.retain(|_, settings| match flush_settings(core, settings, false) {
         Ok(()) => false,
         Err(message) => {
             error = Some(message);
@@ -1050,6 +1203,17 @@ pub fn remap(settings: &mut Settings, from: &str, to: &str) {
             settings.dirty = !settings.read_only;
         }
     }
+    for entry in settings
+        .session
+        .iter_mut()
+        .flat_map(|session| session.items.iter_mut().map(|item| &mut item.document))
+    {
+        let next = crate::tree_mutations::remap(&entry.relative_path, from, to);
+        if next != entry.relative_path {
+            entry.relative_path = next;
+            settings.session_file.dirty = !settings.session_file.read_only;
+        }
+    }
 }
 
 // IPC captures only references to admitted views or previously stored lazy items.
@@ -1114,6 +1278,141 @@ fn save_sets(
     state.settings.error = None;
     Ok(set_snapshot(state))
 }
+fn capture_items(
+    state: &Workspace,
+    items: Vec<CaptureItem>,
+    retain_admitted: bool,
+) -> Result<Vec<SetItem>, String> {
+    let mut captured = Vec::with_capacity(items.len());
+    for item in items {
+        let document = match (item.tab_id, item.document) {
+            (Some(id), None) => {
+                let tab = state
+                    .tabs
+                    .get(&id)
+                    .filter(|tab| !tab.browser)
+                    .ok_or("TabClosed")?;
+                if retain_admitted {
+                    tab.admitted_document
+                        .as_ref()
+                        .filter(|document| document.relative_path == tab.entry)
+                        .ok_or("TabSessionInvalid")?
+                        .clone()
+                } else {
+                    let session = tab
+                        .session
+                        .as_ref()
+                        .ok_or("文書の読み込み完了後に保存してください")?;
+                    let identity = session
+                        .storage_identity
+                        .clone()
+                        .ok_or("文書の識別情報がありません")?;
+                    if session.entry != tab.entry
+                        || knowledge::storage_identity(&session.root, &session.dir, &session.entry)?
+                            != identity
+                    {
+                        return Err(
+                            "文書が移動・置換されています。再走査後に確認してください".into()
+                        );
+                    }
+                    DocumentRef {
+                        relative_path: tab.entry.clone(),
+                        identity,
+                    }
+                }
+            }
+            (None, Some(document))
+                if state
+                    .settings
+                    .sets
+                    .iter()
+                    .any(|set| set.items.iter().any(|item| item.document == document))
+                    || state.settings.session.as_ref().is_some_and(|session| {
+                        session.items.iter().any(|item| item.document == document)
+                    }) =>
+            {
+                document
+            }
+            _ => return Err("保存対象の文書が変更されました".into()),
+        };
+        captured.push(SetItem {
+            document,
+            column: item.column,
+            zoom: item.zoom,
+        });
+    }
+    Ok(captured)
+}
+
+/// Hidden session entries need no file reads or grants until selected.
+pub fn get_session(core: &Core, workspace: &str, view: &str) -> Result<Option<TabSession>, String> {
+    let _gate = core.gate.lock().unwrap();
+    let state = core.workspace.lock().unwrap();
+    Core::check_view(&state, workspace, view)?;
+    check_root(&state)?;
+    if state.settings.session_file.read_only {
+        return Err(state
+            .settings
+            .session_file
+            .error
+            .clone()
+            .unwrap_or_default());
+    }
+    Ok(state.settings.session.clone())
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionCapture {
+    pub items: Vec<CaptureItem>,
+    pub active: [Option<usize>; 2],
+    pub active_column: u8,
+    pub split: bool,
+    pub help: Option<SessionHelp>,
+}
+pub fn capture_session(
+    core: &Core,
+    workspace: &str,
+    view: &str,
+    capture: SessionCapture,
+) -> Result<(), String> {
+    let _gate = core.gate.lock().unwrap();
+    let mut state = core.workspace.lock().unwrap();
+    Core::check_view(&state, workspace, view)?;
+    check_root(&state)?;
+    if state.settings.session_file.read_only {
+        return Err(state
+            .settings
+            .session_file
+            .error
+            .clone()
+            .unwrap_or_default());
+    }
+    // Persist Native-owned admitted references, not live grants. Watcher revocation
+    // must keep missing placeholders, including tabs not yet saved by the debounce.
+    let session = TabSession {
+        items: capture_items(&state, capture.items, true)?,
+        active: capture.active,
+        active_column: capture.active_column,
+        split: capture.split,
+        help: capture.help,
+    };
+    if !valid_session(&session) {
+        return Err("TabSessionInvalid".into());
+    }
+    if state.settings.session.as_ref() == Some(&session) && !state.settings.session_file.dirty {
+        return Ok(());
+    }
+    let previous = state.settings.session.replace(session);
+    // Atomic replacement and stored-hash conflict detection preserve the last successful file.
+    if let Err(error) = save_session(core, &mut state.settings, false) {
+        state.settings.session = previous;
+        state.settings.session_file.error = Some(error.clone());
+        return Err(error);
+    }
+    state.settings.session_file.dirty = false;
+    state.settings.session_file.error = None;
+    Ok(())
+}
 pub fn capture_set(
     core: &Core,
     workspace: &str,
@@ -1133,51 +1432,7 @@ pub fn capture_set(
     if state.settings.sets.len() >= SET_LIMIT || items.len() > SET_ITEM_LIMIT {
         return Err("作業セットは10組、各30項目までです".into());
     }
-    let mut captured = Vec::with_capacity(items.len());
-    for item in items {
-        let document = match (item.tab_id, item.document) {
-            (Some(id), None) => {
-                let tab = state
-                    .tabs
-                    .get(&id)
-                    .filter(|tab| !tab.browser)
-                    .ok_or("TabClosed")?;
-                let session = tab
-                    .session
-                    .as_ref()
-                    .ok_or("文書の読み込み完了後に保存してください")?;
-                let identity = session
-                    .storage_identity
-                    .clone()
-                    .ok_or("文書の識別情報がありません")?;
-                if session.entry != tab.entry
-                    || knowledge::storage_identity(&session.root, &session.dir, &session.entry)?
-                        != identity
-                {
-                    return Err("文書が移動・置換されています。再走査後に確認してください".into());
-                }
-                DocumentRef {
-                    relative_path: tab.entry.clone(),
-                    identity,
-                }
-            }
-            (None, Some(document))
-                if state
-                    .settings
-                    .sets
-                    .iter()
-                    .any(|set| set.items.iter().any(|item| item.document == document)) =>
-            {
-                document
-            }
-            _ => return Err("保存対象の文書が変更されました".into()),
-        };
-        captured.push(SetItem {
-            document,
-            column: item.column,
-            zoom: item.zoom,
-        });
-    }
+    let captured = capture_items(&state, items, false)?;
     let set = WorkingSet {
         id: crate::core::random_token(),
         name: name.trim().into(),
@@ -2259,10 +2514,12 @@ mod tests {
         let id = capture_one(&core, scope, "旧設定", &tab).sets[0].id.clone();
         let path = stored_path(&core);
         let current: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-        for version in [1, 2, 3] {
+        for version in [1, 2, 3, 4] {
             let mut legacy = current.clone();
             legacy["version"] = version.into();
-            legacy.as_object_mut().unwrap().remove("setShortcuts");
+            if version < 4 {
+                legacy.as_object_mut().unwrap().remove("setShortcuts");
+            }
             if version < 3 {
                 legacy.as_object_mut().unwrap().remove("folderFavorites");
             }
@@ -2303,7 +2560,7 @@ mod tests {
         let path = stored_path(&core);
         let current: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         let mut broken = vec![];
-        for version in [1, 2, 3, 5] {
+        for version in [1, 2, 3, 5, 6] {
             let mut data = current.clone();
             data["version"] = version.into();
             broken.push(serde_json::to_vec(&data).unwrap());
@@ -2717,5 +2974,498 @@ mod tests {
         let unknown =
             br#"{"version":1,"rootIdentity":"x","lists":{"favorites":[],"recent":[]},"sets":[]}"#;
         assert!(serde_json::from_slice::<LegacyStored>(unknown).is_err());
+    }
+    fn session_stored_path(core: &Core) -> std::path::PathBuf {
+        stored_path(core).parent().unwrap().join(session_name(
+            &core.workspace.lock().unwrap().settings.root_identity,
+        ))
+    }
+    #[test]
+    fn session_sidecar_keeps_v4_preferences_writable_and_unchanged_by_captures() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        favorite(&core, scope.0, scope.1, "a.html", true).unwrap();
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        flush(&core).unwrap();
+        let preference_path = stored_path(&core);
+        let preferences = fs::read(&preference_path).unwrap();
+        let stored: Stored = serde_json::from_slice(&preferences).unwrap();
+        assert_eq!(stored.version, 4);
+        let value: serde_json::Value = serde_json::from_slice(&preferences).unwrap();
+        assert!(value.get("session").is_none());
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(preferences, fs::read(&preference_path).unwrap());
+        let sidecar_path = session_stored_path(&core);
+        assert_ne!(sidecar_path, preference_path);
+        let sidecar = fs::read(&sidecar_path).unwrap();
+        // A v4 ordinary-preference roundtrip edits only its physical-root leaf.
+        let reader = configured(fixture.path());
+        let next = reader
+            .select(&fixture.path().join("knowledge"), false)
+            .unwrap();
+        reader.watcher.lock().unwrap().take();
+        let next_scope = super::tests::scope(&next);
+        assert!(
+            !get(&reader, next_scope.0, next_scope.1, false)
+                .unwrap()
+                .read_only
+        );
+        favorite(&reader, next_scope.0, next_scope.1, "b.html", true).unwrap();
+        let updated: Stored = serde_json::from_slice(&fs::read(&preference_path).unwrap()).unwrap();
+        assert_eq!(updated.version, 4);
+        assert_eq!(updated.lists.favorites.len(), 2);
+        assert_eq!(sidecar, fs::read(&sidecar_path).unwrap());
+        assert_eq!(
+            get_session(&reader, next_scope.0, next_scope.1)
+                .unwrap()
+                .unwrap()
+                .items
+                .len(),
+            2
+        );
+    }
+    #[test]
+    fn session_sidecar_rejects_wrong_root_topology_and_size_without_freezing_preferences() {
+        for invalid in ["root", "kind", "version", "extra", "duplicate", "oversized"] {
+            let (fixture, core, snapshot) = fixture();
+            let scope = scope(&snapshot);
+            favorite(&core, scope.0, scope.1, "a.html", true).unwrap();
+            let (tab, _) = visit(&core, &snapshot, "a.html");
+            flush(&core).unwrap();
+            capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+            let path = session_stored_path(&core);
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            match invalid {
+                "root" => value["rootIdentity"] = "0".repeat(64).into(),
+                "kind" => value["kind"] = "preferences".into(),
+                "version" => value["version"] = 2.into(),
+                "extra" => value["unknown"] = true.into(),
+                "duplicate" | "oversized" => (),
+                _ => unreachable!(),
+            }
+            let bytes = match invalid {
+                "duplicate" => format!(
+                    "{{\"version\":1,{}",
+                    &serde_json::to_string(&value).unwrap()[1..]
+                )
+                .into_bytes(),
+                "oversized" => vec![b' '; MAX_BYTES + 1],
+                _ => serde_json::to_vec(&value).unwrap(),
+            };
+            fs::write(&path, &bytes).unwrap();
+            let reader = configured(fixture.path());
+            let next = reader
+                .select(&fixture.path().join("knowledge"), false)
+                .unwrap();
+            reader.watcher.lock().unwrap().take();
+            let next_scope = super::tests::scope(&next);
+            assert!(
+                get_session(&reader, next_scope.0, next_scope.1).is_err(),
+                "{invalid}"
+            );
+            let next_tab = reader
+                .create_tab(next_scope.0, next_scope.1, "a.html")
+                .unwrap();
+            reader
+                .open(next_scope.0, next_scope.1, &next_tab, 1)
+                .unwrap();
+            assert!(capture_session(
+                &reader,
+                next_scope.0,
+                next_scope.1,
+                session_capture(&next_tab)
+            )
+            .is_err());
+            favorite(&reader, next_scope.0, next_scope.1, "b.html", true).unwrap();
+            assert!(
+                !get_sets(&reader, next_scope.0, next_scope.1)
+                    .unwrap()
+                    .read_only
+            );
+            assert_eq!(bytes, fs::read(&path).unwrap());
+        }
+    }
+    #[test]
+    fn session_sidecar_conflicts_preserve_layout_and_do_not_clear_dirty_v4_preferences() {
+        let (_fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        assert!(core.workspace.lock().unwrap().settings.dirty);
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert!(core.workspace.lock().unwrap().settings.dirty);
+        let path = session_stored_path(&core);
+        let previous = get_session(&core, scope.0, scope.1).unwrap();
+        let mut external = fs::read(&path).unwrap();
+        external.push(b' ');
+        fs::write(&path, &external).unwrap();
+        let mut changed = session_capture(&tab);
+        changed.items[0].zoom = 150.0;
+        assert!(capture_session(&core, scope.0, scope.1, changed).is_err());
+        assert_eq!(get_session(&core, scope.0, scope.1).unwrap(), previous);
+        favorite(&core, scope.0, scope.1, "b.html", true).unwrap();
+        assert_eq!(external, fs::read(&path).unwrap());
+        let stored: Stored =
+            serde_json::from_slice(&fs::read(stored_path(&core)).unwrap()).unwrap();
+        assert_eq!(stored.version, 4);
+        assert_eq!(stored.lists.favorites.len(), 1);
+    }
+    #[cfg(windows)]
+    #[test]
+    fn session_sidecar_trusted_cloud_flush_preserves_closed_filename_and_guarded_publication() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        flush(&core).unwrap();
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        let preference_path = stored_path(&core);
+        let preferences = fs::read(&preference_path).unwrap();
+        fs::rename(
+            fixture.path().join("knowledge/a.html"),
+            fixture.path().join("knowledge/moved.html"),
+        )
+        .unwrap();
+        {
+            let mut state = core.workspace.lock().unwrap();
+            remap(&mut state.settings, "a.html", "moved.html");
+            assert!(state.settings.session_file.dirty);
+        }
+        // The existing retained-handle cloud path accepts the hashed session leaf.
+        flush_cloud_move_locked(&core).unwrap();
+        assert!(!core.workspace.lock().unwrap().settings.session_file.dirty);
+        let name = session_stored_path(&core)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        assert_eq!(name.len(), 69);
+        assert!(name[..64]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        let restored: StoredSession =
+            serde_json::from_slice(&fs::read(session_stored_path(&core)).unwrap()).unwrap();
+        assert!(restored
+            .session
+            .items
+            .iter()
+            .all(|item| item.document.relative_path == "moved.html"));
+        // Recent preferences remap independently and stay version4.
+        let updated: Stored = serde_json::from_slice(&fs::read(&preference_path).unwrap()).unwrap();
+        assert_eq!(updated.version, 4);
+        assert_ne!(preferences, fs::read(&preference_path).unwrap());
+    }
+    fn session_capture(tab: &str) -> SessionCapture {
+        SessionCapture {
+            items: vec![
+                CaptureItem {
+                    tab_id: Some(tab.into()),
+                    document: None,
+                    column: 0,
+                    zoom: 125.0,
+                },
+                CaptureItem {
+                    tab_id: Some(tab.into()),
+                    document: None,
+                    column: 1,
+                    zoom: 75.0,
+                },
+            ],
+            active: [Some(0), Some(1)],
+            active_column: 1,
+            split: true,
+            help: None,
+        }
+    }
+    #[test]
+    fn session_restores_both_panes_and_root_identity_without_issuing_grants() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        let expected = get_session(&core, scope.0, scope.1).unwrap().unwrap();
+        let path = session_stored_path(&core);
+        let before = fs::read(&path).unwrap();
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(before, fs::read(&path).unwrap());
+        fs::remove_file(fixture.path().join("knowledge/a.html")).unwrap();
+        let restarted = configured(fixture.path());
+        let next = restarted
+            .select(&fixture.path().join("knowledge"), false)
+            .unwrap();
+        restarted.watcher.lock().unwrap().take();
+        let next_scope = super::tests::scope(&next);
+        assert_eq!(
+            get_session(&restarted, next_scope.0, next_scope.1).unwrap(),
+            Some(expected.clone())
+        );
+        assert!(restarted.workspace.lock().unwrap().tabs.is_empty());
+        // Existing missing references are admitted as lazy placeholders, never arbitrary paths.
+        let lazy = SessionCapture {
+            items: expected
+                .items
+                .iter()
+                .map(|item| CaptureItem {
+                    tab_id: None,
+                    document: Some(item.document.clone()),
+                    column: item.column,
+                    zoom: item.zoom,
+                })
+                .collect(),
+            active: expected.active,
+            active_column: 0,
+            split: true,
+            help: None,
+        };
+        capture_session(&restarted, next_scope.0, next_scope.1, lazy).unwrap();
+        fs::create_dir(fixture.path().join("other")).unwrap();
+        let other = restarted
+            .select(&fixture.path().join("other"), false)
+            .unwrap();
+        restarted.watcher.lock().unwrap().take();
+        let other_scope = super::tests::scope(&other);
+        assert!(get_session(&restarted, other_scope.0, other_scope.1)
+            .unwrap()
+            .is_none());
+        assert!(get_session(&restarted, next_scope.0, next_scope.1).is_err());
+    }
+    #[test]
+    fn session_rejects_forged_references_and_keeps_prior_file_on_conflict() {
+        let (_fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        let prior = get_session(&core, scope.0, scope.1).unwrap();
+        let path = session_stored_path(&core);
+        let bytes = fs::read(&path).unwrap();
+        let mut forged = session_capture(&tab);
+        forged.items[0].tab_id = None;
+        forged.items[0].document = Some(DocumentRef {
+            relative_path: "a.html".into(),
+            identity: "0".repeat(64),
+        });
+        assert!(capture_session(&core, scope.0, scope.1, forged).is_err());
+        assert_eq!(bytes, fs::read(&path).unwrap());
+        let mut external = bytes.clone();
+        external.push(b' ');
+        fs::write(&path, &external).unwrap();
+        let mut changed = session_capture(&tab);
+        changed.active_column = 0;
+        assert!(capture_session(&core, scope.0, scope.1, changed).is_err());
+        assert_eq!(external, fs::read(&path).unwrap());
+        assert_eq!(get_session(&core, scope.0, scope.1).unwrap(), prior);
+    }
+    #[test]
+    fn session_retains_admitted_missing_views_after_refresh_before_and_after_first_save() {
+        for persisted in [false, true] {
+            let (fixture, core, snapshot) = fixture();
+            let scope = scope(&snapshot);
+            let (tab, url) = visit(&core, &snapshot, "a.html");
+            let token = url.split("/s/").nth(1).unwrap().split('/').next().unwrap();
+            assert!(core.session_for_token(token).is_some());
+            let admitted = core.workspace.lock().unwrap().tabs[&tab]
+                .admitted_document
+                .clone()
+                .unwrap();
+            if persisted {
+                capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+            }
+            fs::remove_file(fixture.path().join("knowledge/a.html")).unwrap();
+            core.refresh().unwrap();
+            core.watcher.lock().unwrap().take();
+            assert!(core.workspace.lock().unwrap().tabs[&tab].session.is_none());
+            assert!(core.session_for_token(token).is_none());
+            let mut next = session_capture(&tab);
+            next.items[0].zoom = 150.0;
+            capture_session(&core, scope.0, scope.1, next).unwrap();
+            let saved = get_session(&core, scope.0, scope.1).unwrap().unwrap();
+            assert_eq!(saved.items[0].zoom, 150.0);
+            assert!(saved.items.iter().all(|item| item.document == admitted));
+            // Navigation metadata must not relax manual-set live admission.
+            assert!(capture_set(
+                &core,
+                scope.0,
+                scope.1,
+                "missing".into(),
+                session_capture(&tab).items,
+                [Some(0), Some(1)],
+                1
+            )
+            .is_err());
+        }
+    }
+    #[test]
+    fn session_remaps_admission_and_rebinds_only_after_successful_replacement_open() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        let original = core.workspace.lock().unwrap().tabs[&tab]
+            .admitted_document
+            .clone()
+            .unwrap();
+        let renamed = crate::tree_mutations::perform(
+            &core,
+            scope.0,
+            scope.1,
+            crate::tree_mutations::Mutation::RenameHtml {
+                source: "a.html".into(),
+                name: "renamed".into(),
+            },
+        )
+        .unwrap();
+        let renamed_path = renamed.moves[0].to.clone();
+        fs::create_dir(fixture.path().join("knowledge/nested")).unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
+        let moved = crate::tree_mutations::perform(
+            &core,
+            scope.0,
+            scope.1,
+            crate::tree_mutations::Mutation::Move {
+                source: renamed_path,
+                parent: "nested".into(),
+                anchor: None,
+                after: false,
+            },
+        )
+        .unwrap();
+        let path = moved.moves[0].to.clone();
+        assert!(core.workspace.lock().unwrap().tabs[&tab].session.is_none());
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        let remapped = get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
+            .document
+            .clone();
+        assert_eq!(remapped.relative_path, path);
+        assert_eq!(remapped.identity, original.identity);
+        // Keep the old physical file alive so its identifier cannot be reused.
+        fs::rename(
+            fixture.path().join("knowledge").join(&path),
+            fixture.path().join("old-document.html"),
+        )
+        .unwrap();
+        fs::write(fixture.path().join("knowledge").join(&path), "replacement").unwrap();
+        assert!(core
+            .create_tab_checked(scope.0, scope.1, &path, Some(original.identity.clone()))
+            .is_err());
+        // Capturing alone cannot admit the replacement at the same path.
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(
+            get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
+                .document
+                .identity,
+            original.identity
+        );
+        core.open(scope.0, scope.1, &tab, 2).unwrap();
+        let replacement = core.workspace.lock().unwrap().tabs[&tab]
+            .admitted_document
+            .clone()
+            .unwrap();
+        assert_ne!(replacement.identity, original.identity);
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(
+            get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0].document,
+            replacement
+        );
+        fs::remove_file(fixture.path().join("knowledge").join(&path)).unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
+        assert!(core.open(scope.0, scope.1, &tab, 3).is_err());
+        assert_eq!(
+            core.workspace.lock().unwrap().tabs[&tab].admitted_document,
+            Some(replacement)
+        );
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+    }
+    #[test]
+    fn session_admitted_references_cannot_cross_view_or_root_lifetimes() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let unopened = core.create_tab(scope.0, scope.1, "a.html").unwrap();
+        assert!(capture_session(&core, scope.0, scope.1, session_capture(&unopened)).is_err());
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        let next = core.begin_view();
+        let next_scope = super::tests::scope(&next);
+        assert!(capture_session(&core, scope.0, scope.1, session_capture(&tab)).is_err());
+        assert!(capture_session(&core, next_scope.0, next_scope.1, session_capture(&tab)).is_err());
+        let (next_tab, _) = visit(&core, &next, "a.html");
+        fs::create_dir(fixture.path().join("other")).unwrap();
+        fs::copy(
+            fixture.path().join("knowledge/a.html"),
+            fixture.path().join("other/a.html"),
+        )
+        .unwrap();
+        let other = core.select(&fixture.path().join("other"), false).unwrap();
+        core.watcher.lock().unwrap().take();
+        let other_scope = super::tests::scope(&other);
+        assert!(capture_session(
+            &core,
+            other_scope.0,
+            other_scope.1,
+            session_capture(&next_tab)
+        )
+        .is_err());
+        assert!(get_session(&core, other_scope.0, other_scope.1)
+            .unwrap()
+            .is_none());
+    }
+    #[test]
+    fn session_supports_more_than_manual_set_limit_and_empty_layout() {
+        let items: Vec<_> = (0..101)
+            .map(|index| SetItem {
+                document: DocumentRef {
+                    relative_path: format!("{index}.html"),
+                    identity: format!("{index:064x}"),
+                },
+                column: 0,
+                zoom: 100.0,
+            })
+            .collect();
+        let session = TabSession {
+            items,
+            active: [Some(100), None],
+            active_column: 0,
+            split: false,
+            help: None,
+        };
+        assert!(valid_session(&session));
+        let empty = TabSession {
+            items: vec![],
+            active: [None, None],
+            active_column: 0,
+            split: false,
+            help: Some(SessionHelp {
+                index: 0,
+                column: 0,
+                zoom: 100.0,
+                active: true,
+            }),
+        };
+        assert!(valid_session(&empty));
+        let mut invalid = session.clone();
+        invalid.active[0] = Some(101);
+        assert!(!valid_session(&invalid));
+        let mut settings = Settings {
+            root_identity: "a".repeat(64),
+            session: Some(session),
+            ..Default::default()
+        };
+        assert!(encoded_session(&settings).is_ok());
+        settings.session.as_mut().unwrap().items[0]
+            .document
+            .relative_path = "../escape.html".into();
+        assert!(encoded_session(&settings).is_err());
+        assert!(encoded(&settings).is_ok());
+        settings.session.as_mut().unwrap().items = (0..5000)
+            .map(|index| SetItem {
+                document: DocumentRef {
+                    relative_path: format!("{index}.html"),
+                    identity: format!("{index:064x}"),
+                },
+                column: 0,
+                zoom: 100.0,
+            })
+            .collect();
+        assert!(valid_session(settings.session.as_ref().unwrap()));
+        assert!(encoded_session(&settings).unwrap_err().contains("256KiB"));
+        assert!(encoded(&settings).is_ok());
     }
 }

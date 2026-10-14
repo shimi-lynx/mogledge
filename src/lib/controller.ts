@@ -74,6 +74,7 @@ type TabRequest = {
   registered: boolean;
   nativeId?: string;
   lazyDocument?: WorkspaceDocument;
+  sessionAdmitted?: boolean;
   request: number;
   closing: boolean;
   registrationFailed: boolean;
@@ -135,6 +136,16 @@ export class KnowledgeController {
   // When an empty left column collapses, reopening its tab must leave the
   // surviving documents on the right when restoring the original layout.
   private collapsedColumn: Column = 0;
+  private sessionReady = false;
+  private sessionGeneration = 0;
+  private sessionFingerprint = "";
+  private sessionQueued = false;
+  private sessionWriting = false;
+  private sessionTimer?: ReturnType<typeof setTimeout>;
+  private sessionFlushes = 0;
+  private sessionFlight: Promise<void> | null = null;
+  private sessionRestoreFlight: Promise<void> | null = null;
+  private sessionUnlisten?: () => void;
   constructor(private api: Bridge) {}
   // Only main derives Native IDs/request/revision; opaque HTML supplies none of them.
   artifactContext(id: string, url: string): ArtifactContext | null {
@@ -199,6 +210,7 @@ export class KnowledgeController {
       documentUrl: active?.url ?? null,
     };
     this.subscribers.forEach((callback) => callback());
+    this.queueTabSession();
   }
   private updateTab(id: string, value: Partial<DocumentTab>) {
     this.set({ tabs: this.state.tabs.map((tab) => (tab.id === id ? { ...tab, ...value } : tab)) });
@@ -228,6 +240,19 @@ export class KnowledgeController {
         return;
       }
       this.unlisten = unlisten;
+      if (this.api.listenSessionFlush) {
+        const sessionUnlisten = await this.api.listenSessionFlush(
+          () => this.flushTabSession(),
+          () => {
+            this.set({ error: "タブの状態を保存できません: TabSessionSaveFailed" });
+          },
+        );
+        if (this.stopped || lifecycle !== this.lifecycle) {
+          sessionUnlisten();
+          return;
+        }
+        this.sessionUnlisten = sessionUnlisten;
+      }
       const begin = beginQueue.catch(() => {}).then(() => this.api.beginView());
       beginQueue = begin;
       const snapshot = await begin;
@@ -240,6 +265,10 @@ export class KnowledgeController {
     }
   }
   stop() {
+    this.sessionReady = false;
+    this.sessionGeneration++;
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = undefined;
     this.transfer?.invalidate();
     this.transfer = undefined;
     this.cancelWorkspaceSelection();
@@ -251,6 +280,8 @@ export class KnowledgeController {
     this.syncGeneration++;
     this.unlisten?.();
     this.unlisten = undefined;
+    this.sessionUnlisten?.();
+    this.sessionUnlisten = undefined;
     for (const record of this.requests.values()) {
       record.closing = true;
       void this.release(record).catch(() => {});
@@ -276,6 +307,11 @@ export class KnowledgeController {
     const current = this.state.snapshot;
     const same = snapshot.workspaceId === current.workspaceId && snapshot.viewId === current.viewId;
     if (!same) {
+      this.sessionReady = false;
+      this.sessionGeneration++;
+      if (this.sessionTimer) clearTimeout(this.sessionTimer);
+      this.sessionTimer = undefined;
+      this.sessionFingerprint = "";
       const help = this.state.tabs.find((tab) => tab.kind === "help");
       this.transfer?.invalidate();
       this.transfer = undefined;
@@ -307,6 +343,11 @@ export class KnowledgeController {
       });
       void this.refreshWorkspaceLists();
       void this.refreshWorkspaceSets();
+      const restore = this.restoreTabSession(snapshot);
+      this.sessionRestoreFlight = restore;
+      void restore.finally(() => {
+        if (this.sessionRestoreFlight === restore) this.sessionRestoreFlight = null;
+      });
       return;
     }
     if (snapshot.revision < current.revision) return;
@@ -335,6 +376,271 @@ export class KnowledgeController {
         ? "閲覧中のHTMLが削除または移動されました"
         : this.state.error,
     });
+  }
+  private async restoreTabSession(snapshot: Snapshot) {
+    const generation = this.sessionGeneration;
+    const current = () =>
+      !this.stopped &&
+      generation === this.sessionGeneration &&
+      snapshot.workspaceId === this.state.snapshot.workspaceId &&
+      snapshot.viewId === this.state.snapshot.viewId;
+    if (!snapshot.workspaceId) return;
+    try {
+      const session = await this.api.getTabSession?.(snapshot.workspaceId, snapshot.viewId);
+      // Selections made while the read was pending take precedence.
+      if (!current()) return;
+      if (this.state.tabs.some((tab) => tab.kind !== "help")) {
+        this.sessionReady = true;
+        return;
+      }
+      if (session) {
+        const paths = new Set<string>();
+        const pending = [...this.state.snapshot.nodes];
+        while (pending.length) {
+          const node = pending.pop()!;
+          if (node.kind === "html") paths.add(node.relativePath);
+          else pending.push(...node.children);
+        }
+        const tabs: DocumentTab[] = session.items.map((item) => {
+          const id = `tab-${++nextTab}`;
+          this.requests.set(id, {
+            workspace: snapshot.workspaceId!,
+            view: snapshot.viewId,
+            native: Promise.resolve(""),
+            registered: false,
+            request: 0,
+            closing: false,
+            registrationFailed: false,
+            registrationPath: item.document.relativePath,
+            expectedIdentity: item.document.identity,
+            lazyDocument: item.document,
+            visitPending: true,
+          });
+          const missing = !paths.has(item.document.relativePath);
+          return {
+            id,
+            column: item.column,
+            path: item.document.relativePath,
+            zoom: item.zoom,
+            deferred: true,
+            url: null,
+            loading: false,
+            closing: false,
+            dirty: true,
+            missing,
+            error: missing ? workspaceStatusLabels.missing : null,
+          };
+        });
+        const columns = session.active.map((index) =>
+          index === null ? null : (tabs[index]?.id ?? null),
+        ) as [string | null, string | null];
+        if (session.help) {
+          const help = session.help;
+          tabs.splice(help.index, 0, {
+            id: "app-help",
+            kind: "help",
+            path: "機能と使い方",
+            column: help.column,
+            zoom: help.zoom,
+            url: null,
+            loading: false,
+            closing: false,
+            dirty: false,
+            missing: false,
+            error: null,
+          });
+          if (help.active) columns[help.column] = "app-help";
+        }
+        this.set({
+          tabs,
+          split: session.split,
+          columns,
+          activeColumn: session.activeColumn,
+        });
+        this.reloadExposedTabs();
+      }
+      if (current()) {
+        this.sessionReady = true;
+        if (!session) this.sessionFingerprint = this.tabSessionFingerprint(this.state);
+      }
+    } catch (error) {
+      if (current()) this.set({ error: "前回のタブを復元できません: " + String(error) });
+      // A failed read must never overwrite the previous session with an empty layout.
+    } finally {
+      if (current()) this.queueTabSession();
+    }
+  }
+  private queueTabSession(force = false) {
+    if (
+      !this.api.captureTabSession ||
+      !this.sessionReady ||
+      this.stopped ||
+      this.state.loading ||
+      !this.state.snapshot.workspaceId
+    )
+      return;
+    const documents = this.state.tabs.filter((tab) => tab.kind !== "help");
+    if (documents.some((tab) => tab.loading || tab.closing)) return;
+    const fingerprint = this.tabSessionFingerprint(this.state);
+    if (fingerprint === this.sessionFingerprint && !this.sessionWriting) {
+      if (this.sessionTimer) clearTimeout(this.sessionTimer);
+      this.sessionTimer = undefined;
+      this.sessionQueued = false;
+      return;
+    }
+    this.sessionQueued = true;
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = undefined;
+    if (this.sessionWriting) return;
+    const write = () => {
+      this.sessionTimer = undefined;
+      if (this.stopped || !this.sessionReady) return;
+      this.sessionWriting = true;
+      this.sessionFlight = this.writeTabSession().finally(() => {
+        this.sessionWriting = false;
+        this.sessionFlight = null;
+        if (this.sessionQueued) this.queueTabSession(this.sessionFlushes > 0);
+      });
+    };
+    // Only layout changes debounce disk I/O. Explicit Quit/update/root flushes bypass
+    // the delay; one writer preserves order even when a prior capture is slow.
+    if (force) write();
+    else this.sessionTimer = setTimeout(write, 200);
+  }
+  private tabSessionFingerprint(state: AppState) {
+    return JSON.stringify([
+      state.tabs.map((tab) => {
+        const record = this.requests.get(tab.id);
+        // A successful first retry changes persistence eligibility without changing layout.
+        return [
+          tab.id,
+          tab.path,
+          tab.column,
+          tab.zoom,
+          !!(record?.lazyDocument || record?.sessionAdmitted),
+        ];
+      }),
+      state.columns,
+      state.activeColumn,
+      state.split,
+    ]);
+  }
+  private async writeTabSession() {
+    while (this.sessionQueued && this.sessionReady && !this.stopped) {
+      this.sessionQueued = false;
+      const state = this.state;
+      const generation = this.sessionGeneration;
+      const documentTabs = state.tabs.filter((tab) => tab.kind !== "help");
+      if (!state.snapshot.workspaceId || documentTabs.some((tab) => tab.loading || tab.closing))
+        return;
+      // A failed first open has no Native-owned identity to persist. Keep its
+      // error tab usable, but do not let it prevent Quit or replace admitted refs.
+      const documents = documentTabs.filter((tab) => {
+        const record = this.requests.get(tab.id);
+        return record?.lazyDocument || record?.sessionAdmitted;
+      });
+      const fingerprint = this.tabSessionFingerprint(state);
+      if (fingerprint === this.sessionFingerprint) continue;
+      try {
+        const items = await Promise.all(
+          documents.map(async (tab) => {
+            const record = this.requests.get(tab.id);
+            if (!record) throw new Error("TabClosed");
+            return {
+              ...(record.lazyDocument
+                ? { document: record.lazyDocument }
+                : { tabId: await record.native }),
+              column: tab.column ?? 0,
+              zoom: tab.zoom ?? 100,
+            } satisfies WorkspaceCaptureItem;
+          }),
+        );
+        if (this.stopped || generation !== this.sessionGeneration) return;
+        const active = state.columns.map((id, column) => {
+          if (!state.split && column === 1) return null;
+          const index = documents.findIndex((tab) => tab.id === id);
+          if (index >= 0) return index;
+          const fallback = documents.findIndex((tab) => (tab.column ?? 0) === column);
+          return fallback < 0 ? null : fallback;
+        }) as [number | null, number | null];
+        await this.api.captureTabSession!(
+          state.snapshot.workspaceId,
+          state.snapshot.viewId,
+          items,
+          active,
+          state.activeColumn,
+          state.split,
+          (() => {
+            const index = state.tabs.findIndex((tab) => tab.kind === "help");
+            const tab = state.tabs[index];
+            const documentIds = new Set(documents.map((document) => document.id));
+            return tab
+              ? {
+                  index: state.tabs.slice(0, index).filter((item) => documentIds.has(item.id))
+                    .length,
+                  column: tab.column ?? 0,
+                  zoom: tab.zoom ?? 100,
+                  active: state.columns.includes(tab.id),
+                }
+              : null;
+          })(),
+        );
+        if (generation === this.sessionGeneration) this.sessionFingerprint = fingerprint;
+        if (!this.sessionFlushes) return;
+      } catch (error) {
+        if (!this.stopped && generation === this.sessionGeneration)
+          this.set({ error: "タブの状態を保存できません: " + String(error) });
+        if (generation === this.sessionGeneration)
+          this.sessionQueued = this.tabSessionFingerprint(this.state) !== fingerprint;
+        return;
+      }
+    }
+  }
+  async flushTabSession(): Promise<boolean> {
+    if (!this.api.captureTabSession || this.stopped || !this.state.snapshot.workspaceId)
+      return true;
+    this.sessionFlushes++;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const save = async () => {
+      // Allow an admitted tab's pending registration/read to finish, without polling.
+      if (this.state.loading || this.state.tabs.some((tab) => tab.loading || tab.closing)) {
+        await new Promise<void>((resolve) => {
+          const unlisten = this.subscribe(() => {
+            if (
+              this.stopped ||
+              (!this.state.loading && !this.state.tabs.some((tab) => tab.loading || tab.closing))
+            ) {
+              unlisten();
+              resolve();
+            }
+          });
+          cleanup = unlisten;
+        });
+      }
+      if (this.sessionRestoreFlight) await this.sessionRestoreFlight;
+      // Read failure intentionally disables writes; quitting preserves that file.
+      if (!this.sessionReady) return true;
+      this.queueTabSession(true);
+      await Promise.resolve();
+      while (this.sessionFlight) {
+        await this.sessionFlight;
+        await Promise.resolve();
+      }
+      return this.stopped || this.tabSessionFingerprint(this.state) === this.sessionFingerprint;
+    };
+    let cleanup: (() => void) | undefined;
+    try {
+      return await Promise.race([
+        save(),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), 2500);
+        }),
+      ]);
+    } finally {
+      this.sessionFlushes--;
+      if (timer) clearTimeout(timer);
+      cleanup?.();
+    }
   }
   private async synchronize() {
     const sequence = ++this.syncGeneration;
@@ -841,6 +1147,10 @@ export class KnowledgeController {
     await this.workspaceAction(() => this.api.refresh());
   }
   private async workspaceAction(action: () => Promise<Snapshot | null>) {
+    if (!(await this.flushTabSession())) {
+      this.set({ error: "タブの状態を保存できません: TabSessionSaveFailed" });
+      return;
+    }
     this.cancelWorkspaceSelection();
     const generation = ++this.workspaceGeneration;
     this.actionGeneration++;
@@ -2146,6 +2456,7 @@ export class KnowledgeController {
     record.registered = true;
     record.nativeId = undefined;
     record.registrationFailed = false;
+    record.sessionAdmitted = false;
     record.registrationPath = path;
     const registration = record.expectedIdentity
       ? this.api.createTab(record.workspace, record.view, path, record.expectedIdentity)
@@ -2189,6 +2500,7 @@ export class KnowledgeController {
         return;
       record.expectedIdentity = undefined;
       record.lazyDocument = undefined;
+      record.sessionAdmitted = true;
       this.updateTab(id, { url, deferred: false, dirty: this.state.snapshot.revision > revision });
     } catch (error) {
       const latest = this.state.tabs.find((item) => item.id === id);

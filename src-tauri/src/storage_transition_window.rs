@@ -64,6 +64,9 @@ pub(crate) async fn open_storage_identity_transition(
         {
             return Ok(false);
         }
+        crate::tab_session_exit::flush(&app)
+            .await
+            .map_err(|_| "StorageUnavailable".to_owned())?;
         // No renderer-supplied paths, arguments or environment are forwarded. The child
         // initializes no normal Core and performs no profile I/O on mount.
         // Its first explicit inspection must acquire the exclusive profile
@@ -73,6 +76,7 @@ pub(crate) async fn open_storage_identity_transition(
             .arg("--storage-transition-ui")
             .spawn()
             .map_err(|_| "StorageUnavailable".to_owned())?;
+        crate::tab_session_exit::allow_exit(&app);
         app.exit(0);
         Ok(true)
     }

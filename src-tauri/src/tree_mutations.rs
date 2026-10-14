@@ -99,6 +99,9 @@ fn commit_path_move(core: &Core, source: &str, destination: &str) -> PathMove {
         let next = remap(&tab.entry, source, destination);
         if next != tab.entry {
             tab.entry = next;
+            if let Some(document) = &mut tab.admitted_document {
+                document.relative_path = remap(&document.relative_path, source, destination);
+            }
             tab.session = None;
             tab.revocation += 1;
         }

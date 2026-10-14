@@ -33,6 +33,34 @@ export const bridge: Bridge = {
       fragment,
       tabId,
     }),
+  listenSessionFlush: async (flush, failed) => {
+    const unlisten = await listen<{ request: string }>(
+      "tab-session-flush-request",
+      async ({ payload }) => {
+        const success = await flush().catch(() => false);
+        await invoke("confirm_tab_session_flush", { request: payload.request, success }).catch(
+          () => {},
+        );
+      },
+    );
+    try {
+      const unlistenFailed = await listen("tab-session-flush-failed", failed);
+      return () => {
+        unlisten();
+        unlistenFailed();
+      };
+    } catch (error) {
+      unlisten();
+      throw error;
+    }
+  },
+  getTabSession: (workspaceId, viewId) => invoke("get_tab_session", { workspaceId, viewId }),
+  captureTabSession: (workspaceId, viewId, items, active, activeColumn, split, help) =>
+    invoke("capture_tab_session", {
+      workspaceId,
+      viewId,
+      session: { items, active, activeColumn, split, help: help ?? null },
+    }),
   getWorkspaceSets: (workspaceId, viewId) =>
     invoke<WorkspaceSets>("get_workspace_sets", { workspaceId, viewId }),
   captureWorkspaceSet: (workspaceId, viewId, name, items, active, activeColumn) =>

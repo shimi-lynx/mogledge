@@ -169,6 +169,9 @@ pub fn install(window: &WebviewWindow) -> tauri::Result<()> {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             if crate::resident::close_to_tray(&target) {
                 api.prevent_close();
+            } else if !crate::tab_session_exit::allowed(target.app_handle()) {
+                api.prevent_close();
+                crate::tab_session_exit::request_exit(target.app_handle(), 0);
             }
         }
         if matches!(event, tauri::WindowEvent::Resized(_)) {

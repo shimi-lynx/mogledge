@@ -455,6 +455,16 @@ pub fn close_to_tray(window: &WebviewWindow) -> bool {
         && state.recall_allowed.load(Ordering::Acquire)
         && window.hide().is_ok()
 }
+pub(crate) fn prepare_exit(app: &AppHandle) {
+    // Mark only after the bounded session flush succeeds. A queued recall cannot
+    // show the window during exit, while a failed flush leaves residency usable.
+    app.state::<ResidentState>()
+        .closing
+        .store(true, Ordering::Release);
+    if let Ok(mut runtime) = app.state::<ResidentState>().runtime.try_lock() {
+        runtime.shutting_down = true;
+    }
+}
 pub fn shutdown(app: &AppHandle) {
     let state = app.state::<ResidentState>();
     state.closing.store(true, Ordering::Release);
@@ -477,15 +487,7 @@ pub fn menu_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
         match event.id().as_ref() {
             "resident-show" => restore(app, true),
             "resident-quit" => {
-                // Mark before requesting exit so a queued tray/keyboard recall
-                // cannot show the window during shutdown.
-                app.state::<ResidentState>()
-                    .closing
-                    .store(true, Ordering::Release);
-                if let Ok(mut runtime) = app.state::<ResidentState>().runtime.try_lock() {
-                    runtime.shutting_down = true;
-                }
-                app.exit(0);
+                crate::tab_session_exit::request_exit(app, 0);
             }
             _ => (),
         }

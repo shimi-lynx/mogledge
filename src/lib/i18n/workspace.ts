@@ -1,4 +1,9 @@
 export const workspaceMessages: Readonly<Record<string, string>> = {
+  前回のタブを復元できません: "Could not restore the previous tabs",
+  タブの状態を保存できません: "Could not save the tab layout",
+  TabSessionInvalid: "The tab layout is invalid",
+  TabSessionReadFailed: "Could not read the tab layout",
+  TabSessionSaveFailed: "Could not save the tab layout",
   "番号はこのフォルダーのセットに割り当てます。入力・IME・ダイアログとHTML自身のキー操作を優先します。0は10番目です。":
     "Assign numbers to sets in this folder. Inputs, IME, dialogs and the HTML's own shortcuts take priority. 0 is slot 10.",
   "{name}のショートカット": "Shortcut for {name}",
