@@ -1,0 +1,136 @@
+name: Updater signature verification trial (disabled pending approval gate)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_workflow_sha:
+        description: Reviewed full main commit containing the trusted signing tooling
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: updater-signing-trial
+  cancel-in-progress: false
+
+env:
+  EXPECTED_WORKFLOW_SHA: ${{ inputs.expected_workflow_sha }}
+
+jobs:
+  prepare:
+    if: github.repository == 'shimi-lynx/mogledge' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ready: ${{ steps.validated.outputs.ready }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - name: Check effective approval protection and exact trusted candidate
+        id: validated
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/signing/control.py prepare "$RUNNER_TEMP/validated-input"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: validated-signing-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/validated-input/candidate.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  sign:
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    environment: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - name: Recheck gate after native Environment approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/signing/control.py gate
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.11.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/validated-input
+      - name: Provision integrity-pinned official signer without lifecycle scripts
+        run: python3 scripts/signing/control.py provision "$RUNNER_TEMP/signer-tool"
+      - name: Sign exact archive without application execution or secret diagnostics
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: python3 scripts/signing/control.py sign "$RUNNER_TEMP/validated-input/candidate.zip" "$RUNNER_TEMP/signer-tool" "$RUNNER_TEMP/unverified-signature"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: unverified-updater-signature-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unverified-signature/*.sig
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    needs: [prepare, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: /scripts/signing/
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/validated-input
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/unverified-signature
+      - name: Build and test standalone public-key verifier without application source
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          cargo +1.99.0 test --locked --manifest-path scripts/signing/verifier/Cargo.toml
+          cargo +1.99.0 build --locked --release --manifest-path scripts/signing/verifier/Cargo.toml --target-dir "$RUNNER_TEMP/verifier"
+      - name: Verify signature, signed version and unchanged candidate
+        run: python3 scripts/signing/control.py verify "$RUNNER_TEMP/validated-input/candidate.zip" "$RUNNER_TEMP/unverified-signature" "$RUNNER_TEMP/verifier/release/mogledge-signature-verifier" "$RUNNER_TEMP/signature-verified"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signature-verified-only-macos-x64-0.8.1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/signature-verified/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
