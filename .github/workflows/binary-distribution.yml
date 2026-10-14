@@ -40,7 +40,7 @@ jobs:
     if: inputs.cost_confirmed && inputs.license_reviewed
     strategy:
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 3
       matrix:
         platform: ${{ fromJSON(inputs.platform == 'all' && '["windows-x64","macos-arm64","macos-x64"]' || format('["{0}"]', inputs.platform)) }}
     runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || matrix.platform == 'macos-arm64' && 'macos-15' || 'macos-15-intel' }}
