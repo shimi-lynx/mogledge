@@ -6,6 +6,8 @@ Files created by your editor or external AI remain the source of truth. Search u
 
 ## Use Mogledge
 
+Download [Mogledge 0.8.2](https://github.com/shimi-lynx/mogledge/releases/tag/v0.8.2) for Windows x64, Intel Mac or Apple Silicon Mac. For a first Mac installation, choose your architecture's `.zip`; Windows uses the `*-setup.exe` installer. See the [verified distribution record](docs/production-distribution.md#actual-publication-and-anonymous-verification) for source, hashes, OS trust limits and remaining device checks.
+
 Open a local folder with **Open knowledge**, then select an HTML file. Use the title-bar **Features and usage** button for bundled offline help. Settings let you switch between English and Japanese; your selected language is preserved.
 
 - Open documents in one or two columns; moving a tab keeps its live HTML state.
@@ -16,7 +18,7 @@ Open a local folder with **Open knowledge**, then select an HTML file. Use the t
 
 Read the [user guide](docs/user-guide.md), [data and backup guide](docs/data-management.md) and [known limitations](docs/known-limitations.md). Search cannot inspect live JavaScript state, and closing a document does not automatically save its inputs.
 
-Settings → **App updates** offers manual checking, release notes, verified downloads and explicit restart for enrolled signed distributions. Ordinary source builds and current app-only candidates keep this feature disabled. See the [in-app update guide](docs/in-app-updates.md) for saved-input confirmation and the remaining distribution/Native conditions.
+Settings → **App updates** offers manual checking, release notes, verified downloads and explicit restart for enrolled signed distributions. Ordinary source builds and unenrolled app-only candidates keep this feature disabled. See the [in-app update guide](docs/in-app-updates.md) for saved-input confirmation and the remaining distribution/Native conditions.
 
 Windows supports retained OneDrive reads and a limited writer for new HTML, nested folders, HTML rename and HTML/empty-folder moves. Every affected ancestor and item must have a supported local representation. Items observed as offline/partial and unsupported links remain rejected. Directory enumeration and rename may involve provider communication, population or waits; zero communication is not guaranteed. Unknown outcomes preserve files: refresh before another attempt. Nonempty-folder moves, anchored drops, reorder and trash remain restricted. See [cloud-folder limitations](docs/known-limitations.md#cloud-folders-and-links).
 
