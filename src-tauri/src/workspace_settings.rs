@@ -1208,7 +1208,11 @@ fn save_sets(
     state.settings.error = None;
     Ok(set_snapshot(state))
 }
-fn capture_items(state: &Workspace, items: Vec<CaptureItem>) -> Result<Vec<SetItem>, String> {
+fn capture_items(
+    state: &Workspace,
+    items: Vec<CaptureItem>,
+    retain_admitted: bool,
+) -> Result<Vec<SetItem>, String> {
     let mut captured = Vec::with_capacity(items.len());
     for item in items {
         let document = match (item.tab_id, item.document) {
@@ -1218,23 +1222,33 @@ fn capture_items(state: &Workspace, items: Vec<CaptureItem>) -> Result<Vec<SetIt
                     .get(&id)
                     .filter(|tab| !tab.browser)
                     .ok_or("TabClosed")?;
-                let session = tab
-                    .session
-                    .as_ref()
-                    .ok_or("文書の読み込み完了後に保存してください")?;
-                let identity = session
-                    .storage_identity
-                    .clone()
-                    .ok_or("文書の識別情報がありません")?;
-                if session.entry != tab.entry
-                    || knowledge::storage_identity(&session.root, &session.dir, &session.entry)?
-                        != identity
-                {
-                    return Err("文書が移動・置換されています。再走査後に確認してください".into());
-                }
-                DocumentRef {
-                    relative_path: tab.entry.clone(),
-                    identity,
+                if retain_admitted {
+                    tab.admitted_document
+                        .as_ref()
+                        .filter(|document| document.relative_path == tab.entry)
+                        .ok_or("TabSessionInvalid")?
+                        .clone()
+                } else {
+                    let session = tab
+                        .session
+                        .as_ref()
+                        .ok_or("文書の読み込み完了後に保存してください")?;
+                    let identity = session
+                        .storage_identity
+                        .clone()
+                        .ok_or("文書の識別情報がありません")?;
+                    if session.entry != tab.entry
+                        || knowledge::storage_identity(&session.root, &session.dir, &session.entry)?
+                            != identity
+                    {
+                        return Err(
+                            "文書が移動・置換されています。再走査後に確認してください".into()
+                        );
+                    }
+                    DocumentRef {
+                        relative_path: tab.entry.clone(),
+                        identity,
+                    }
                 }
             }
             (None, Some(document))
@@ -1293,46 +1307,10 @@ pub fn capture_session(
     if state.settings.read_only {
         return Err(state.settings.error.clone().unwrap_or_default());
     }
-    // A previously persisted reference remains a placeholder even if its loaded
-    // source disappeared or was replaced. Reuse only that exact admitted reference;
-    // restoration still validates identity before issuing any new document grant.
-    let items = capture
-        .items
-        .into_iter()
-        .map(|mut item| {
-            if item.document.is_none() {
-                if let Some(tab) = item
-                    .tab_id
-                    .as_ref()
-                    .and_then(|id| state.tabs.get(id))
-                    .filter(|tab| !tab.browser)
-                {
-                    if let Some(document) = state
-                        .settings
-                        .session
-                        .as_ref()
-                        .and_then(|saved| {
-                            saved.items.iter().find(|saved| {
-                                saved.document.relative_path == tab.entry
-                                    && tab.session.as_ref().is_some_and(|session| {
-                                        session.entry == tab.entry
-                                            && session.storage_identity.as_ref()
-                                                == Some(&saved.document.identity)
-                                    })
-                            })
-                        })
-                        .map(|saved| saved.document.clone())
-                    {
-                        item.tab_id = None;
-                        item.document = Some(document);
-                    }
-                }
-            }
-            item
-        })
-        .collect();
+    // Persist Native-owned admitted references, not live grants. Watcher revocation
+    // must keep missing placeholders, including tabs not yet saved by the debounce.
     let session = TabSession {
-        items: capture_items(&state, items)?,
+        items: capture_items(&state, capture.items, true)?,
         active: capture.active,
         active_column: capture.active_column,
         split: capture.split,
@@ -1374,7 +1352,7 @@ pub fn capture_set(
     if state.settings.sets.len() >= SET_LIMIT || items.len() > SET_ITEM_LIMIT {
         return Err("作業セットは10組、各30項目までです".into());
     }
-    let captured = capture_items(&state, items)?;
+    let captured = capture_items(&state, items, false)?;
     let set = WorkingSet {
         id: crate::core::random_token(),
         name: name.trim().into(),
@@ -3022,26 +3000,157 @@ mod tests {
         assert_eq!(get_session(&core, scope.0, scope.1).unwrap(), prior);
     }
     #[test]
-    fn session_retains_admitted_missing_loaded_views_without_blocking_other_layout_changes() {
+    fn session_retains_admitted_missing_views_after_refresh_before_and_after_first_save() {
+        for persisted in [false, true] {
+            let (fixture, core, snapshot) = fixture();
+            let scope = scope(&snapshot);
+            let (tab, url) = visit(&core, &snapshot, "a.html");
+            let token = url.split("/s/").nth(1).unwrap().split('/').next().unwrap();
+            assert!(core.session_for_token(token).is_some());
+            let admitted = core.workspace.lock().unwrap().tabs[&tab]
+                .admitted_document
+                .clone()
+                .unwrap();
+            if persisted {
+                capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+            }
+            fs::remove_file(fixture.path().join("knowledge/a.html")).unwrap();
+            core.refresh().unwrap();
+            core.watcher.lock().unwrap().take();
+            assert!(core.workspace.lock().unwrap().tabs[&tab].session.is_none());
+            assert!(core.session_for_token(token).is_none());
+            let mut next = session_capture(&tab);
+            next.items[0].zoom = 150.0;
+            capture_session(&core, scope.0, scope.1, next).unwrap();
+            let saved = get_session(&core, scope.0, scope.1).unwrap().unwrap();
+            assert_eq!(saved.items[0].zoom, 150.0);
+            assert!(saved.items.iter().all(|item| item.document == admitted));
+            // Navigation metadata must not relax manual-set live admission.
+            assert!(capture_set(
+                &core,
+                scope.0,
+                scope.1,
+                "missing".into(),
+                session_capture(&tab).items,
+                [Some(0), Some(1)],
+                1
+            )
+            .is_err());
+        }
+    }
+    #[test]
+    fn session_remaps_admission_and_rebinds_only_after_successful_replacement_open() {
         let (fixture, core, snapshot) = fixture();
         let scope = scope(&snapshot);
         let (tab, _) = visit(&core, &snapshot, "a.html");
+        let original = core.workspace.lock().unwrap().tabs[&tab]
+            .admitted_document
+            .clone()
+            .unwrap();
+        let renamed = crate::tree_mutations::perform(
+            &core,
+            scope.0,
+            scope.1,
+            crate::tree_mutations::Mutation::RenameHtml {
+                source: "a.html".into(),
+                name: "renamed".into(),
+            },
+        )
+        .unwrap();
+        let renamed_path = renamed.moves[0].to.clone();
+        fs::create_dir(fixture.path().join("knowledge/nested")).unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
+        let moved = crate::tree_mutations::perform(
+            &core,
+            scope.0,
+            scope.1,
+            crate::tree_mutations::Mutation::Move {
+                source: renamed_path,
+                parent: "nested".into(),
+                anchor: None,
+                after: false,
+            },
+        )
+        .unwrap();
+        let path = moved.moves[0].to.clone();
+        assert!(core.workspace.lock().unwrap().tabs[&tab].session.is_none());
         capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
-        let identity = get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
+        let remapped = get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
             .document
-            .identity
             .clone();
-        fs::remove_file(fixture.path().join("knowledge/a.html")).unwrap();
-        let mut next = session_capture(&tab);
-        next.items[0].zoom = 150.0;
-        capture_session(&core, scope.0, scope.1, next).unwrap();
-        let saved = get_session(&core, scope.0, scope.1).unwrap().unwrap();
-        assert_eq!(saved.items[0].zoom, 150.0);
-        assert_eq!(saved.items[0].document.identity, identity);
-        fs::write(fixture.path().join("knowledge/a.html"), "replacement").unwrap();
+        assert_eq!(remapped.relative_path, path);
+        assert_eq!(remapped.identity, original.identity);
+        // Keep the old physical file alive so its identifier cannot be reused.
+        fs::rename(
+            fixture.path().join("knowledge").join(&path),
+            fixture.path().join("old-document.html"),
+        )
+        .unwrap();
+        fs::write(fixture.path().join("knowledge").join(&path), "replacement").unwrap();
         assert!(core
-            .create_tab_checked(scope.0, scope.1, "a.html", Some(identity))
+            .create_tab_checked(scope.0, scope.1, &path, Some(original.identity.clone()))
             .is_err());
+        // Capturing alone cannot admit the replacement at the same path.
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(
+            get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0]
+                .document
+                .identity,
+            original.identity
+        );
+        core.open(scope.0, scope.1, &tab, 2).unwrap();
+        let replacement = core.workspace.lock().unwrap().tabs[&tab]
+            .admitted_document
+            .clone()
+            .unwrap();
+        assert_ne!(replacement.identity, original.identity);
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+        assert_eq!(
+            get_session(&core, scope.0, scope.1).unwrap().unwrap().items[0].document,
+            replacement
+        );
+        fs::remove_file(fixture.path().join("knowledge").join(&path)).unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
+        assert!(core.open(scope.0, scope.1, &tab, 3).is_err());
+        assert_eq!(
+            core.workspace.lock().unwrap().tabs[&tab].admitted_document,
+            Some(replacement)
+        );
+        capture_session(&core, scope.0, scope.1, session_capture(&tab)).unwrap();
+    }
+    #[test]
+    fn session_admitted_references_cannot_cross_view_or_root_lifetimes() {
+        let (fixture, core, snapshot) = fixture();
+        let scope = scope(&snapshot);
+        let unopened = core.create_tab(scope.0, scope.1, "a.html").unwrap();
+        assert!(capture_session(&core, scope.0, scope.1, session_capture(&unopened)).is_err());
+        let (tab, _) = visit(&core, &snapshot, "a.html");
+        let next = core.begin_view();
+        let next_scope = super::tests::scope(&next);
+        assert!(capture_session(&core, scope.0, scope.1, session_capture(&tab)).is_err());
+        assert!(capture_session(&core, next_scope.0, next_scope.1, session_capture(&tab)).is_err());
+        let (next_tab, _) = visit(&core, &next, "a.html");
+        fs::create_dir(fixture.path().join("other")).unwrap();
+        fs::copy(
+            fixture.path().join("knowledge/a.html"),
+            fixture.path().join("other/a.html"),
+        )
+        .unwrap();
+        let other = core.select(&fixture.path().join("other"), false).unwrap();
+        core.watcher.lock().unwrap().take();
+        let other_scope = super::tests::scope(&other);
+        assert!(capture_session(
+            &core,
+            other_scope.0,
+            other_scope.1,
+            session_capture(&next_tab)
+        )
+        .is_err());
+        assert!(get_session(&core, other_scope.0, other_scope.1)
+            .unwrap()
+            .is_none());
     }
     #[test]
     fn session_supports_more_than_manual_set_limit_and_empty_layout() {

@@ -49,6 +49,9 @@ pub struct Session {
     pub storage_identity: Option<String>,
 }
 pub struct DocumentTab {
+    // Navigation metadata survives grant revocation. It conveys no read/write
+    // authority and is rebound only after a successful guarded document open.
+    pub admitted_document: Option<crate::workspace_settings::DocumentRef>,
     pub expected_identity: Option<String>,
     pub browser: bool,
     pub entry: String,
@@ -595,6 +598,7 @@ impl Core {
         state.tabs.insert(
             id.clone(),
             DocumentTab {
+                admitted_document: None,
                 expected_identity,
                 browser: false,
                 entry: relative.into(),
@@ -629,6 +633,7 @@ impl Core {
         state.tabs.insert(
             id.clone(),
             DocumentTab {
+                admitted_document: None,
                 expected_identity: None,
                 browser: true,
                 entry: relative.into(),
@@ -822,6 +827,13 @@ impl Core {
         // A saved reference constrains this admission only. Later normal reloads
         // must still accept an editor's atomic replacement of the same document.
         tab.expected_identity = None;
+        tab.admitted_document =
+            storage_identity
+                .as_ref()
+                .map(|identity| crate::workspace_settings::DocumentRef {
+                    relative_path: relative.clone(),
+                    identity: identity.clone(),
+                });
         tab.session = Some(Session {
             token,
             root,
