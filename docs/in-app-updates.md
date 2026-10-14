@@ -2,7 +2,9 @@
 
 Settings → **App updates** provides a manual flow: check for updates, read the version and release notes, download and verify the update, then explicitly restart to apply it. Opening Settings, starting Mogledge and tray residency do not poll a server. Japanese and English controls share the same behavior.
 
-The ordinary source build and current application-only distribution are **not enrolled**. The update page explains this and keeps the check button disabled. This protects custom builds from replacement with a distributor's build. There is currently no selected production feed or update public key; this implementation does not establish a downloadable or validated update service.
+Ordinary source builds and unenrolled application-only candidates are **not enrolled**. The update page explains this and keeps the check button disabled. This protects custom builds from replacement with a distributor's build.
+
+The [0.8.2 production release](https://github.com/shimi-lynx/mogledge/releases/tag/v0.8.2) supplies explicitly enrolled Windows x64 NSIS and Intel/Apple Silicon Mac distributions with the reviewed public key and [anonymous production feed](https://github.com/shimi-lynx/mogledge/releases/latest/download/latest.json). Public asset hashes, signatures and signed versions passed verification; see the [distribution evidence](production-distribution.md#actual-publication-and-anonymous-verification). Actual Settings check/download/apply, data preservation and restart from installed 0.8.1 remain owner device QA after publication. A public feed and valid signatures do not establish those Native results.
 
 ## User flow and saved inputs
 
