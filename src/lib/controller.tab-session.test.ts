@@ -14,7 +14,7 @@ const session = (): TabSession => ({
   activeColumn: 1,
   split: true,
 });
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 220));
 function fixture(saved: TabSession | null = session()) {
   let snapshot: Snapshot = {
     workspaceId: "root",
@@ -288,5 +288,43 @@ describe("automatic tab session", () => {
     expect(api.captureTabSession).toHaveBeenCalledTimes(1);
     expect(vi.mocked(api.captureTabSession!).mock.calls[0][2][0].tabId).toBe("native-1");
     controller.stop();
+  });
+  it("debounces distinct rapid layout events and bypasses the delay for explicit flushing", async () => {
+    const saved = {
+      ...session(),
+      items: [item(0)],
+      active: [0, null] as [number, null],
+      split: false,
+      activeColumn: 0 as const,
+    };
+    const { controller, api } = fixture(saved);
+    await controller.start();
+    await flush();
+    vi.mocked(api.captureTabSession!).mockClear();
+    const tab = controller.getSnapshot().tabs[0];
+    vi.useFakeTimers();
+    try {
+      controller.zoomTab(tab.id, "in");
+      await vi.advanceTimersByTimeAsync(100);
+      controller.zoomTab(tab.id, "in");
+      await vi.advanceTimersByTimeAsync(199);
+      expect(api.captureTabSession).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(api.captureTabSession).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(api.captureTabSession!).mock.calls[0][2][0].zoom).toBe(
+        controller.getSnapshot().tabs[0].zoom,
+      );
+      vi.mocked(api.captureTabSession!).mockClear();
+      controller.documentReady(tab.id, tab.url!);
+      document.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(api.captureTabSession).not.toHaveBeenCalled();
+      controller.zoomTab(tab.id, "out");
+      expect(await controller.flushTabSession()).toBe(true);
+      expect(api.captureTabSession).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      controller.stop();
+    }
   });
 });

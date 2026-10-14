@@ -140,6 +140,8 @@ export class KnowledgeController {
   private sessionFingerprint = "";
   private sessionQueued = false;
   private sessionWriting = false;
+  private sessionTimer?: ReturnType<typeof setTimeout>;
+  private sessionFlushes = 0;
   private sessionFlight: Promise<void> | null = null;
   private sessionRestoreFlight: Promise<void> | null = null;
   private sessionUnlisten?: () => void;
@@ -264,6 +266,8 @@ export class KnowledgeController {
   stop() {
     this.sessionReady = false;
     this.sessionGeneration++;
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = undefined;
     this.transfer?.invalidate();
     this.transfer = undefined;
     this.cancelWorkspaceSelection();
@@ -304,6 +308,8 @@ export class KnowledgeController {
     if (!same) {
       this.sessionReady = false;
       this.sessionGeneration++;
+      if (this.sessionTimer) clearTimeout(this.sessionTimer);
+      this.sessionTimer = undefined;
       this.sessionFingerprint = "";
       const help = this.state.tabs.find((tab) => tab.kind === "help");
       this.transfer?.invalidate();
@@ -463,7 +469,7 @@ export class KnowledgeController {
       if (current()) this.queueTabSession();
     }
   }
-  private queueTabSession() {
+  private queueTabSession(force = false) {
     if (
       !this.api.captureTabSession ||
       !this.sessionReady ||
@@ -475,19 +481,30 @@ export class KnowledgeController {
     const documents = this.state.tabs.filter((tab) => tab.kind !== "help");
     if (documents.some((tab) => tab.loading || tab.closing)) return;
     const fingerprint = this.tabSessionFingerprint(this.state);
-    if (fingerprint === this.sessionFingerprint) return;
+    if (fingerprint === this.sessionFingerprint && !this.sessionWriting) {
+      if (this.sessionTimer) clearTimeout(this.sessionTimer);
+      this.sessionTimer = undefined;
+      this.sessionQueued = false;
+      return;
+    }
     this.sessionQueued = true;
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = undefined;
     if (this.sessionWriting) return;
-    this.sessionWriting = true;
-    // Coalesce synchronous layout changes; HTML keystrokes and URL/reload changes
-    // are excluded. One writer prevents late responses reordering saves.
-    queueMicrotask(() => {
+    const write = () => {
+      this.sessionTimer = undefined;
+      if (this.stopped || !this.sessionReady) return;
+      this.sessionWriting = true;
       this.sessionFlight = this.writeTabSession().finally(() => {
         this.sessionWriting = false;
         this.sessionFlight = null;
-        if (this.sessionQueued) this.queueTabSession();
+        if (this.sessionQueued) this.queueTabSession(this.sessionFlushes > 0);
       });
-    });
+    };
+    // Only layout changes debounce disk I/O. Explicit Quit/update/root flushes bypass
+    // the delay; one writer preserves order even when a prior capture is slow.
+    if (force) write();
+    else this.sessionTimer = setTimeout(write, 200);
   }
   private tabSessionFingerprint(state: AppState) {
     return JSON.stringify([
@@ -550,6 +567,7 @@ export class KnowledgeController {
           })(),
         );
         if (generation === this.sessionGeneration) this.sessionFingerprint = fingerprint;
+        if (!this.sessionFlushes) return;
       } catch (error) {
         if (!this.stopped && generation === this.sessionGeneration)
           this.set({ error: "タブの状態を保存できません: " + String(error) });
@@ -562,6 +580,7 @@ export class KnowledgeController {
   async flushTabSession(): Promise<boolean> {
     if (!this.api.captureTabSession || this.stopped || !this.state.snapshot.workspaceId)
       return true;
+    this.sessionFlushes++;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const save = async () => {
       // Allow an admitted tab's pending registration/read to finish, without polling.
@@ -582,7 +601,7 @@ export class KnowledgeController {
       if (this.sessionRestoreFlight) await this.sessionRestoreFlight;
       // Read failure intentionally disables writes; quitting preserves that file.
       if (!this.sessionReady) return true;
-      this.queueTabSession();
+      this.queueTabSession(true);
       await Promise.resolve();
       while (this.sessionFlight) {
         await this.sessionFlight;
@@ -599,6 +618,7 @@ export class KnowledgeController {
         }),
       ]);
     } finally {
+      this.sessionFlushes--;
       if (timer) clearTimeout(timer);
       cleanup?.();
     }
