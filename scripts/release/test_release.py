@@ -32,6 +32,8 @@ def fixture():
     config = copy.deepcopy(release.policy())
     config["approval"]["enabled"] = True
     config["source_sha"] = "a" * 40
+    config["candidates"] = []
+    config["publication"]["enabled"] = False
     for index, (platform, (target, signature, _)) in enumerate(release.PLATFORMS.items()):
         candidate = copy.deepcopy(release.signing.policy()["candidate"])
         prefix = f"Mogledge_0.8.2_{platform}_{signature}_updater_{config['source_sha'][:12]}"
@@ -84,12 +86,14 @@ def publication_zip(config, files):
 
 
 class PolicyTests(unittest.TestCase):
-    def test_committed_signing_and_publication_stop_before_metadata(self):
-        with patch.dict(os.environ, context(), clear=True), patch.object(release, "metadata") as metadata:
+    def test_disabled_signing_and_publication_stop_before_metadata(self):
+        config = fixture()
+        config["approval"]["enabled"] = False
+        with patch.dict(os.environ, context(), clear=True), patch.object(release, "policy", return_value=config), patch.object(release, "metadata") as metadata:
             with self.assertRaisesRegex(ValueError, "disabled"):
                 release.prepare(Path("unused"))
             metadata.assert_not_called()
-        with patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "metadata") as metadata:
+        with patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "policy", return_value=config), patch.object(release, "metadata") as metadata:
             with self.assertRaisesRegex(ValueError, "disabled"):
                 release.publication_prepare(Path("unused"), Path("unused"))
             metadata.assert_not_called()
