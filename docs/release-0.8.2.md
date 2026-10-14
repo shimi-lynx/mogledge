@@ -1,0 +1,22 @@
+# Mogledge 0.8.2 saved-data corrections
+
+This patch prepares corrections to existing saved-data management. It does not publish a release, generate an installer or replace an installed application. A tab-session correction is being prepared separately and still requires its own integration and verification; the product version is updated once for the intended combined release.
+
+Saved-data settings show the associated HTML filename and relative path, search all metadata before paging, and allow several eligible records on the current page to be selected. The explicit preview lists the count and input-removal effect. One confirmation quarantines every selected record in one transaction, retaining recovery copies and leaving HTML files unchanged. Changed, open or unavailable targets and insufficient recovery space reject the operation without partial removal. Tombstones continue to reject stale reads and resaves until explicit restoration. A lost aggregate plan does not become a false single-record success.
+
+Capacity editing uses decimal B, KB, MB and GB, with exact whole-byte conversion. Unit changes and opening existing settings preserve their bytes. Fractional bytes, invalid numbers and overflow are rejected without rounding. Existing defaults, minimum and maximum numeric bounds are retained. Known older limits formats remain readable with their previous physical database capacities; editing to the exact-byte format requires explicit compatibility acknowledgement. The separate confirmation-tool entry is removed from ordinary settings, while startup recovery and internal tools remain available.
+
+Product entries in the npm/Tauri manifests and lockfiles and the current Windows verification filename align at 0.8.2. Dependency versions, identifiers, profiles and historical evidence are unchanged. This is a patch correction to existing management and restart behavior, not a new distribution or updater enrollment.
+
+## Targeted verification
+
+- `npm run check`: formatting, types and lint passed without warnings.
+- `npm test -- src/lib/byteUnits.test.ts src/lib/storageLimits.test.ts src/lib/stateManagement.test.ts src/app/SavedDataLimits.test.tsx src/app/SavedDataSettings.test.tsx`: 48 passed. Cases cover exact unit round trips and IPC bytes, older values, acknowledgement, stale responses, unknown outcomes, counted multi-selection and explicit global search submission.
+- `npm run test:ui -- tests/ui/saved-data-settings.spec.ts tests/ui/storage-limits.spec.ts --workers 1`: four synthetic-API cases passed in Chromium on Windows. Japanese/English and 320px light/dark screenshots were inspected; fields stack without label overlap and preserve the surrounding input.
+- `cargo test --locked --manifest-path tests/backend/Cargo.toml --lib storage_limits --jobs 1 -- --test-threads=1`: 18 passed against synthetic Windows filesystem/database fixtures, including older wide-MiB capacity preservation, exact bytes after restart, atomic rollback, compatibility and quota guards.
+- `cargo test --locked --manifest-path tests/backend/Cargo.toml --lib state_inspection::live::tests --jobs 1 -- --test-threads=1`: 19 passed and one existing subprocess helper was ignored. Production backend paths exercised global/literal search beyond the first page, stale and in-use rejection, all-record rollback after a late recovery-capacity failure, retained HTML and revoked stale writes.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and `cargo clippy --locked --manifest-path tests/backend/Cargo.toml --all-targets --jobs 1 -- -D warnings`: passed. These checks reuse the backend harness without rebuilding the platform WebView stack.
+
+Independent review found and corrected older-format capacity narrowing. The bulk backend and byte conversion preserve the existing source/revision/context/usage boundaries; the bilingual narrow-layout screenshots were also inspected. Cache reuse was accepted only after recompiling the affected backend package and observing the new test names in the actual run.
+
+Saved-data WebView2/WKWebView UI, real owner profiles, update/relaunch restoration, installers and release artifacts for 0.8.2 remain unverified. Existing 0.8.1 artifacts are retained for their own source and cannot establish these changed interactions. No real saved input was deleted. See [testing scope](testing.md#scope-and-evidence), [data management](data-management.md) and the prepared [publication controls](publication-checklist.md).

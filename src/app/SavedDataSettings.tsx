@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLanguage, useT } from "../lib/i18n";
+import { formatBytes } from "../lib/byteUnits";
 import {
   ManagementSession,
   managementError,
@@ -27,6 +28,7 @@ export function SavedDataSettings({
   const [localLimitsSession] = useState(() => new StorageLimitsSession());
   const [accepted, setAccepted] = useState(false);
   const [unknownAccepted, setUnknownAccepted] = useState(false);
+  const [query, setQuery] = useState("");
   const preview = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (view.plan) preview.current?.focus();
@@ -40,8 +42,11 @@ export function SavedDataSettings({
     setAccepted(false);
     setUnknownAccepted(false);
   }, [view.plan?.planId]);
+  useEffect(() => setQuery(view.query), [view.query, context.workspaceId, context.viewId]);
   const amount = (value: number | null | undefined) =>
     value === null || value === undefined ? t("不明") : value.toLocaleString(language);
+  const bytes = (value: number | null | undefined) =>
+    value === null || value === undefined ? t("不明") : formatBytes(value, language);
   const diagnostic = (code: string) => t(managementMessages[managementError(code)]);
   const usage = view.page?.usage;
   const plan = view.plan;
@@ -66,7 +71,7 @@ export function SavedDataSettings({
       operation === "upgrade"
         ? "回復可能な形式を準備"
         : operation === "quarantine"
-          ? "選択した保存済み入力を隔離"
+          ? "選択した保存済み入力を削除（復旧可能）"
           : "隔離した保存済み入力を復元",
     );
   return (
@@ -94,22 +99,22 @@ export function SavedDataSettings({
           <div>
             <dt>{t("保存入力の論理容量")}</dt>
             <dd>
-              {amount(usage.logicalBytes)} bytes / {amount(usage.records)} {t("件")}
+              {bytes(usage.logicalBytes)} / {amount(usage.records)} {t("件")}
             </dd>
           </div>
           <div>
             <dt>{t("回復領域の論理容量")}</dt>
             <dd>
-              {amount(usage.recoveryLogicalBytes)} bytes / {amount(usage.recoveryRecords)} {t("件")}
+              {bytes(usage.recoveryLogicalBytes)} / {amount(usage.recoveryRecords)} {t("件")}
             </dd>
           </div>
           <div>
             <dt>{t("DBのディスク容量")}</dt>
-            <dd>{amount(usage.databaseBytes)} bytes</dd>
+            <dd>{bytes(usage.databaseBytes)}</dd>
           </div>
           <div>
             <dt>{t("journalのディスク容量")}</dt>
-            <dd>{amount(usage.journalBytes)} bytes</dd>
+            <dd>{bytes(usage.journalBytes)}</dd>
           </div>
           <div>
             <dt>{t("回復領域だけのディスク容量")}</dt>
@@ -117,7 +122,7 @@ export function SavedDataSettings({
           </div>
           <div>
             <dt>{t("DB内の空きページ")}</dt>
-            <dd>{amount(usage.freeDatabasePageBytes)} bytes</dd>
+            <dd>{bytes(usage.freeDatabasePageBytes)}</dd>
           </div>
         </dl>
       )}
@@ -149,13 +154,46 @@ export function SavedDataSettings({
               {t("点検し直す")}
             </button>
           </div>
+          {view.kind === "active" && (
+            <form
+              className="saved-data-search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void session.load("active", 0, query.trim());
+              }}
+            >
+              <label>
+                {t("HTMLのファイル名・相対パスを検索")}
+                <input
+                  type="search"
+                  value={query}
+                  disabled={frozen}
+                  maxLength={1024}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+              <button type="submit" disabled={frozen}>
+                {t("全件から検索")}
+              </button>
+              <button
+                type="button"
+                disabled={frozen || (!query && !view.query)}
+                onClick={() => {
+                  setQuery("");
+                  void session.load("active", 0, "");
+                }}
+              >
+                {t("検索を解除")}
+              </button>
+            </form>
+          )}
           {view.page && (
             <>
               <fieldset className="saved-data-list" disabled={view.busy}>
                 <legend>
                   {t(
                     view.kind === "active"
-                      ? "整理する保存入力を一つ選択"
+                      ? "削除する保存入力を選択（複数可）"
                       : "復元する回復コピーを一つ選択",
                   )}
                 </legend>
@@ -168,18 +206,21 @@ export function SavedDataSettings({
                     <div className="saved-data-row" key={id}>
                       <label>
                         <input
-                          type="radio"
+                          type={recovery ? "radio" : "checkbox"}
                           name="saved-data-selection"
-                          checked={view.selected === id}
+                          checked={recovery ? view.selected === id : view.selectedIds.includes(id)}
                           disabled={!enabled || view.busy}
-                          onChange={() => session.select(id)}
+                          onChange={() => (recovery ? session.select(id) : session.toggle(id))}
                         />
                         <span className="saved-data-path">
-                          {entry.relativePath ?? t("原本の場所は未確認")}
+                          <strong>
+                            {entry.relativePath?.split(/[\\/]/).at(-1) ?? t("原本の場所は未確認")}
+                          </strong>
+                          {entry.relativePath && <small>{entry.relativePath}</small>}
                         </span>
                       </label>
                       <p>
-                        {amount(entry.logicalBytes)} bytes ·{" "}
+                        {bytes(entry.logicalBytes)} ·{" "}
                         {t("保存revision {revision}", {
                           revision: recovery ? entry.sourceRevision : entry.revision,
                         })}
@@ -233,7 +274,9 @@ export function SavedDataSettings({
                     void session.prepare(view.kind === "active" ? "quarantine" : "restore")
                   }
                 >
-                  {t("選択した対象の影響を確認")}
+                  {view.kind === "active"
+                    ? t("選択した{count}件の削除を確認", { count: view.selectedIds.length })
+                    : t("選択した対象の影響を確認")}
                 </button>
               )}
             </>
@@ -248,6 +291,18 @@ export function SavedDataSettings({
           aria-label={t("選択した操作の確認")}
         >
           <h3>{operationName(plan.operation)}</h3>
+          {plan.operation === "quarantine" && (
+            <p>{t("選択したHTML: {count}件", { count: plan.documentCount ?? 1 })}</p>
+          )}
+          {plan.entries && plan.entries.length > 1 && (
+            <ul>
+              {plan.entries.map((entry) => (
+                <li className="saved-data-path" key={entry.documentIdentity}>
+                  {entry.relativePath ?? t("原本の場所は未確認")}
+                </li>
+              ))}
+            </ul>
+          )}
           {plan.relativePath !== null && <p className="saved-data-path">{plan.relativePath}</p>}
           {plan.operation === "upgrade" ? (
             <p>
@@ -257,16 +312,16 @@ export function SavedDataSettings({
             </p>
           ) : (
             <p>
-              {t("対象の確定済み入力: {count} appId、{bytes} bytes", {
+              {t("対象の確定済み入力: {count} appId、{size}", {
                 count: amount(plan.appCount),
-                bytes: amount(plan.logicalBytes),
+                size: bytes(plan.logicalBytes),
               })}
             </p>
           )}
           {plan.operation === "quarantine" && (
             <p>
               {t(
-                "選択した原本の保存入力を一時停止し、回復コピーへ隔離します。次回の保存読込・更新は停止されます。HTML本体は残ります。",
+                "選択したHTMLの保存入力を削除し、回復コピーを残します。HTMLファイル本体は変更しません。古い画面からの保存読込・再保存は停止されます。復旧するまで入力は戻りません。",
               )}
             </p>
           )}

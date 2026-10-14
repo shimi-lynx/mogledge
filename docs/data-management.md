@@ -23,19 +23,21 @@ If only the saved knowledge root is unavailable, the app can open its ordinary f
 
 ## Inspect, quarantine and restore in the app
 
-On Mac from 0.7.2, use **Settings → Saved data → Open saved-data confirmation tool** when prompted about storage identity, or before using a new root/HTML document. Save unsaved HTML input first; a Native confirmation quits the app and opens its separate stopped-profile tool. Select an independent backup destination, acknowledge the root, then explicitly assign a retained record or new empty state to each HTML. Unknown or conflicting ownership remains held, with the old data and backups retained. Quit the tool and reopen the ordinary app. See [normal Mac confirmation](macos-storage-identity.md#normal-mac-use-from-072). The owner confirmed Intel Mac saved-input restoration after reboot; wider storage QA remains incomplete. After the separate close-menu startup correction, the owner confirmed ordinary Mac operation, resident recall and Cmd+W tab closing; their exact tested binary version/hash is not stated.
+Storage identity recovery remains available from its startup recovery flow and the advanced stopped-profile tools. The ordinary saved-data settings no longer include the separate confirmation-tool launcher. See [normal Mac confirmation](macos-storage-identity.md#normal-mac-use-from-072) for the retained recovery procedure and its Native verification limits.
+
+The owner confirmed Intel Mac saved-input restoration after reboot; wider storage QA remains incomplete. After the separate close-menu startup correction, the owner confirmed ordinary Mac operation, resident recall and Cmd+W tab closing; their exact tested binary version/hash is not stated.
 
 Open **Settings → Saved data** to request a metadata inspection. The list has pages of up to 20 records and starts with no selection. It distinguishes active logical bytes and record counts, internal recovery bytes and counts, database and journal sizes, and free database pages. Free pages are not space already returned to the OS. Last-use information is unknown; age, a missing file or an index miss never authorizes cleanup.
 
 To use recovery, explicitly preview and confirm the database upgrade from schema v1 to v2. This adds recovery records and tombstones without changing active input or its quota. New databases start at v1. An older application that cannot read v2 will refuse this database; no automatic downgrade is provided.
 
-Select one eligible record and review its identity, affected saved input, recovery conditions and quota effect before confirming quarantine. Quarantine copies the whole document's app map into the same SQLite database, removes its active record and records a tombstone in one transaction. The HTML is unchanged. Further saves to that quarantined identity are rejected with `Revoked` until management restores it.
+Each row shows the HTML filename and relative path. Search applies a literal filename/path substring to all saved metadata before pagination; it does not read HTML bodies or search saved input. Search submission, a different page or root clears selections. Select one or more eligible records on the current page (up to 20), then review the selected document count, paths and affected input before explicitly confirming removal. All selected records are quarantined in one transaction: recovery copies retain their whole app maps, active records are removed and tombstones block stale reads and resaves. If any target changes, is in use or exceeds the recovery budget, all changes roll back. HTML files remain unchanged. Further saves to a quarantined identity are rejected with `Revoked` until management restores it.
 
 Restore is allowed only to the same physical root and document identity, within the current quotas. Any existing active record, including an empty `{}`, is a conflict and will not be overwritten. Restoration increases the active revision and retains the recovery copy. There is no permanent purge, retention-based deletion or VACUUM operation. Quarantine frees active logical quota; it does not promise smaller disk usage.
 
 Live management requires a complete metadata scan confirming the same path and physical identity. It holds records that are registered in active or hidden tabs, external browser sessions or unfinished opens. Missing, moved, offline, replaced, inaccessible or incompletely observed sources remain on hold. It does not close views for you. Closing an external browser may leave its registration on hold because the app cannot detect that closure; restart the app and inspect again if necessary. The stopped CLI has a broader same-identity rename/move check, described below.
 
-Preparation is a preview. Confirmation rechecks the root, context, database snapshot and selected record before committing. Plans expire after five minutes and cannot be carried across a restart or changed context. After a lost response, use the explicit result inquiry; do not automatically repeat the operation. A cancellation request alone does not prove rollback: a commit may already have passed its final decision. Quarantine/restore operation IDs can be checked in the database; an upgrade's current schema alone does not prove that a particular request succeeded.
+Preparation is a preview. Confirmation rechecks the root, context, database snapshot and every selected record before committing. Plans expire after five minutes and cannot be carried across a restart or changed context. After a lost response, use the explicit result inquiry; do not automatically repeat the operation. A cancellation request alone does not prove rollback: a commit may already have passed its final decision. A surviving bulk plan verifies every child recovery record; after that plan is lost or expires, the aggregate result remains unknown. A single recovery row never proves bulk completion. Single-record quarantine/restore operation IDs can be checked in the database; an upgrade's current schema alone does not prove that a particular request succeeded.
 
 ## Export and import committed input
 
@@ -61,18 +63,18 @@ Root/document identities are 64 lowercase hexadecimal characters; relative paths
 
 One MiB is 1,048,576 bytes. Logical usage counts the UTF-8 JSON for the **whole document app map**, including IDs, envelopes, keys, quoting, escapes and syntax. It is neither character count nor database file size.
 
-| Limit                                         | Current contract                                                  |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| Active input per physical document            | Default 5 MiB; configurable in whole MiB from 1 to 8,589,934,591  |
-| Active input across every root in one profile | Default 512 MiB; the same range, at least the document limit      |
-| Active identities / app IDs                   | 4,096 identities per profile / 128 app IDs per document           |
-| Internal recovery area                        | Separate fixed 512 MiB / 4,096 entries, including restored copies |
+| Limit                                         | Current contract                                                                              |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Active input per physical document            | Default 5,242,880 B (5.24288 MB); exact whole bytes from 1,048,576 to 9,007,199,253,692,416 B |
+| Active input across every root in one profile | Default 536,870,912 B (536.870912 MB); same range, at least the document limit                |
+| Active identities / app IDs                   | 4,096 identities per profile / 128 app IDs per document                                       |
+| Internal recovery area                        | Separate fixed 512 MiB / 4,096 entries, including restored copies                             |
 
-Change the logical limits in **Settings → Saved data**. They take effect for the next save, import or restore without a restart. Lowering the total below current active usage, or the document limit below the largest active or recovery document, is rejected without trimming data. Empty active records still consume identity slots.
+Change the logical limits in **Settings → Saved data** using B, KB, MB or GB, with decimal units (1 KB = 1,000 B; 1 MB = 1,000 KB; 1 GB = 1,000 MB). Fractional amounts are accepted only when they resolve to exact whole bytes. Invalid, nonfinite, fractional-byte and overflowing values are rejected without rounding. Switching units preserves the draft's exact bytes. Opening or editing existing limits preserves their original bytes and never saves automatically. Limits take effect for the next save, import or restore without a restart. Lowering the total below current active usage, or the document limit below the largest active or recovery document, is rejected without trimming data. Empty active records still consume identity slots.
 
 The first different setting that creates the limits table, or changes its older numeric format, requires an explicit compatibility acknowledgement and an independent profile backup. Reading limits or setting the same values does not change the format. Returning to 5/512 MiB does not remove the table or restore old-version compatibility. This format change is separate from the v2 recovery upgrade. Consult the [document storage contract](document-storage.md) before reverting an application or HTML adapter.
 
-The large numeric range only keeps the MiB-to-byte conversion within JavaScript safe integers. It does not reserve disk or memory, or guarantee saving that quantity. The settings snapshot separately reports:
+The existing numeric range keeps byte values within JavaScript safe integers; decimal editing does not add a smaller quota cap. It does not reserve disk or memory, or guarantee saving that quantity. The settings snapshot separately reports:
 
 | Capability             | Meaning                                                              |
 | ---------------------- | -------------------------------------------------------------------- |

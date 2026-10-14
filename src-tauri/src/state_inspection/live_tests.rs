@@ -83,6 +83,7 @@ impl Fixture {
         inspect(
             &self.core,
             PageRequest {
+                query: None,
                 context: self.context.clone(),
                 offset: 0,
                 limit: 20,
@@ -97,6 +98,7 @@ impl Fixture {
         prepare(
             &self.core,
             PrepareRequest {
+                candidate_ids: None,
                 context: self.context.clone(),
                 operation,
                 candidate_id: candidate.map(str::to_owned),
@@ -156,6 +158,325 @@ impl Fixture {
             .management_connection(|c, _, _, _| Ok(f(c)))
             .unwrap()
     }
+    fn add_document(&self, path: &str) -> String {
+        if let Some(parent) = self.root.join(path).parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(self.root.join(path), "<input value='synthetic'>").unwrap();
+        let (identity, root_identity) = {
+            let state = self.core.workspace.lock().unwrap();
+            let dir = state.dir.as_ref().unwrap();
+            (
+                // Windows verifies the final handle path against the selected
+                // canonical root, including its extended-length prefix.
+                crate::knowledge::storage_identity(state.root.as_ref().unwrap(), dir, path)
+                    .unwrap(),
+                crate::knowledge::storage_root_identity(dir).unwrap(),
+            )
+        };
+        self.sql(|c| {
+            c.execute(
+                "INSERT INTO documents SELECT ?1,data,bytes,1,?2,?3,(SELECT generation+1 FROM quota) FROM documents WHERE id=?4",
+                rusqlite::params![identity,root_identity,path,self.identity],
+            ).unwrap();
+            c.execute("UPDATE quota SET bytes=(SELECT sum(bytes) FROM documents),documents=documents+1,generation=generation+1", []).unwrap();
+        });
+        identity
+    }
+    fn prepare_bulk(&self, ids: Vec<String>) -> Result<Value, InspectionError> {
+        prepare(
+            &self.core,
+            PrepareRequest {
+                context: self.context.clone(),
+                operation: Operation::Quarantine,
+                candidate_id: None,
+                candidate_ids: Some(ids),
+                snapshot_id: self.inspect(false)["snapshotId"].as_str().unwrap().into(),
+            },
+        )
+    }
+}
+
+#[test]
+fn search_filters_the_whole_metadata_set_before_paging_and_treats_wildcards_literally() {
+    let f = Fixture::new();
+    for index in 0..26 {
+        f.add_document(&format!("folder/item-{index:02}.html"));
+    }
+    let special = f.add_document("nested/Needle%_日本.html");
+    let page = |offset, query: &str| {
+        inspect(
+            &f.core,
+            PageRequest {
+                context: f.context.clone(),
+                offset,
+                limit: 20,
+                snapshot_id: None,
+                query: Some(query.into()),
+            },
+            false,
+        )
+        .unwrap()
+    };
+    let all = page(0, "");
+    assert_eq!(all["usage"]["records"], 28);
+    assert_eq!(all["entries"].as_array().unwrap().len(), 20);
+    assert_eq!(page(20, "")["entries"].as_array().unwrap().len(), 8);
+    let beyond = f.sql(|c| {
+        c.query_row(
+            "SELECT id,path FROM documents ORDER BY id LIMIT 1 OFFSET 20",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+        )
+        .unwrap()
+    });
+    assert!(!all["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry["documentIdentity"] == beyond.0));
+    assert_eq!(
+        page(0, &beyond.1)["entries"][0]["documentIdentity"],
+        beyond.0
+    );
+    let needle = page(0, "needle%_");
+    assert_eq!(needle["matchedRecords"], 1);
+    assert_eq!(needle["entries"][0]["documentIdentity"], special);
+    assert_eq!(needle["hasMore"], false);
+    assert_eq!(needle["usage"], all["usage"]);
+    assert_eq!(needle["snapshotId"], all["snapshotId"]);
+    assert_eq!(page(0, "日本")["matchedRecords"], 1);
+    assert_eq!(page(0, "nested/")["matchedRecords"], 1);
+    assert!(!needle.to_string().contains("SYNTHETIC_VALUE_NEVER_RETURN"));
+    assert_eq!(
+        inspect(
+            &f.core,
+            PageRequest {
+                context: f.context.clone(),
+                offset: 0,
+                limit: 20,
+                snapshot_id: None,
+                query: Some("x".repeat(1025))
+            },
+            false
+        )
+        .unwrap_err()
+        .code,
+        "invalid_arguments"
+    );
+}
+
+#[test]
+fn bulk_rejects_duplicate_mixed_oversized_and_non_quarantine_selection() {
+    let f = Fixture::new();
+    f.upgrade();
+    assert_eq!(
+        f.prepare_bulk(vec![f.identity.clone(), f.identity.clone()])
+            .unwrap_err()
+            .code,
+        "invalid_arguments"
+    );
+    assert_eq!(
+        f.prepare_bulk(vec![]).unwrap_err().code,
+        "invalid_arguments"
+    );
+    assert_eq!(
+        f.prepare_bulk((0..21).map(|_| crate::core::random_token()).collect())
+            .unwrap_err()
+            .code,
+        "invalid_arguments"
+    );
+    for operation in [
+        Operation::Quarantine,
+        Operation::Restore,
+        Operation::Upgrade,
+    ] {
+        assert_eq!(
+            prepare(
+                &f.core,
+                PrepareRequest {
+                    context: f.context.clone(),
+                    operation,
+                    candidate_id: Some(f.identity.clone()),
+                    candidate_ids: Some(vec![f.identity.clone()]),
+                    snapshot_id: f.inspect(false)["snapshotId"].as_str().unwrap().into()
+                }
+            )
+            .unwrap_err()
+            .code,
+            "invalid_arguments"
+        );
+    }
+    assert_eq!(
+        prepare(
+            &f.core,
+            PrepareRequest {
+                context: f.context.clone(),
+                operation: Operation::Restore,
+                candidate_id: None,
+                candidate_ids: Some(vec![f.identity.clone()]),
+                snapshot_id: f.inspect(false)["snapshotId"].as_str().unwrap().into()
+            }
+        )
+        .unwrap_err()
+        .code,
+        "invalid_arguments"
+    );
+    assert_eq!(f.inspect(false)["usage"]["records"], 1);
+}
+
+#[test]
+fn bulk_quarantine_is_atomic_idempotent_preserves_html_and_revokes_writes() {
+    let f = Fixture::new();
+    let second = f.add_document("folder/second.html");
+    f.upgrade();
+    let before_first = fs::read(f.root.join("入力.html")).unwrap();
+    let before_second = fs::read(f.root.join("folder/second.html")).unwrap();
+    let preview = f
+        .prepare_bulk(vec![f.identity.clone(), second.clone()])
+        .unwrap();
+    assert_eq!(preview["documentCount"], 2);
+    assert_eq!(preview["documentIdentity"], Value::Null);
+    assert_eq!(preview["appCount"], 2);
+    assert_eq!(
+        preview["logicalBytes"],
+        f.inspect(false)["usage"]["logicalBytes"]
+    );
+    assert!(!preview.to_string().contains("SYNTHETIC_VALUE_NEVER_RETURN"));
+    let id = preview["planId"].as_str().unwrap();
+    let receipt = f.confirm(id);
+    assert_eq!(receipt["documentCount"], 2);
+    assert_eq!(f.confirm(id), receipt);
+    assert_ne!(
+        receipt["entries"][0]["recoveryId"],
+        receipt["entries"][1]["recoveryId"]
+    );
+    assert_eq!(f.inspect(false)["usage"]["records"], 0);
+    assert_eq!(f.inspect(true)["entries"].as_array().unwrap().len(), 2);
+    assert_eq!(fs::read(f.root.join("入力.html")).unwrap(), before_first);
+    assert_eq!(
+        fs::read(f.root.join("folder/second.html")).unwrap(),
+        before_second
+    );
+    assert_eq!(
+        document_state::operate(
+            &f.core,
+            &f.token,
+            StateRequest {
+                version: 1,
+                op: StateOperation::Write,
+                key: "fixture".into(),
+                value: Some(json!({}))
+            }
+        )
+        .err()
+        .unwrap(),
+        StateError::Revoked
+    );
+    *find(&f.core, &f.context, id).unwrap().phase.lock().unwrap() =
+        Phase::Failed("state_unavailable");
+    assert_eq!(
+        verify(&f.core, &f.context, id).unwrap()["receipt"]["documentCount"],
+        2
+    );
+    let one_recovery = receipt["entries"][0]["recoveryId"].as_str().unwrap();
+    f.sql(|c| {
+        c.execute(
+            "DELETE FROM state_tombstones WHERE operation_id=?1",
+            [one_recovery],
+        )
+        .unwrap();
+        c.execute(
+            "DELETE FROM recovery_records WHERE operation_id=?1",
+            [one_recovery],
+        )
+        .unwrap();
+    });
+    assert_eq!(
+        verify(&f.core, &f.context, id).unwrap()["status"],
+        "unknown"
+    );
+    f.core.live_management.plans.lock().unwrap().remove(id);
+    assert_eq!(
+        verify(&f.core, &f.context, id).unwrap()["status"],
+        "unknown"
+    );
+}
+
+#[test]
+fn bulk_stale_payload_or_open_document_preserves_every_record() {
+    for opened in [false, true] {
+        let f = Fixture::new();
+        let second = f.add_document("second.html");
+        f.upgrade();
+        let preview = f
+            .prepare_bulk(vec![second.clone(), f.identity.clone()])
+            .unwrap();
+        if opened {
+            f.open(true);
+        } else {
+            // Keep byte length and snapshot metadata unchanged to exercise the
+            // per-record payload hash, including a later selection in the plan.
+            f.sql(|c| {c.execute("UPDATE documents SET data=replace(data,'SYNTHETIC_VALUE_NEVER_RETURN','SYNTHETIC_VALUE_ALTER_RETURN') WHERE id=?1",[&f.identity]).unwrap();});
+        }
+        let id = preview["planId"].as_str().unwrap();
+        assert_eq!(
+            confirm(
+                &f.core,
+                Confirmation {
+                    context: f.context.clone(),
+                    plan_id: id.into(),
+                    confirmation: id.into()
+                }
+            )
+            .unwrap_err()
+            .code,
+            if opened {
+                "in_use_hold"
+            } else {
+                "state_changed"
+            }
+        );
+        assert_eq!(f.inspect(false)["usage"]["records"], 2);
+        assert_eq!(f.inspect(true)["entries"].as_array().unwrap().len(), 0);
+    }
+}
+
+#[test]
+fn bulk_late_recovery_capacity_failure_rolls_back_earlier_selection() {
+    let f = Fixture::new();
+    let second = f.add_document("second.html");
+    f.upgrade();
+    let preview = f.prepare_bulk(vec![f.identity.clone(), second]).unwrap();
+    // Inject an archive-capacity change after the first INSERT inside the
+    // transaction, without allocating a 512 MiB fixture payload. The next
+    // apply_record must reject capacity and roll back both the trigger and row.
+    f.sql(|c|c.execute_batch("CREATE TEMP TRIGGER fill_archive AFTER INSERT ON recovery_records WHEN (SELECT count(*) FROM recovery_records)=1 BEGIN INSERT INTO recovery_records SELECT printf('%064x',123),printf('%064x',456),'{}',536870912,1,root,'synthetic-capacity.html',generation,printf('%064x',789),created_unix_ms,'quarantined',NULL,NULL FROM recovery_records LIMIT 1; END;").unwrap());
+    let before = f.inspect(false)["usage"].clone();
+    let id = preview["planId"].as_str().unwrap();
+    assert_eq!(
+        confirm(
+            &f.core,
+            Confirmation {
+                context: f.context.clone(),
+                plan_id: id.into(),
+                confirmation: id.into()
+            }
+        )
+        .unwrap_err()
+        .code,
+        "recovery_capacity_reached"
+    );
+    f.sql(|c| c.execute_batch("DROP TRIGGER fill_archive;").unwrap());
+    assert_eq!(f.inspect(false)["usage"], before);
+    assert_eq!(f.inspect(true)["entries"].as_array().unwrap().len(), 0);
+    assert_eq!(
+        f.sql(|c| c
+            .query_row("SELECT count(*) FROM state_tombstones", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap()),
+        0
+    );
 }
 
 #[test]
@@ -177,6 +498,7 @@ fn metadata_is_bounded_private_unknown_last_view_and_requires_explicit_upgrade()
             inspect(
                 &f.core,
                 PageRequest {
+                    query: None,
                     context: f.context.clone(),
                     offset,
                     limit,
@@ -517,6 +839,7 @@ fn restore_never_overwrites_existing_values_and_unknown_operations_stay_unknown(
     assert!(prepare(
         &f.core,
         PrepareRequest {
+            candidate_ids: None,
             context: f.context.clone(),
             operation: Operation::Restore,
             candidate_id: Some(id),
@@ -541,6 +864,7 @@ fn database_path_replacement_is_detected_without_following_replacement() {
         inspect(
             &f.core,
             PageRequest {
+                query: None,
                 context: f.context.clone(),
                 offset: 0,
                 limit: 20,
@@ -609,6 +933,7 @@ fn bounded_plans_paged_snapshots_cancel_requested_and_lost_response_are_explicit
         prepare(
             &f.core,
             PrepareRequest {
+                candidate_ids: None,
                 context: f.context.clone(),
                 operation: Operation::Quarantine,
                 candidate_id: Some(f.identity.clone()),
@@ -625,6 +950,7 @@ fn bounded_plans_paged_snapshots_cancel_requested_and_lost_response_are_explicit
         prepare(
             &f.core,
             PrepareRequest {
+                candidate_ids: None,
                 context: f.context.clone(),
                 operation: Operation::Quarantine,
                 candidate_id: Some(f.identity.clone()),
@@ -661,6 +987,7 @@ fn bounded_plans_paged_snapshots_cancel_requested_and_lost_response_are_explicit
     assert!(inspect(
         &f.core,
         PageRequest {
+            query: None,
             context: f.context.clone(),
             offset: 0,
             limit: 20,
@@ -877,6 +1204,7 @@ fn external_writer_is_busy_and_normal_inspection_recovers_after_release() {
         inspect(
             &f.core,
             PageRequest {
+                query: None,
                 context: f.context.clone(),
                 offset: 0,
                 limit: 20,

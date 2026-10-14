@@ -55,6 +55,13 @@ export type ManagementPlan = {
   canConfirm: boolean;
   blockedReason: string | null;
   expiresInMs: number;
+  documentCount?: number;
+  entries?: {
+    documentIdentity: string;
+    relativePath: string | null;
+    logicalBytes: number;
+    appCount: number;
+  }[];
 };
 export type ManagementReceipt = {
   operationId: string;
@@ -66,6 +73,7 @@ export type ManagementReceipt = {
   recoverable: true;
   permanentDeletion: false;
   schemaVersion?: 2;
+  documentCount?: number;
 };
 export type ManagementVerification = {
   status: "pending" | "cancelled" | "failed" | "completed" | "unknown";
@@ -78,6 +86,7 @@ type PageRequest = {
   offset: number;
   limit: number;
   snapshotId?: string | null;
+  query?: string;
 };
 export type ManagementApi = {
   list: (request: PageRequest) => Promise<ManagementPage<SavedEntry>>;
@@ -86,6 +95,7 @@ export type ManagementApi = {
     context: ManagementContext;
     operation: ManagementOperation;
     candidateId?: string | null;
+    candidateIds?: string[];
     snapshotId: string;
   }) => Promise<ManagementPlan>;
   confirm: (confirmation: {
@@ -174,6 +184,8 @@ type View = {
   kind: "active" | "recovery";
   page: ManagementPage<SavedEntry> | ManagementPage<RecoveryEntry> | null;
   selected: string | null;
+  selectedIds: string[];
+  query: string;
   busy: boolean;
   phase: "idle" | "preview" | "processing" | "unknown" | "completed" | "cancelled" | "failed";
   error: string | null;
@@ -183,6 +195,8 @@ const initial = (): View => ({
   kind: "active",
   page: null,
   selected: null,
+  selectedIds: [],
+  query: "",
   busy: false,
   phase: "idle",
   error: null,
@@ -217,20 +231,41 @@ export class ManagementSession {
     this.set({
       page: null,
       selected: null,
+      selectedIds: [],
+      query: "",
       ...(this.view.plan ? { error: "state_changed" } : { busy: false }),
     });
   }
   isCurrentPlan() {
     return !!this.ticketContext && sameContext(this.context, this.ticketContext);
   }
-  async load(kind: View["kind"] = this.view.kind, offset = 0) {
+  async load(
+    kind: View["kind"] = this.view.kind,
+    offset = 0,
+    query = kind === "active" ? this.view.query : "",
+  ) {
     if (this.view.busy || this.view.plan) return;
+    if (new TextEncoder().encode(query).length > 1024) {
+      this.set({ error: "invalid_arguments" });
+      return;
+    }
     const generation = ++this.generation;
     const context = { ...this.context };
-    const snapshotId = offset > 0 && kind === this.view.kind ? this.view.page?.snapshotId : null;
-    this.set({ busy: true, kind, selected: null, error: null, phase: "idle" });
+    const snapshotId =
+      offset > 0 && kind === this.view.kind && query === this.view.query
+        ? this.view.page?.snapshotId
+        : null;
+    this.set({
+      busy: true,
+      kind,
+      query,
+      selected: null,
+      selectedIds: [],
+      error: null,
+      phase: "idle",
+    });
     try {
-      const request = { context, offset, limit: 20, snapshotId };
+      const request = { context, offset, limit: 20, snapshotId, ...(query ? { query } : {}) };
       const page =
         kind === "active" ? await this.api.list(request) : await this.api.recoveryList(request);
       if (generation !== this.generation) return;
@@ -256,6 +291,21 @@ export class ManagementSession {
       return;
     this.set({ selected: id });
   }
+  toggle(id: string) {
+    if (
+      this.view.kind !== "active" ||
+      this.view.busy ||
+      this.view.plan ||
+      !this.view.page?.entries.some(
+        (entry) => !("recoveryId" in entry) && entry.documentIdentity === id && entry.eligible,
+      )
+    )
+      return;
+    const selectedIds = this.view.selectedIds.includes(id)
+      ? this.view.selectedIds.filter((selected) => selected !== id)
+      : [...this.view.selectedIds, id];
+    this.set({ selectedIds, selected: selectedIds[0] ?? null });
+  }
   async prepare(operation: ManagementOperation) {
     const page = this.view.page;
     if (
@@ -267,13 +317,18 @@ export class ManagementSession {
       return;
     const generation = ++this.generation;
     const context = { ...this.context };
-    const candidateId = operation === "upgrade" ? null : this.view.selected;
+    const candidateIds =
+      operation === "quarantine" && this.view.selectedIds.length > 1
+        ? [...this.view.selectedIds]
+        : null;
+    const candidateId = operation === "upgrade" || candidateIds ? null : this.view.selected;
     this.set({ busy: true, error: null });
     try {
       const plan = await this.api.prepare({
         context,
         operation,
         candidateId,
+        ...(candidateIds ? { candidateIds } : {}),
         snapshotId: page.snapshotId,
       });
       if (generation !== this.generation) {
@@ -283,9 +338,20 @@ export class ManagementSession {
       if (
         plan.operation !== operation ||
         plan.snapshotId !== page.snapshotId ||
-        (candidateId !== null && plan.candidateId !== candidateId)
-      )
+        (candidateId !== null && plan.candidateId !== candidateId) ||
+        (candidateIds !== null &&
+          (plan.documentCount !== candidateIds.length ||
+            !plan.entries ||
+            plan.entries.length !== candidateIds.length ||
+            new Set(plan.entries.map((entry) => entry.documentIdentity)).size !==
+              candidateIds.length ||
+            plan.entries.some((entry) => !candidateIds.includes(entry.documentIdentity))))
+      ) {
+        // A rejected preview cannot be displayed or confirmed. Release its
+        // bounded Native ticket instead of silently exhausting the plan limit.
+        void this.api.cancel(context, plan.planId).catch(() => {});
         throw "response_mismatch";
+      }
       this.ticketContext = context;
       this.set({ plan, phase: "preview" });
     } catch (error) {
@@ -303,7 +369,8 @@ export class ManagementSession {
       receipt.operation !== plan.operation ||
       receipt.permanentDeletion !== false ||
       receipt.recoverable !== true ||
-      (plan.documentIdentity && receipt.documentIdentity !== plan.documentIdentity)
+      (plan.documentIdentity && receipt.documentIdentity !== plan.documentIdentity) ||
+      ((plan.documentCount ?? 1) > 1 && receipt.documentCount !== plan.documentCount)
     ) {
       this.set({ phase: "unknown", error: "response_mismatch" });
       return;
@@ -376,7 +443,7 @@ export class ManagementSession {
     )
       return;
     this.ticketContext = null;
-    this.set({ plan: null, selected: null, phase: "idle" });
+    this.set({ plan: null, selected: null, selectedIds: [], phase: "idle" });
     void this.load();
   }
 }

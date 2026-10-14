@@ -64,7 +64,7 @@ for (const [language, scheme] of [
     await dialog
       .getByRole("button", { name: language === "ja" ? "保存データ" : "Saved data", exact: true })
       .click();
-    const radio = dialog.getByRole("radio", { name: sourceName });
+    const radio = dialog.getByRole("checkbox", { name: sourceName + " " + sourceName });
     await expect(radio).not.toBeChecked();
     await expect(dialog.locator("img")).toHaveCount(0);
     expect(await page.evaluate("window.managementCalls.prepare")).toBe(0);
@@ -79,7 +79,7 @@ for (const [language, scheme] of [
     await dialog
       .getByRole("button", {
         name:
-          language === "ja" ? "選択した対象の影響を確認" : "Review impact on the selected record",
+          language === "ja" ? "選択した1件の削除を確認" : "Review removal of 1 selected records",
       })
       .click();
     const run = dialog.getByRole("button", {
@@ -99,7 +99,7 @@ for (const [language, scheme] of [
         name: language === "ja" ? "隔離と回復の一覧" : "Quarantine and recovery list",
       })
       .click();
-    await dialog.getByRole("radio", { name: sourceName }).check();
+    await dialog.getByRole("radio", { name: sourceName + " " + sourceName }).check();
     await dialog
       .getByRole("button", {
         name:
@@ -109,7 +109,7 @@ for (const [language, scheme] of [
     await dialog.getByRole("checkbox").check();
     await run.click();
     await dialog.getByRole("button", { name: backName, exact: true }).click();
-    await expect(dialog.getByRole("radio", { name: sourceName })).toBeDisabled();
+    await expect(dialog.getByRole("radio", { name: sourceName + " " + sourceName })).toBeDisabled();
     expect(await page.evaluate("window.managementCalls.confirm")).toBe(2);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
