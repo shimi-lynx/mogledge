@@ -76,6 +76,41 @@ def context():
     }
 
 
+class ApiTests(unittest.TestCase):
+    def test_repository_metadata_uses_canonical_endpoint_without_trailing_slash(self):
+        with patch.dict(os.environ, {"GH_TOKEN": "fixture-token"}, clear=True), patch.object(
+            control, "download", return_value=b'{"id":1416386985}'
+        ) as download:
+            self.assertEqual(control.api(""), {"id": 1416386985})
+            download.assert_called_once_with(
+                "https://api.github.com/repos/shimi-lynx/mogledge",
+                control.MAX_METADATA,
+                "fixture-token",
+            )
+
+    def test_subresource_endpoints_and_read_only_token_requirement_are_preserved(self):
+        for path in (
+            "environments/release",
+            "environments/release/deployment-branch-policies",
+            "actions/runs/38495813692",
+            "actions/artifacts/11865015479",
+        ):
+            with self.subTest(path=path), patch.dict(
+                os.environ, {"GH_TOKEN": "fixture-token"}, clear=True
+            ), patch.object(control, "download", return_value=b"{}") as download:
+                self.assertEqual(control.api(path), {})
+                download.assert_called_once_with(
+                    "https://api.github.com/repos/shimi-lynx/mogledge/" + path,
+                    control.MAX_METADATA,
+                    "fixture-token",
+                )
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            control, "download"
+        ) as download, self.assertRaisesRegex(ValueError, "token missing"):
+            control.api("")
+        download.assert_not_called()
+
+
 class SourceTests(unittest.TestCase):
     def test_exact_reviewed_main_context(self):
         control.source_context(context())
