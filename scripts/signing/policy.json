@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "approval": {
-    "enabled": false,
+    "enabled": true,
     "environment": "release",
-    "environment_id": null,
+    "environment_id": 24269235524,
     "reviewer_user_id": 56603283,
     "private_required_reviewers_entitlement_verified": false
   },

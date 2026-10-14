@@ -1,4 +1,4 @@
-name: Updater signature verification trial (disabled pending approval gate)
+name: Updater signature verification trial (human approval required)
 
 on:
   workflow_dispatch:
