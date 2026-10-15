@@ -107,7 +107,14 @@ def protected_main_gate(policy, repository, environment, branches, ruleset):
     policies = branches.get("branch_policies", [])
     require(branches.get("total_count") == len(policies) == 1 and policies[0].get("name") == "main" and policies[0].get("type") == "branch", "Only main may use the release environment")
     require(type(policy.get("main_ruleset_id")) is int and ruleset.get("id") == policy["main_ruleset_id"] and ruleset.get("target") == "branch" and ruleset.get("enforcement") == "active", "Active pinned main ruleset required")
-    require(ruleset.get("conditions", {}).get("ref_name") == {"include": ["refs/heads/main"], "exclude": []} and ruleset.get("bypass_actors") == [], "Main protection scope or bypass changed")
+    require(ruleset.get("conditions", {}).get("ref_name") == {"include": ["refs/heads/main"], "exclude": []}, "Main protection scope changed")
+    # GitHub hides bypass actors from read-only tokens. Pin the owner-reviewed
+    # ruleset revision instead of granting the signing job administration access.
+    expected_update = policy.get("main_ruleset_updated_at")
+    actual_update = ruleset.get("updated_at")
+    require(isinstance(expected_update, str) and isinstance(actual_update, str), "Pinned main ruleset revision required")
+    require(dt.datetime.fromisoformat(actual_update.replace("Z", "+00:00")) == dt.datetime.fromisoformat(expected_update.replace("Z", "+00:00")), "Main ruleset changed since owner review")
+    require("bypass_actors" not in ruleset or ruleset["bypass_actors"] == [], "Main ruleset bypass changed")
     require({"pull_request", "non_fast_forward", "deletion"} <= {rule.get("type") for rule in ruleset.get("rules", [])}, "Main PR, force-push and deletion protection required")
 
 
