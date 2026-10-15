@@ -1,6 +1,6 @@
 # Manual distribution candidate builds
 
-The explicitly selected updater mode now prepares unsigned Windows NSIS or enrolled Mac archives without production Secrets. The [0.8.2 production preparation](production-distribution.md) defines the final-source build sequence, artifact checks, protected signing approval and separate manual publication. Those production policies remain disabled pending actual reviewed 0.8.2 artifact pins; this change does not establish completed builds or a live update feed.
+The explicitly selected updater mode prepares unsigned Windows NSIS or enrolled Mac archives without production Secrets. The [production distribution procedure](production-distribution.md) defines final-source builds, pinned artifact checks, protected-main signing and separate manual publication. Signing and publication require their own exact enabled pins; a candidate run alone does not publish a Release or update feed.
 
 This guide describes the GitHub Actions workflow for building Mogledge distribution candidates from a fixed source revision. Local builds remain available. Initial preparation had no workflow-native build or downloaded-candidate evidence. Subsequently, [run 38495813692](https://github.com/shimi-lynx/mogledge/actions/runs/38495813692) successfully built and packaged the enrolled Intel Mac 0.8.1 candidate from source `ccdcccab85c6c2ad18b063989c049c0a013229eb`, producing artifact `11865015479`. The owner reported launching and using that downloaded app after removing its quarantine attribute. This establishes the reported 0.8.1 run and owner use, not a formal 0.8.2 distribution, an updater signature, a live feed or a real in-app update.
 
@@ -20,14 +20,14 @@ Run only after costs, permissions and execution approval have been confirmed. Gi
 
 Choose **Binary distribution candidates (manual)** in Actions, then select the reviewed source ref and platform. Enter the approved full 40-character source commit in `expected_source_sha` and select the ref containing that same commit. Checkout, the dispatch event and this input must agree before dependency installation; the builder checks again. A moved branch or wrong SHA fails. The final source/version must be coordinated after parallel product work is integrated; do not build an isolated QA branch as a distribution candidate.
 
-Both `cost_confirmed` and `license_reviewed` default to false; jobs run only when both are true. Confirm actual available allowance/budget and that the adopted legal texts/notices and required sources are included for the selected revision, including any new dependencies. An SPDX identifier alone is not a notice or full license text.
+Both `cost_confirmed` and `license_reviewed` default to false; jobs run only when both are true. Reuse unchanged account/budget/policy confirmations; inspect billing only for a related failure or known change. Confirm that adopted legal texts/notices and required sources cover the selected revision, including any new dependencies. An SPDX identifier alone is not a notice or full license text.
 
-| Platform                | Runner                          | Candidate contents                                                              |
-| ----------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
-| `windows-x64` (default) | `windows-2022`                  | Unsigned `my-knowledge.exe`, with product name Mogledge, in a ZIP; no installer |
-| `macos-arm64`           | `macos-15`                      | Apple Silicon `Mogledge.app`, with an ad-hoc signature, in a ZIP                |
-| `macos-x64`             | `macos-15-intel`                | Intel `Mogledge.app`, with an ad-hoc signature, in a ZIP                        |
-| `all`                   | All three runners, sequentially | Three separate artifacts                                                        |
+| Platform                | Runner                               | Candidate contents                                                              |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
+| `windows-x64` (default) | `windows-2022`                       | Unsigned `my-knowledge.exe`, with product name Mogledge, in a ZIP; no installer |
+| `macos-arm64`           | `macos-15`                           | Apple Silicon `Mogledge.app`, with an ad-hoc signature, in a ZIP                |
+| `macos-x64`             | `macos-15-intel`                     | Intel `Mogledge.app`, with an ad-hoc signature, in a ZIP                        |
+| `all`                   | Three separate runners, concurrently | Three separate artifacts                                                        |
 
 The workflow uses explicit native targets matching the [runner architectures](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). It does not produce a universal Mac binary or validate Rosetta compatibility. Builds use Node 24.11.0, Rust 1.99.0, npm/Cargo lockfiles and Cargo `jobs=1`, without E2E features. The workflow has `contents:read`, retains no checkout credentials, references no secrets and has no push, pull-request or tag trigger. It saves no dependency cache, and artifacts expire after three days. The separate macOS validation workflow is for Native QA.
 
