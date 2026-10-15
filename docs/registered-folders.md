@@ -1,6 +1,6 @@
 # Registered and displayed folders
 
-This workflow describes source changes awaiting a separate release. Published 0.8.2 binaries predate it.
+This correction is prepared for 0.8.3. Published 0.8.2 binaries predate it.
 
 The registered folder is the physical root used for saved input, document references, tabs, favorites and workspace preferences. **Switch displayed folder** changes only the folder shown in the tree within that registered scope. Opening a child folder this way preserves the registered root, live tabs and their admitted storage destinations.
 
@@ -26,7 +26,7 @@ Before any operation on real retained input, preserve an independent backup and 
 
 ## Limits and verification
 
-Synthetic backend and controller tests cover root/display separation, stable saved keys and values through child/parent display changes and restart, stale selection, held storage and existing multiple-tab behavior. Browser tests use a mocked Native bridge. These checks do not establish Native pickers, WKWebView, Mac filesystem identity or physical-device behavior; owner Mac verification remains required before distribution.
+Synthetic backend and controller tests cover root/display separation, stable saved keys and values through child/parent display changes and restart, stale selection, held storage and existing multiple-tab behavior. Browser tests use a mocked Native bridge. These checks do not establish Native pickers, WKWebView, Mac filesystem identity or physical-device behavior; the owner will verify the merged-main Mac build. That device QA remains unrun and is not a separate pre-merge QA-build requirement.
 
 An external editor or AI that replaces an HTML file can change its physical identity. This change does not solve replacement-save recovery or merge data previously saved under different registered roots. Replacement-save recovery remains open in [issue #25](https://github.com/shimi-lynx/mogledge/issues/25). See [storage and recovery limitations](known-limitations.md#storage-and-recovery) and [tab sessions](tab-sessions.md).
 
@@ -46,3 +46,9 @@ Verification used Windows and disposable synthetic profiles. The original parent
 | Documentation and review                                           | Local file/anchor links, diff checks and independent source review                                                                                                          | 107 links passed; review passed                                                                                                                                              |
 
 Unchanged controller/tree and adapter behavior retains its targeted evidence. Browser evidence predates only the final warning-text addition; the final frontend check includes that text. The final initializer change was retested against existing saved-input, recovery and lifecycle cases. This is source verification, not Native picker, WKWebView, Mac reboot or installed-product acceptance. No real profile, data migration, installer, distribution or release operation was performed.
+
+## Version and build scope
+
+Product manifests and the current Windows validation helper are aligned at 0.8.3. This patch corrects registered-folder and saved-input behavior; it does not introduce a new storage identity or migrate retained input. Existing 0.8.2 signing/publication pins and historical verification remain unchanged. Targeted source evidence above is reused because the later changes only align product metadata and describe the agreed build/QA sequence. The candidate workflow checks the final source, product version, executable metadata, bundled source and dependency notices on each selected OS. Signing, publication and installed-app replacement remain separate operations.
+
+The final metadata adjustment passed product-version/identifier consistency, the frontend type/lint/format check, Windows-helper syntax, 107 local links and independent source review. Distribution fixtures passed 26 cases with four explicit skips (three filesystem-symlink cases and the opt-in Rust privacy probe); those skipped checks are not counted as passed.
