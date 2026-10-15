@@ -49,6 +49,14 @@ export const appUpdaterMessages: Readonly<Record<string, string>> = {
     "The update stopped because app settings could not be saved. Check the settings and check for updates again.",
   "更新を適用できません。現在のアプリと配布元の手動復旧手順を確認してください。":
     "Could not apply the update. Check the current app and the distributor's manual recovery instructions.",
+  "アプリと同じボリュームに更新用の一時領域を確保できません。現在のアプリと手動更新の案内を確認してください。":
+    "Could not prepare update temporary storage on the app's volume. Check the current app and the manual update instructions.",
+  "更新に失敗し、退避した旧アプリを元の場所へ戻せませんでした。現在のアプリと保管された旧アプリを確認し、手動復旧の案内に従ってください。":
+    "The update failed and the previous app could not be restored to its original location. Check the current app and the retained previous app, then follow the manual recovery instructions.",
+  公式の配布ページを開く: "Open official releases",
+  "手動更新・復旧の案内を開く": "Open manual update and recovery guide",
+  "案内を開けませんでした。ブラウザーで公式配布元の案内を確認してください。":
+    "Could not open the guide. Use your browser to view the official distributor's instructions.",
   "更新の状態を確認できません。Nativeアプリで設定を開き直してください。":
     "Could not read the update status. Reopen Settings in the Native app.",
 };

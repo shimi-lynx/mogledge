@@ -185,6 +185,7 @@ pub fn run() {
                 resident::update_resident_preferences,
                 resident::resolve_resident_target,
                 updater::get_app_update_status,
+                updater::open_app_update_help,
                 updater::check_app_update,
                 updater::download_app_update,
                 updater::cancel_app_update,

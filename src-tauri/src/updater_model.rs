@@ -1,5 +1,5 @@
 //! Finite, process-local update state. No timers, settings writes or install paths.
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -176,6 +176,27 @@ pub fn main_host(label: &str) -> Result<(), &'static str> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UpdateHelpDestination {
+    Releases,
+    Manual,
+}
+
+pub fn update_help_url(
+    host: &str,
+    destination: UpdateHelpDestination,
+) -> Result<&'static str, &'static str> {
+    main_host(host)?;
+    // The caller selects an instruction page, never an arbitrary OS target or URL.
+    Ok(match destination {
+        UpdateHelpDestination::Releases => "https://github.com/shimi-lynx/mogledge/releases/latest",
+        UpdateHelpDestination::Manual => {
+            "https://github.com/shimi-lynx/mogledge/blob/main/docs/update-guide.md"
+        }
+    })
+}
+
 /// Reject bypass settings even if introduced through a configuration overlay.
 pub fn secure_config(value: &serde_json::Value) -> bool {
     let unsafe_options = [
@@ -246,6 +267,55 @@ mod tests {
         s.failed(id, "UpdateCheckFailed");
         assert_eq!(s.snapshot.phase, Phase::Error);
         assert!(s.check().is_ok());
+    }
+    #[test]
+    fn help_only_selects_fixed_public_pages_from_the_main_host() {
+        for (value, expected) in [
+            (
+                "releases",
+                "https://github.com/shimi-lynx/mogledge/releases/latest",
+            ),
+            (
+                "manual",
+                "https://github.com/shimi-lynx/mogledge/blob/main/docs/update-guide.md",
+            ),
+        ] {
+            let destination = serde_json::from_value(serde_json::json!(value)).unwrap();
+            assert_eq!(update_help_url("main", destination), Ok(expected));
+            for host in ["document", "storage-transition", "", "main-child"] {
+                assert_eq!(
+                    update_help_url(host, destination),
+                    Err("UpdateMainRequired")
+                );
+            }
+        }
+        for value in [
+            "https://untrusted.invalid/profile",
+            "file:///private/fixture",
+            "Manual",
+            "",
+        ] {
+            assert!(
+                serde_json::from_value::<UpdateHelpDestination>(serde_json::json!(value)).is_err()
+            );
+        }
+    }
+    #[test]
+    fn recovery_failures_do_not_make_an_install_retry_ready() {
+        for diagnostic in [
+            "UpdateInstallLocationUnavailable",
+            "UpdatePreviousAppNotRestored",
+            "UpdateInstallFailed",
+        ] {
+            let mut session = available();
+            let download = session.download().unwrap();
+            session.downloaded(download);
+            let install = session.install().unwrap();
+            assert!(session.failed(install, diagnostic));
+            assert_eq!(session.snapshot.phase, Phase::Error);
+            assert_eq!(session.snapshot.error, Some(diagnostic));
+            assert_eq!(session.install(), Err("UpdateNotReady"));
+        }
     }
     #[test]
     fn cancellation_invalidates_old_results_during_a_new_check() {

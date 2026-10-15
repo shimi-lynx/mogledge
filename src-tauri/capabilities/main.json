@@ -75,6 +75,7 @@
     "allow-update-resident-preferences",
     "allow-resolve-resident-target",
     "allow-get-app-update-status",
+    "allow-open-app-update-help",
     "allow-check-app-update",
     "allow-download-app-update",
     "allow-cancel-app-update",

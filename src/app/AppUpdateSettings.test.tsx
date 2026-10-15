@@ -43,6 +43,7 @@ function fixture(status: UpdateSnapshot = initial) {
       phase: "installing",
       release,
     })),
+    openHelp: vi.fn(async () => {}),
     subscribe: vi.fn(async (callback) => {
       receive = callback;
       return stop;
@@ -67,10 +68,93 @@ test("opening Settings reads state without checking a feed; default/self builds 
     expect(f.api.check).not.toHaveBeenCalled();
     expect(f.api.download).not.toHaveBeenCalled();
     expect(f.api.restart).not.toHaveBeenCalled();
+    expect(f.api.openHelp).not.toHaveBeenCalled();
     view.unmount();
     expect(f.stop).toHaveBeenCalledOnce();
   }
 });
+
+for (const language of ["ja", "en"] as const) {
+  test(`install failures offer explicit help without update side effects (${language})`, async () => {
+    setLanguage(language);
+    const cases = [
+      {
+        code: "UpdateInstallLocationUnavailable",
+        message: language === "ja" ? "同じボリューム" : "temporary storage on the app's volume",
+      },
+      {
+        code: "UpdatePreviousAppNotRestored",
+        message:
+          language === "ja"
+            ? "旧アプリを元の場所へ戻せません"
+            : "previous app could not be restored",
+      },
+      {
+        code: "UpdateInstallFailed",
+        message: language === "ja" ? "更新を適用できません" : "Could not apply the update",
+      },
+      {
+        code: "/private/unknown-install-failure",
+        message:
+          language === "ja" ? "更新の状態を確認できません" : "Could not read the update status",
+      },
+    ];
+    for (const { code, message } of cases) {
+      const f = fixture({ ...initial, phase: "error", error: code });
+      f.api.openHelp = vi.fn().mockRejectedValue(new Error("/private/secret/path"));
+      const view = render(<AppUpdateSettings api={f.api} />);
+      expect((await screen.findByRole("alert")).textContent).toContain(message);
+      expect(f.api.openHelp).not.toHaveBeenCalled();
+      const helpNames =
+        language === "ja"
+          ? ["公式の配布ページを開く", "手動更新・復旧の案内を開く"]
+          : ["Open official releases", "Open manual update and recovery guide"];
+      for (const [index, name] of helpNames.entries()) {
+        const help = screen.getByRole<HTMLButtonElement>("button", { name });
+        await waitFor(() => expect(help.disabled).toBe(false));
+        fireEvent.click(help);
+        await waitFor(() =>
+          expect(f.api.openHelp).toHaveBeenLastCalledWith(index === 0 ? "releases" : "manual"),
+        );
+        await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(2));
+        expect(screen.getAllByRole("alert")[0].textContent).toContain(message);
+      }
+      expect(view.container.textContent).not.toContain("/private/");
+      expect(view.container.textContent).not.toMatch(/read.only|AppTranslocation|読み取り専用/);
+      expect(
+        screen.queryByRole("button", {
+          name: language === "ja" ? "更新して再起動" : "Update and restart",
+        }),
+      ).toBeNull();
+      expect(f.api.check).not.toHaveBeenCalled();
+      expect(f.api.download).not.toHaveBeenCalled();
+      expect(f.api.restart).not.toHaveBeenCalled();
+      expect(f.api.cancel).not.toHaveBeenCalled();
+      view.unmount();
+    }
+  });
+
+  test(`disabled builds can open help without enabling updates (${language})`, async () => {
+    setLanguage(language);
+    const f = fixture({ ...initial, phase: "disabled", disabledReason: "selfBuild" });
+    render(<AppUpdateSettings api={f.api} />);
+    const help = await screen.findByRole("button", {
+      name:
+        language === "ja" ? "手動更新・復旧の案内を開く" : "Open manual update and recovery guide",
+    });
+    expect(f.api.openHelp).not.toHaveBeenCalled();
+    fireEvent.click(help);
+    await waitFor(() => expect(f.api.openHelp).toHaveBeenCalledExactlyOnceWith("manual"));
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: language === "ja" ? "更新を確認" : "Check for updates",
+      }).disabled,
+    ).toBe(true);
+    expect(f.api.check).not.toHaveBeenCalled();
+    expect(f.api.download).not.toHaveBeenCalled();
+    expect(f.api.restart).not.toHaveBeenCalled();
+  });
+}
 
 test("verified download enables update and restart with a warning and no confirmation checkbox", async () => {
   const f = fixture();

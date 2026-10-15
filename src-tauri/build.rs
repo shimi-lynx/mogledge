@@ -89,6 +89,7 @@ fn main() {
             "update_resident_preferences",
             "resolve_resident_target",
             "get_app_update_status",
+            "open_app_update_help",
             "check_app_update",
             "download_app_update",
             "cancel_app_update",
