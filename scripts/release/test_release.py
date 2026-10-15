@@ -87,16 +87,19 @@ def publication_zip(config, files):
 
 class PolicyTests(unittest.TestCase):
     def test_protected_main_gate_rejects_broader_environment_or_weaker_main_and_old_trial(self):
-        policy = {"enabled": True, "mode": "protected-main", "environment_id": 123, "main_ruleset_id": 456}
+        policy = {"enabled": True, "mode": "protected-main", "environment_id": 123, "main_ruleset_id": 456, "main_ruleset_updated_at": "2026-10-14T12:06:44.287Z"}
         repository = {"id": release.REPOSITORY_ID, "private": False}
         environment = {"id": 123, "name": "release", "can_admins_bypass": False,
                        "protection_rules": [], "deployment_branch_policy": {"custom_branch_policies": True, "protected_branches": False}}
         branches = {"total_count": 1, "branch_policies": [{"name": "main", "type": "branch"}]}
-        ruleset = {"id": 456, "target": "branch", "enforcement": "active", "bypass_actors": [],
+        ruleset = {"id": 456, "target": "branch", "enforcement": "active", "bypass_actors": [], "updated_at": "2026-10-14T21:06:44.287+09:00",
                    "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
                    "rules": [{"type": name} for name in ("pull_request", "non_fast_forward", "deletion")]}
         original = (policy, repository, environment, branches, ruleset)
         release.protected_main_gate(*original)
+        read_only_ruleset = copy.deepcopy(ruleset)
+        del read_only_ruleset["bypass_actors"]
+        release.protected_main_gate(policy, repository, environment, branches, read_only_ruleset)
         for index, key, value in (
             (0, "enabled", False), (0, "mode", "human"), (1, "id", 1), (1, "private", True),
             (2, "id", 999), (2, "can_admins_bypass", True),
@@ -106,6 +109,8 @@ class PolicyTests(unittest.TestCase):
             (3, "branch_policies", [{"name": "*", "type": "branch"}]),
             (3, "total_count", 2), (4, "id", 999), (4, "enforcement", "disabled"),
             (4, "bypass_actors", [{"actor_type": "RepositoryRole", "actor_id": 5}]),
+            (4, "updated_at", "2026-10-15T12:06:44.287Z"), (4, "updated_at", None),
+            (0, "main_ruleset_updated_at", None),
             (4, "conditions", {"ref_name": {"include": ["~ALL"], "exclude": []}}),
             (4, "rules", [{"type": "pull_request"}]),
         ):
