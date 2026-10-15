@@ -6,6 +6,7 @@ import { App } from "./App";
 import { aiHandoffApi, bridge } from "../lib/bridge";
 import { setLanguage } from "../lib/i18n";
 import type { Snapshot } from "../lib/types";
+import { TREE_EXPANSION_KEY } from "../features/knowledge-tree/expansion";
 
 const searchMock = vi.hoisted(() => vi.fn());
 const dialogDescriptors = {
@@ -97,6 +98,7 @@ const snapshot: Snapshot = {
 };
 beforeEach(() => {
   localStorage.removeItem("my-knowledge.search-preferences");
+  localStorage.removeItem(TREE_EXPANSION_KEY + snapshot.rootPath);
   setLanguage("ja");
   vi.clearAllMocks();
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
@@ -146,6 +148,18 @@ beforeEach(() => {
     vi.mocked(bridge.getDocumentStateRecovery).mockResolvedValue(null);
   if (bridge.getDocumentStorageHold)
     vi.mocked(bridge.getDocumentStorageHold).mockResolvedValue(null);
+});
+
+it("restores the registered root's expanded tree after restarting the app view", async () => {
+  let view = render(<App />);
+  fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+  view.unmount();
+  view = render(<App />);
+  await waitFor(() =>
+    expect(view.getByRole("treeitem", { name: "Examples" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    ),
+  );
 });
 
 it.each(["ja", "en"] as const)(

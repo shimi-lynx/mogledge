@@ -43,6 +43,8 @@ In workspace management, explicitly assign number shortcuts if wanted. Recalling
 
 ## Files and folders
 
+The sidebar remembers expanded folders on this device for each registered folder, including after restart or switching the displayed child folder. Deleted or externally moved paths are discarded when the tree finishes loading. If local UI preferences cannot be saved, expansion still works for the current session.
+
 Tree context menus provide creation, HTML rename, move, order, full-path copy, OS folder display and recycle actions where supported. Windows uses F2 and macOS Enter for HTML rename. The filename's existing HTML extension is retained. Files are not overwritten by rename/move, and HTML/CSS/JS references are not automatically rewritten.
 
 Drag within the same parent to reorder; choose a folder or the **Move to** action for a confirmed move. Order is saved separately from the source HTML. Root/self/descendant targets, collisions, symlinks and unsupported cloud writes are rejected. Review relative links after moving files.
