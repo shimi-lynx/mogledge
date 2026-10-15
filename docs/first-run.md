@@ -63,6 +63,6 @@ Use disposable HTML and a [dedicated QA profile](testing.md#native-qa) for verif
 
 ## HTML authoring
 
-Read the [HTML skill](../.agents/skills/my-knowledge-html/SKILL.md) and [storage API](document-storage.md) before authoring or converting saved inputs. Authoring alone does not require rebuilding the desktop app or installing Rust/C++ tools.
+Read the [HTML skill](../.agents/skills/mogledge-html/SKILL.md) and [storage API](document-storage.md) before authoring or converting saved inputs. Authoring alone does not require rebuilding the desktop app or installing Rust/C++ tools.
 
 Creating or registering a [dedicated folder](registered-folders.md) places the required [authoring kit](html-authoring-kit.md): guide/template and Codex/Claude Skills. A build request does not authorize registration of real user folders. Preserve existing HTML, instructions and Skills; retain approval already given for the same folder and options. Verification uses synthetic folders and a separate app profile.

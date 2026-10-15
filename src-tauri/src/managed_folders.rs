@@ -318,10 +318,6 @@ pub(crate) fn restore(core: &Arc<Core>) -> Result<(), String> {
 pub(crate) fn has_selected(core: &Core) -> Result<bool, String> {
     Ok(load(core)?.0.selected_id.is_some())
 }
-pub(crate) fn has_registry(core: &Core) -> Result<bool, String> {
-    Ok(load(core)?.1.is_some())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,11 +347,11 @@ mod tests {
         let entry = &first.folders[0];
         assert_eq!(entry.status, "ready");
         for file in [
-            ".my-knowledge/mogledge-folder.json",
-            ".my-knowledge/html-authoring/GUIDE.md",
-            ".my-knowledge/html-authoring/template.html",
-            ".agents/skills/my-knowledge-html-authoring/SKILL.md",
-            ".claude/skills/my-knowledge-html-authoring/SKILL.md",
+            ".mogledge/mogledge-folder.json",
+            ".mogledge/html-authoring/GUIDE.md",
+            ".mogledge/html-authoring/template.html",
+            ".agents/skills/mogledge-html-authoring/SKILL.md",
+            ".claude/skills/mogledge-html-authoring/SKILL.md",
         ] {
             assert!(path.join(file).is_file(), "{file}");
         }
@@ -398,20 +394,20 @@ mod tests {
         let (roots, _profile, core) = fixture();
         let path = roots.path().join("existing");
         std::fs::create_dir(&path).unwrap();
-        std::fs::create_dir_all(path.join(".agents/skills/my-knowledge-html-authoring")).unwrap();
+        std::fs::create_dir_all(path.join(".agents/skills/mogledge-html-authoring")).unwrap();
         for (leaf, value) in [
             ("AGENTS.md", "user agents"),
             ("CLAUDE.md", "user claude"),
             ("document.html", "user HTML"),
             (
-                ".agents/skills/my-knowledge-html-authoring/SKILL.md",
+                ".agents/skills/mogledge-html-authoring/SKILL.md",
                 "custom skill",
             ),
         ] {
             std::fs::write(path.join(leaf), value).unwrap();
         }
         assert!(register(&core, &path, None, "none").is_err());
-        assert!(!path.join(".my-knowledge").exists());
+        assert!(!path.join(".mogledge").exists());
         assert_eq!(list(&core).unwrap().folders.len(), 0);
         assert!(register(&core, roots.path(), Some("stale"), "old revision").is_err());
         assert!(!roots.path().join("stale").exists());
@@ -420,12 +416,54 @@ mod tests {
             "user agents"
         );
         assert_eq!(
-            std::fs::read_to_string(
-                path.join(".agents/skills/my-knowledge-html-authoring/SKILL.md")
-            )
-            .unwrap(),
+            std::fs::read_to_string(path.join(".agents/skills/mogledge-html-authoring/SKILL.md"))
+                .unwrap(),
             "custom skill"
         );
+    }
+    #[test]
+    fn empty_registry_is_onboarding_while_missing_registered_folder_is_recovery() {
+        let (roots, profile, core) = fixture();
+        core.restore().unwrap();
+        assert!(core.snapshot().startup_recovery.is_none());
+        assert!(!profile.path().join(FILE).exists());
+        let settings = serde_json::to_vec(&serde_json::json!({
+            "knowledgeRoot": roots.path().join("legacy missing"), "keep":"user setting"
+        }))
+        .unwrap();
+        std::fs::write(core.settings_path.get().unwrap(), &settings).unwrap();
+        core.restore().unwrap();
+        assert!(core.snapshot().startup_recovery.is_none());
+        let folders = register(&core, roots.path(), Some("dedicated"), "none").unwrap();
+        let id = folders.folders[0].id.clone();
+        select(&core, &id, &folders.revision).unwrap();
+        core.watcher.lock().unwrap().take();
+        let selected = list(&core).unwrap();
+        unregister(&core, &id, &selected.revision).unwrap();
+        let retained = std::fs::read(core.settings_path.get().unwrap()).unwrap();
+        core.restore().unwrap();
+        assert!(core.snapshot().startup_recovery.is_none());
+        assert!(core.snapshot().workspace_id.is_none());
+        assert_eq!(
+            std::fs::read(core.settings_path.get().unwrap()).unwrap(),
+            retained
+        );
+        let folders = list(&core).unwrap();
+        let added = register(
+            &core,
+            &roots.path().join("dedicated"),
+            None,
+            &folders.revision,
+        )
+        .unwrap();
+        select(&core, &id, &added.revision).unwrap();
+        let selected = list(&core).unwrap();
+        clear_locked(&core);
+        std::fs::rename(roots.path().join("dedicated"), roots.path().join("moved")).unwrap();
+        core.restore().unwrap();
+        assert!(core.snapshot().workspace_id.is_none());
+        assert!(core.snapshot().startup_recovery.as_ref().unwrap().can_retry);
+        assert_eq!(list(&core).unwrap().selected_id, selected.selected_id);
     }
     #[test]
     fn fresh_config_directory_can_list_without_writes_then_register() {

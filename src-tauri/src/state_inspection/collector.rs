@@ -177,7 +177,7 @@ impl ConnectedRoot {
                 result.complete = false;
                 continue;
             };
-            if matches!(name, ".my-knowledge" | ".agents" | ".claude") {
+            if matches!(name, ".mogledge" | ".my-knowledge" | ".agents" | ".claude") {
                 continue;
             }
             let path = if relative.is_empty() {

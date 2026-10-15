@@ -8,8 +8,8 @@ import { join } from "node:path";
 // This developer generator only touches the four bundled app resources. It
 // never accepts a user workspace path or installs skills into an author's root.
 const repo = new URL("../", import.meta.url);
-const asset = new URL(".agents/skills/my-knowledge-html/assets/", repo);
-const source = new URL(".agents/skills/my-knowledge-html/kit/", repo);
+const asset = new URL(".agents/skills/mogledge-html/assets/", repo);
+const source = new URL(".agents/skills/mogledge-html/kit/", repo);
 const output = new URL("src-tauri/html-authoring-kit/", repo);
 if (process.argv.length !== 2) throw new Error("Usage: node scripts/build-html-authoring-kit.mjs");
 await mkdir(output, { recursive: true });
@@ -23,7 +23,7 @@ const [adapter, exportAdapter, template, api, exportApi, guide, skill] = await P
   readFile(new URL("guide.md", source), "utf8"),
   readFile(new URL("skill.md", source), "utf8"),
 ]);
-const provenance = `<!-- Generated kitVersion=2 storageAPI=1 adapterSHA256=${hash(adapter)} canonicalTemplateSHA256=${hash(template)} apiSpecSHA256=${hash(api)} exportAPI=1 exportAdapterSHA256=${hash(exportAdapter)} exportApiSpecSHA256=${hash(exportApi)} -->`;
+const provenance = `<!-- Generated kitVersion=3 storageAPI=1 adapterSHA256=${hash(adapter)} canonicalTemplateSHA256=${hash(template)} apiSpecSHA256=${hash(api)} exportAPI=1 exportAdapterSHA256=${hash(exportAdapter)} exportApiSpecSHA256=${hash(exportApi)} -->`;
 for (const [file, content] of [
   ["guide.md", guide],
   ["codex-skill.md", skill],

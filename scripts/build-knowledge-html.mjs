@@ -36,7 +36,7 @@ if (!sourcePath || !outputPath || process.argv.length !== 4) {
   console.error("Usage: node scripts/build-knowledge-html.mjs <source.json> <output.html>");
   process.exitCode = 1;
 } else {
-  const assets = new URL("../.agents/skills/my-knowledge-html/assets/", import.meta.url);
+  const assets = new URL("../.agents/skills/mogledge-html/assets/", import.meta.url);
   const [sourceText, template, adapter, exportAdapter] = await Promise.all([
     readFile(resolve(sourcePath), "utf8"),
     readFile(fileURLToPath(new URL("template.html", assets)), "utf8"),

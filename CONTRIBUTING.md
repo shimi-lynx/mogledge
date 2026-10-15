@@ -8,7 +8,7 @@ Start from current main and inspect related merged changes before implementing a
 - [Architecture](docs/architecture.md) and [security](docs/security.md): existing responsibility and trust boundaries.
 - [Testing](docs/testing.md): select checks for the change and distinguish mock, browser and Native results.
 - [PR workflow](docs/pr-workflow.md): acceptance criteria, versioning and permitted merge scope.
-- [HTML authoring](.agents/skills/my-knowledge-html/SKILL.md): canonical storage and export adapters.
+- [HTML authoring](.agents/skills/mogledge-html/SKILL.md): canonical storage and export adapters.
 
 Use English for public documentation, comments added to templates and PR/issue descriptions. Preserve Japanese UI resources, Japanese help, test inputs and user content. Do not translate technical identifiers, filenames supplied by users, or upstream copyright and license text.
 

@@ -50,7 +50,7 @@ test("new independent outputs receive fresh v4 UUIDs; regeneration preserves ide
   assert.match(updated, /<title>Updated document<\/title>/);
   for (const name of ["generated", "converted"]) {
     const sample = JSON.parse(
-      await readFile(`.agents/skills/my-knowledge-html/assets/${name}-sample.json`, "utf8"),
+      await readFile(`.agents/skills/mogledge-html/assets/${name}-sample.json`, "utf8"),
     );
     assert.equal(sample.documentId, undefined, "Samples must not reuse one fixed document UUID");
   }

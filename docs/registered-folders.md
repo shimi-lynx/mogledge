@@ -2,9 +2,11 @@
 
 From 0.9.0, the root selector opens only folders registered through **Settings → Dedicated folders**. Create a new folder beneath a selected parent, or register an existing folder without moving its HTML. Multiple dedicated folders can be registered. A missing or moved folder stays in the list and does not stop startup. Re-register a moved folder at its new location; its marker must match and the former location must be unavailable.
 
+With no registered folders, including after unregistering the last one, startup shows the ordinary create/register onboarding. Retained legacy root settings do not produce a saved-folder warning. A selected registered folder that becomes unavailable keeps its warning and retry action.
+
 ## Setup and ownership
 
-Registration places a complete template, guide, Codex Skill, Claude Skill, and `.my-knowledge/mogledge-folder.json` management marker. The marker contains a folder UUID for registration only; it is never part of an HTML saved-input key. The profile records the folder list and selected entry separately from user content.
+Registration places a complete template, guide, Codex Skill, Claude Skill, and `.mogledge/mogledge-folder.json` management marker. The marker contains a folder UUID for registration only; it is never part of an HTML saved-input key. The profile records the folder list and selected entry separately from user content.
 
 Setup preflights all reserved destinations. Existing `AGENTS.md`, `AGENTS.local.md`, `CLAUDE.md`, unrelated Skills and HTML remain untouched. An unowned collision blocks registration rather than being adopted or overwritten. Cancelling the Native picker performs no setup. Interrupted setup remains incomplete; already placed owned material can be checked on retry. Registration is reported complete only after all required resources and the marker are present and the profile list is saved.
 
@@ -12,9 +14,13 @@ Unregister removes only the list entry. It retains the folder, HTML, kit, saved-
 
 ## Kit updates and AI handoff
 
-Selection and AI handoff compare the selected folder's installed version, ownership manifest and file hashes with the bundled kit. Unmodified app-owned old files are backed up beneath `.my-knowledge/html-authoring/backups/` before replacement. The manifest advances only after all new outputs are verified. A failed replacement preserves the backup and attempts to roll back completed replacements without overwriting intervening edits. A locked or incomplete rollback is an update failure, not a current kit.
+Selection and AI handoff compare the selected folder's installed version, ownership manifest and file hashes with the bundled kit. Unmodified app-owned old files are backed up beneath `.mogledge/html-authoring/backups/` before replacement. The manifest advances only after all new outputs are verified. A failed replacement preserves the backup and attempts to roll back completed replacements without overwriting intervening edits. A locked or incomplete rollback is an update failure, not a current kit.
 
 Edited, unowned or conflicting outputs are retained and shown as needing attention. Other unmodified owned resources can still update; the manifest does not claim the whole kit is current. AI handoff requires the latest verified guide, so an edited outdated guide blocks handoff until reconciled. Updates never edit HTML or the DB. There are no background updates across every registered folder and no network downloads.
+
+Kit version 3 uses `.mogledge` and the installed `mogledge-html-authoring` Skill. Older `.my-knowledge` guides, manifests, backups and `my-knowledge-html-authoring` Skills stay intact, including user edits. The new canonical resources are installed separately. A legacy management marker is read for compatibility; its same folder UUID is copied to the canonical marker only after the new kit verifies. Conflicting canonical resources block setup without being overwritten, and inconsistent old/new markers fail closed. A failed or interrupted setup can retry without deleting the legacy resources. Explicitly direct existing AI sessions to the canonical guide and Skill; retained old Skills may still be discoverable.
+
+Saved-input keys, browser storage keys, API globals/protocols, installed executable names and profile identifiers retain their compatibility names. These internal names do not select a new saved-data namespace.
 
 AI handoff includes an instruction to read the latest verified guide by default, including a folder handoff with no extra request. This cannot guarantee that an existing AI conversation discards cached instructions. The app validates document IDs independently of whether an AI tool follows its Skill. See the [authoring kit](html-authoring-kit.md).
 

@@ -676,22 +676,22 @@ export function App() {
                 controller.mutateTree({ kind: "trash", source, revision })
               }
             />
-            {!state.snapshot.workspaceId && sidebarView === "files" && (
-              <div className="onboarding">
-                <p>{t("AIやエディタで作成したHTMLを、ひとつの場所に。")}</p>
-                <button
-                  className="primary-button"
-                  onClick={openRegisteredFolderSettings}
-                  disabled={state.loading || state.actionBusy}
-                >
-                  {t("Mogledge 専用フォルダーを管理")}
-                </button>
-                <p className="hint">{t("ファイルは元の場所に保存されます。")}</p>
-                {!state.snapshot.startupRecovery && (
-                  <StorageIdentityAction platform={chrome.platform} />
-                )}
-              </div>
-            )}
+            {!state.loading &&
+              !state.snapshot.workspaceId &&
+              !state.snapshot.startupRecovery &&
+              sidebarView === "files" && (
+                <div className="onboarding">
+                  <p>{t("Mogledge専用フォルダーを作成して始めましょう")}</p>
+                  <button
+                    className="primary-button"
+                    onClick={openRegisteredFolderSettings}
+                    disabled={state.loading || state.actionBusy}
+                  >
+                    {t("専用フォルダーを作成・登録")}
+                  </button>
+                  <p className="hint">{t("新しく作成するか、既存のフォルダーを登録できます。")}</p>
+                </div>
+              )}
           </div>
           {state.snapshot.startupRecovery && !state.snapshot.workspaceId && (
             <StartupRecoveryNotice

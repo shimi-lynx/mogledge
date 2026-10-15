@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
 const source = await readFile(
-  new URL("../../.agents/skills/my-knowledge-html/assets/storage.js", import.meta.url),
+  new URL("../../.agents/skills/mogledge-html/assets/storage.js", import.meta.url),
   "utf8",
 );
 function setup(overrides = {}) {

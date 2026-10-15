@@ -1,4 +1,8 @@
 export const managedFolderMessages: Readonly<Record<string, string>> = {
+  Mogledge専用フォルダーを作成して始めましょう: "Create a Mogledge folder to get started",
+  "専用フォルダーを作成・登録": "Create or register a Mogledge folder",
+  "新しく作成するか、既存のフォルダーを登録できます。":
+    "Create a new folder or register an existing folder.",
   "専用フォルダーには、保存 API のガイド・HTML テンプレート・Codex / Claude Skills が必要です。配置内容を確認できます。":
     "Mogledge folders require the storage API guide, HTML template and Codex / Claude Skills. Review their installed files here.",
   "AI に渡す依頼には、専用フォルダーの制作ガイドを読む指示を必ず付けます。":

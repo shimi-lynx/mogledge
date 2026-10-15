@@ -30,17 +30,19 @@ Keep one managed previous-app generation in a rollback location outside the acti
 
 The product identifier remains `com.shimilynx.myknowledge`. Windows normally uses `%APPDATA%` for configuration and `%LOCALAPPDATA%` for local data; macOS uses Application Support. Inspect the profile actually selected by startup migration rather than inventing a new location.
 
-| Data                                                                      | Backup scope                                                                                                   |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Root, tree order, favorites/recent, workspace sets and number assignments | Entire active config profile, including `settings.json` and root-specific `workspace-settings`                 |
-| Residency and authoring preferences                                       | `resident.json` and `html-authoring-settings`; OS startup registration is separate                             |
-| Saved HTML inputs                                                         | Entire `document-state` directory and related database files after normal exit                                 |
-| Migrated profile                                                          | Entire `identifier-migration-v1` bundle, including config, document-state and migration metadata               |
-| Language and WebView-side preferences                                     | Existing identifier and WebView profile; backing up only Native SQLite does not cover DOM storage              |
-| HTML, assets and local instructions                                       | Actual user-selected locations, independent of the application                                                 |
-| Installed authoring kit                                                   | `.my-knowledge/html-authoring` and relevant `.agents/skills` / `.claude/skills`, including ownership manifests |
+| Data                                                                      | Backup scope                                                                                               |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Root, tree order, favorites/recent, workspace sets and number assignments | Entire active config profile, including `settings.json` and root-specific `workspace-settings`             |
+| Residency and authoring preferences                                       | `resident.json` and `html-authoring-settings`; OS startup registration is separate                         |
+| Saved HTML inputs                                                         | Entire `document-state` directory and related database files after normal exit                             |
+| Migrated profile                                                          | Entire `identifier-migration-v1` bundle, including config, document-state and migration metadata           |
+| Language and WebView-side preferences                                     | Existing identifier and WebView profile; backing up only Native SQLite does not cover DOM storage          |
+| HTML, assets and local instructions                                       | Actual user-selected locations, independent of the application                                             |
+| Installed authoring kit                                                   | `.mogledge/html-authoring` and relevant `.agents/skills` / `.claude/skills`, including ownership manifests |
 
 Migrated settings can reside at `identifier-migration-v1/config/settings.json`; do not move them back to a guessed profile location. Search indexes are rebuildable, but do not delete their containing persistent profile or migration leases/journals. See [data management](data-management.md) and [identifier migration](identifier-migration.md).
+
+Preserve any legacy `.my-knowledge` directory and `my-knowledge-html-authoring` Skills alongside the canonical kit. They may contain customized instructions and recoverable ownership records. Updating to `.mogledge` does not rename or delete those originals; see [dedicated-folder compatibility](registered-folders.md#kit-updates-and-ai-handoff).
 
 ## Obtain and verify the target
 

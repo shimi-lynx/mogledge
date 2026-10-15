@@ -14,7 +14,7 @@ Files are the source of truth. Rust owns guarded filesystem access, configuratio
 | Search                        | `src-tauri/src/index/`: derived SQLite index, static extraction, query/status/read-only CLI                                                   |
 | Saved document input          | `src-tauri/src/document_state.rs`, `document_state/` and management/transfer modules: independent persistent JSON state and explicit recovery |
 | Residency                     | `src-tauri/src/resident.rs` and `resident/`: tray, recall and user-controlled OS login registration                                           |
-| Authoring kit                 | `.agents/skills/my-knowledge-html/` → generator → `src-tauri/html-authoring-kit/`                                                             |
+| Authoring kit                 | `.agents/skills/mogledge-html/` → generator → `src-tauri/html-authoring-kit/`                                                                 |
 
 The source path is an implementation map, not permission to bypass the existing API. Check actual types and tests before changing a contract.
 

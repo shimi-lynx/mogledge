@@ -14,23 +14,27 @@ use std::{
     time::{Duration, Instant},
 };
 
-const VERSION: u8 = 2;
+const VERSION: u8 = 3;
 const LIMIT: usize = 512 * 1024;
 const PREF_LIMIT: usize = 64 * 1024;
-const MANIFEST: &str = ".my-knowledge/html-authoring/manifest.json";
-const GUIDE: &str = ".my-knowledge/html-authoring/GUIDE.md";
+const MANIFEST: &str = ".mogledge/html-authoring/manifest.json";
+const GUIDE: &str = ".mogledge/html-authoring/GUIDE.md";
+const MARKER: &str = ".mogledge/mogledge-folder.json";
+// Old kit resources remain in place, including customized Skills and guides.
+// Only the folder marker is read for compatibility; no old file is adopted.
+const LEGACY_MARKER: &str = ".my-knowledge/mogledge-folder.json";
 const CONTENTS: [(&str, &[u8]); 4] = [
     (GUIDE, include_bytes!("../html-authoring-kit/guide.md")),
     (
-        ".my-knowledge/html-authoring/template.html",
+        ".mogledge/html-authoring/template.html",
         include_bytes!("../html-authoring-kit/template.html"),
     ),
     (
-        ".agents/skills/my-knowledge-html-authoring/SKILL.md",
+        ".agents/skills/mogledge-html-authoring/SKILL.md",
         include_bytes!("../html-authoring-kit/codex-skill.md"),
     ),
     (
-        ".claude/skills/my-knowledge-html-authoring/SKILL.md",
+        ".claude/skills/mogledge-html-authoring/SKILL.md",
         include_bytes!("../html-authoring-kit/claude-skill.md"),
     ),
 ];
@@ -256,7 +260,7 @@ fn manifest(root: &Root) -> Result<(Option<Manifest>, Option<String>), String> {
         .map_err(|_| "制作キットの所有記録を読み取れません。元の内容を保持します")?;
     let mut seen = std::collections::HashSet::new();
     if !(1..=VERSION).contains(&value.version)
-        || value.owner != "my-knowledge-html-authoring-kit"
+        || value.owner != "mogledge-html-authoring-kit"
         || value.root_identity != root.identity
         || value.files.len() > CONTENTS.len()
         || value.files.iter().any(|entry| {
@@ -457,6 +461,7 @@ pub(crate) fn reconcile(
     update: bool,
 ) -> Result<&'static str, String> {
     let root = Root::open(path, dir)?;
+    let (marker, migrate_marker) = markers(&root)?;
     let (owner, manifest_hash) = manifest(&root)?;
     let mut previous = Vec::new();
     let mut conflicts = Vec::new();
@@ -484,6 +489,16 @@ pub(crate) fn reconcile(
             .as_ref()
             .is_none_or(|value| value.version != VERSION || value.files.len() != CONTENTS.len());
     if !changed {
+        if !blocked && migrate_marker {
+            if !update {
+                return Ok("available");
+            }
+            write_new(
+                &root,
+                MARKER,
+                &serde_json::to_vec_pretty(&marker.unwrap()).unwrap(),
+            )?;
+        }
         return Ok(if blocked { "blocked" } else { "current" });
     }
     if !update {
@@ -495,7 +510,7 @@ pub(crate) fn reconcile(
         } else {
             VERSION
         },
-        owner: "my-knowledge-html-authoring-kit".into(),
+        owner: "mogledge-html-authoring-kit".into(),
         root_identity: root.identity.clone(),
         files: CONTENTS
             .iter()
@@ -518,7 +533,7 @@ pub(crate) fn reconcile(
     let manifest_bytes =
         serde_json::to_vec_pretty(&next).map_err(|_| "所有記録を作成できません")?;
     let backup = format!(
-        ".my-knowledge/html-authoring/backups/{}",
+        ".mogledge/html-authoring/backups/{}",
         crate::core::random_token()
     );
     if let Some(bytes) = read(&root, MANIFEST, PREF_LIMIT)? {
@@ -566,20 +581,51 @@ pub(crate) fn reconcile(
         }
     }
     result?;
+    // Publish the canonical marker only after the complete new kit verifies.
+    // The old marker and every legacy byte remain available on failure/retry.
+    if !blocked && migrate_marker {
+        write_new(
+            &root,
+            MARKER,
+            &serde_json::to_vec_pretty(&marker.unwrap()).unwrap(),
+        )?;
+    }
     Ok(if blocked { "blocked" } else { "current" })
 }
 
+fn markers(root: &Root) -> Result<(Option<serde_json::Value>, bool), String> {
+    let parse = |path| -> Result<Option<serde_json::Value>, String> {
+        let Some(bytes) = read(root, path, PREF_LIMIT)? else {
+            return Ok(None);
+        };
+        let value: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|_| "専用フォルダーの識別情報が壊れています")?;
+        if value.get("version").and_then(|v| v.as_u64()) != Some(1)
+            || value.get("kind").and_then(|v| v.as_str()) != Some("mogledge-managed-folder")
+            || value
+                .get("id")
+                .and_then(|v| v.as_str())
+                .and_then(crate::document_identity::normalize_uuid)
+                .is_none()
+        {
+            return Err("専用フォルダーの識別情報が無効です".into());
+        }
+        Ok(Some(value))
+    };
+    let canonical = parse(MARKER)?;
+    let legacy = parse(LEGACY_MARKER)?;
+    if canonical.is_some() && legacy.is_some() && canonical != legacy {
+        return Err("新旧の専用フォルダー識別情報が一致しません。既存内容を保持しました".into());
+    }
+    let migrate = canonical.is_none() && legacy.is_some();
+    Ok((canonical.or(legacy), migrate))
+}
 pub(crate) fn managed_marker(
     path: PathBuf,
     dir: Arc<Dir>,
 ) -> Result<Option<serde_json::Value>, String> {
     let root = Root::open(path, dir)?;
-    read(&root, ".my-knowledge/mogledge-folder.json", PREF_LIMIT)?
-        .map(|bytes| {
-            serde_json::from_slice(&bytes)
-                .map_err(|_| "専用フォルダーの識別情報が壊れています".into())
-        })
-        .transpose()
+    Ok(markers(&root)?.0)
 }
 pub(crate) fn install_managed_marker(
     path: PathBuf,
@@ -589,7 +635,7 @@ pub(crate) fn install_managed_marker(
     let root = Root::open(path, dir)?;
     write_new(
         &root,
-        ".my-knowledge/mogledge-folder.json",
+        MARKER,
         &serde_json::to_vec_pretty(value).map_err(|_| "識別情報を作成できません")?,
     )
 }
@@ -643,7 +689,7 @@ fn install_before_file(
     if plan.manifest_hash.is_none() {
         let manifest = Manifest {
             version: VERSION,
-            owner: "my-knowledge-html-authoring-kit".into(),
+            owner: "mogledge-html-authoring-kit".into(),
             root_identity: root.identity.clone(),
             files: plan.owned,
         };
@@ -804,6 +850,92 @@ fn state_root(core: &Core) -> Result<PathBuf, String> {
 mod tests {
     use super::*;
     use std::fs;
+    #[test]
+    fn legacy_layout_preserves_custom_files_and_folder_identity_with_retry() {
+        let f = fixture();
+        let marker = serde_json::json!({"version":1,"kind":"mogledge-managed-folder",
+            "id":"4adb6f92-376a-4aef-b8ae-bd69343a6316"});
+        for (path, bytes) in [
+            (LEGACY_MARKER, serde_json::to_vec(&marker).unwrap()),
+            (
+                ".my-knowledge/html-authoring/GUIDE.md",
+                b"edited old guide".to_vec(),
+            ),
+            (
+                ".my-knowledge/html-authoring/manifest.json",
+                b"legacy ownership retained".to_vec(),
+            ),
+            (
+                ".agents/skills/my-knowledge-html-authoring/SKILL.md",
+                b"edited old skill".to_vec(),
+            ),
+            ("AGENTS.md", b"user instructions".to_vec()),
+            ("user.html", b"original HTML".to_vec()),
+        ] {
+            fs::create_dir_all(f.root.path().join(path).parent().unwrap()).unwrap();
+            fs::write(f.root.path().join(path), bytes).unwrap();
+        }
+        let (path, dir) = knowledge::open_root(f.root.path()).unwrap();
+        assert_eq!(
+            managed_marker(path.clone(), dir.clone()).unwrap(),
+            Some(marker.clone())
+        );
+        assert_eq!(
+            reconcile(path.clone(), dir.clone(), false).unwrap(),
+            "available"
+        );
+        assert!(!f.root.path().join(".mogledge").exists());
+        // A canonical user collision prevents every migration write.
+        fs::create_dir_all(f.root.path().join(parent_leaf(GUIDE).0)).unwrap();
+        fs::write(f.root.path().join(GUIDE), "canonical user file").unwrap();
+        assert_eq!(
+            reconcile(path.clone(), dir.clone(), true).unwrap(),
+            "blocked"
+        );
+        assert!(!f.root.path().join(MARKER).exists());
+        assert!(!f.root.path().join(MANIFEST).exists());
+        fs::remove_file(f.root.path().join(GUIDE)).unwrap();
+        assert_eq!(
+            reconcile(path.clone(), dir.clone(), true).unwrap(),
+            "current"
+        );
+        for (old, expected) in [
+            (".my-knowledge/html-authoring/GUIDE.md", "edited old guide"),
+            (
+                ".my-knowledge/html-authoring/manifest.json",
+                "legacy ownership retained",
+            ),
+            (
+                ".agents/skills/my-knowledge-html-authoring/SKILL.md",
+                "edited old skill",
+            ),
+            ("AGENTS.md", "user instructions"),
+            ("user.html", "original HTML"),
+        ] {
+            assert_eq!(
+                fs::read_to_string(f.root.path().join(old)).unwrap(),
+                expected
+            );
+        }
+        assert_eq!(
+            managed_marker(path.clone(), dir.clone()).unwrap(),
+            Some(marker)
+        );
+        assert_eq!(
+            reconcile(path.clone(), dir.clone(), true).unwrap(),
+            "current"
+        );
+        // Inconsistent old/new identities fail closed rather than rotate IDs.
+        let other = serde_json::json!({"version":1,"kind":"mogledge-managed-folder",
+            "id":"716b0397-b917-4155-ad07-fc118a31ee87"});
+        fs::write(
+            f.root.path().join(MARKER),
+            serde_json::to_vec(&other).unwrap(),
+        )
+        .unwrap();
+        assert!(managed_marker(path.clone(), dir.clone()).is_err());
+        assert!(reconcile(path, dir, true).is_err());
+    }
     fn old_kit(f: &Fixture) -> Vec<Vec<u8>> {
         reconcile(
             f.root.path().to_path_buf(),
@@ -823,7 +955,7 @@ mod tests {
         .unwrap();
         let manifest = Manifest {
             version: 1,
-            owner: "my-knowledge-html-authoring-kit".into(),
+            owner: "mogledge-html-authoring-kit".into(),
             root_identity: root.identity,
             files: CONTENTS
                 .iter()
@@ -857,11 +989,10 @@ mod tests {
             reconcile(path.clone(), dir.clone(), true).unwrap(),
             "current"
         );
-        let backups: Vec<_> =
-            fs::read_dir(f.root.path().join(".my-knowledge/html-authoring/backups"))
-                .unwrap()
-                .filter_map(Result::ok)
-                .collect();
+        let backups: Vec<_> = fs::read_dir(f.root.path().join(".mogledge/html-authoring/backups"))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
         let backup = backups
             .iter()
             .find(|entry| entry.path().join("manifest.json").exists())
@@ -961,12 +1092,7 @@ mod tests {
         fs::write(f.root.path().join("AGENTS.md"), "user agents").unwrap();
         fs::write(f.root.path().join("AGENTS.local.md"), "user local").unwrap();
         fs::write(f.root.path().join("CLAUDE.md"), "user claude").unwrap();
-        fs::create_dir_all(
-            f.root
-                .path()
-                .join(".agents/skills/my-knowledge-html-authoring"),
-        )
-        .unwrap();
+        fs::create_dir_all(f.root.path().join(".agents/skills/mogledge-html-authoring")).unwrap();
         fs::write(f.root.path().join(CONTENTS[2].0), "custom skill").unwrap();
         let plan = preview(&f.core, &f.context).unwrap();
         assert_eq!(plan.files[2].action, "conflict");
@@ -1029,7 +1155,7 @@ mod tests {
     fn changes_after_preview_are_rejected_before_claiming_ownership() {
         let f = fixture();
         let plan = preview(&f.core, &f.context).unwrap();
-        fs::create_dir_all(f.root.path().join(".my-knowledge/html-authoring")).unwrap();
+        fs::create_dir_all(f.root.path().join(".mogledge/html-authoring")).unwrap();
         fs::write(f.root.path().join(GUIDE), "new user guide").unwrap();
         assert!(install(&f.core, &f.context, &plan.plan_id).is_err());
         assert!(!f.root.path().join(MANIFEST).exists());
@@ -1170,7 +1296,7 @@ mod tests {
     fn absent_guide_preferences_leave_existing_ai_handoff_and_unrelated_kit_bytes_untouched() {
         use crate::ai_handoff::{self, Context as AiContext, RootContext, RootTarget};
         let f = fixture();
-        fs::create_dir_all(f.root.path().join(".my-knowledge/html-authoring")).unwrap();
+        fs::create_dir_all(f.root.path().join(".mogledge/html-authoring")).unwrap();
         fs::write(f.root.path().join(MANIFEST), b"unrelated existing bytes").unwrap();
         let context = AiContext::Root(RootContext {
             workspace_id: f.context.workspace_id.clone(),
@@ -1210,7 +1336,7 @@ mod tests {
             .guide_instruction
             .as_ref()
             .unwrap()
-            .contains("`.my-knowledge/html-authoring/GUIDE.md`"));
+            .contains("`.mogledge/html-authoring/GUIDE.md`"));
         let raw = " 日本語 / path / $& \n\t ";
         let request = Request {
             context: root(),
@@ -1249,7 +1375,7 @@ mod tests {
             .guide_instruction
             .as_ref()
             .unwrap()
-            .contains("../.my-knowledge/"));
+            .contains("../.mogledge/"));
         ai_handoff::perform(
             &f.core,
             &Request {

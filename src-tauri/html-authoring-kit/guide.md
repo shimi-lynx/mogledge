@@ -1,6 +1,6 @@
 # Mogledge HTML authoring guide
 
-Kit version 2 · Document storage API v1 · Artifact export API v1
+Kit version 3 · Document storage API v1 · Artifact export API v1
 
 The adjacent `template.html` is a complete example with saved-input restoration. Copy it to a new output and adapt its inputs, presentation and calculations. Authoring and execution need no Mogledge source repository, npm, external scripts or network assets. These instructions apply only to the requested HTML; the user's existing policies and explicit instructions take precedence.
 
@@ -110,7 +110,7 @@ Use an isolated fixture, not the user's production folder or profile. Record wha
 
 ## Dedicated folders and AI instructions
 
-Mogledge supports multiple explicitly registered dedicated folders. Creating a dedicated folder or registering an existing one requires this guide, the complete template, both project-local Codex and Claude Code skills, and the app's `.my-knowledge/mogledge-folder.json` management marker (`version: 1`, a folder UUID `id`, and `kind: "mogledge-managed-folder"`). The kit ownership manifest is separate at `.my-knowledge/html-authoring/manifest.json`. Cancellation, conflicts or partial setup do not complete registration. Existing AGENTS.md, AGENTS.local.md, CLAUDE.md, other skills, HTML and assets are preserved; resolve conflicts explicitly without overwriting originals. An ordinary app build does not register folders or authorize writes into a user's folder. Use the main app's managed registration actions, not ad hoc copying over existing instructions.
+Mogledge supports multiple explicitly registered dedicated folders. Creating a dedicated folder or registering an existing one requires this guide, the complete template, both project-local Codex and Claude Code skills, and the app's `.mogledge/mogledge-folder.json` management marker (`version: 1`, a folder UUID `id`, and `kind: "mogledge-managed-folder"`). The kit ownership manifest is separate at `.mogledge/html-authoring/manifest.json`. Cancellation, conflicts or partial setup do not complete registration. Existing AGENTS.md, AGENTS.local.md, CLAUDE.md, other skills, HTML and assets are preserved; resolve conflicts explicitly without overwriting originals. An ordinary app build does not register folders or authorize writes into a user's folder. Use the main app's managed registration actions, not ad hoc copying over existing instructions.
 
 AI handoff drafts include an instruction to read this guide by default. Start the AI in the same dedicated folder. If automatic skill discovery is unavailable, explicitly name the installed SKILL.md and guide; no global installation or agent configuration change is necessary. File placement does not prove an AI has loaded the instructions. Handoffs are unsent drafts and do not automatically attach file contents or send data to an AI service.
 
@@ -122,6 +122,8 @@ The main app checks this selected dedicated folder's installed kit version and o
 
 Kit updates change only managed guide/template/Skill resources and their ownership records. They must not modify the user's HTML or saved-input database. Read the latest installed guide when starting or resuming authoring. An already running AI conversation may cache older instructions; updating files does not automatically refresh that conversation, so explicitly ask it to reread the guide and Skill.
 
+Legacy `.my-knowledge` resources and `my-knowledge-html-authoring` skills are compatibility paths only. Canonical resources use `.mogledge` and `mogledge-html-authoring`. Preserve edited legacy guides and skills at their existing paths; install the new canonical resources separately rather than overwriting those originals. Canonical edited/unowned conflicts are still preserved and reported. An old skill path does not make a new guide current: explicitly read the canonical guide and Skill after migration.
+
 ## Discovery references
 
 Codex's official skill roots implementation scans project `.agents/skills` folders; Claude Code documents `.claude/skills/<name>/SKILL.md` for project skills. Both installed entries use YAML `name` and `description` plus Markdown instructions. Policies, versions and the AI's current folder affect discovery; explicit reading is the fallback.
@@ -130,4 +132,4 @@ Codex's official skill roots implementation scans project `.agents/skills` folde
 - [Codex skills documentation](https://developers.openai.com/codex/skills/)
 - [Claude Code skills documentation](https://code.claude.com/docs/en/skills)
 
-<!-- Generated kitVersion=2 storageAPI=1 adapterSHA256=003ee32cb366f035c37671786e44fba9419d4f19e94838ef3e4f77d36d8c4a6c canonicalTemplateSHA256=f8fb038fd52f9ec8d4dcbdfc9b7d0298832d49b8ea32d7698f6e2574c59bf901 apiSpecSHA256=12a06ebcad0717ec26ac4c62793328884e925dea4d4afe85143536f9be5033d7 exportAPI=1 exportAdapterSHA256=25f6f49f857ecba33873ec6b85c4d6b5296f227270029a7a668738dbc578eed7 exportApiSpecSHA256=3c361fdda4e90bf9d6b3ece7bbb2feb2ea2c1152ff6386e1d8a0e8be4ea43ee7 -->
+<!-- Generated kitVersion=3 storageAPI=1 adapterSHA256=003ee32cb366f035c37671786e44fba9419d4f19e94838ef3e4f77d36d8c4a6c canonicalTemplateSHA256=f8fb038fd52f9ec8d4dcbdfc9b7d0298832d49b8ea32d7698f6e2574c59bf901 apiSpecSHA256=a61b048fc3f692c7fa38b3c4920877278e79500baac8f1655ead36a2cea6c76b exportAPI=1 exportAdapterSHA256=25f6f49f857ecba33873ec6b85c4d6b5296f227270029a7a668738dbc578eed7 exportApiSpecSHA256=f5ce7175475d77b35d481440c9d78aca991752a26f453d595b6f407ebe26d0a0 -->

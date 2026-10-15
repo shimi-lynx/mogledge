@@ -1,6 +1,6 @@
 # Mogledge HTML authoring guide
 
-Kit version 2 · Document storage API v1 · Artifact export API v1
+Kit version 3 · Document storage API v1 · Artifact export API v1
 
 The adjacent `template.html` is a complete example with saved-input restoration. Copy it to a new output and adapt its inputs, presentation and calculations. Authoring and execution need no Mogledge source repository, npm, external scripts or network assets. These instructions apply only to the requested HTML; the user's existing policies and explicit instructions take precedence.
 
@@ -110,7 +110,7 @@ Use an isolated fixture, not the user's production folder or profile. Record wha
 
 ## Dedicated folders and AI instructions
 
-Mogledge supports multiple explicitly registered dedicated folders. Creating a dedicated folder or registering an existing one requires this guide, the complete template, both project-local Codex and Claude Code skills, and the app's `.my-knowledge/mogledge-folder.json` management marker (`version: 1`, a folder UUID `id`, and `kind: "mogledge-managed-folder"`). The kit ownership manifest is separate at `.my-knowledge/html-authoring/manifest.json`. Cancellation, conflicts or partial setup do not complete registration. Existing AGENTS.md, AGENTS.local.md, CLAUDE.md, other skills, HTML and assets are preserved; resolve conflicts explicitly without overwriting originals. An ordinary app build does not register folders or authorize writes into a user's folder. Use the main app's managed registration actions, not ad hoc copying over existing instructions.
+Mogledge supports multiple explicitly registered dedicated folders. Creating a dedicated folder or registering an existing one requires this guide, the complete template, both project-local Codex and Claude Code skills, and the app's `.mogledge/mogledge-folder.json` management marker (`version: 1`, a folder UUID `id`, and `kind: "mogledge-managed-folder"`). The kit ownership manifest is separate at `.mogledge/html-authoring/manifest.json`. Cancellation, conflicts or partial setup do not complete registration. Existing AGENTS.md, AGENTS.local.md, CLAUDE.md, other skills, HTML and assets are preserved; resolve conflicts explicitly without overwriting originals. An ordinary app build does not register folders or authorize writes into a user's folder. Use the main app's managed registration actions, not ad hoc copying over existing instructions.
 
 AI handoff drafts include an instruction to read this guide by default. Start the AI in the same dedicated folder. If automatic skill discovery is unavailable, explicitly name the installed SKILL.md and guide; no global installation or agent configuration change is necessary. File placement does not prove an AI has loaded the instructions. Handoffs are unsent drafts and do not automatically attach file contents or send data to an AI service.
 
@@ -121,6 +121,8 @@ The dedicated-folder ID is not part of the document storage key. Preserve the HT
 The main app checks this selected dedicated folder's installed kit version and ownership hashes, including before an AI handoff. App-owned, unchanged older kit files receive a recoverable backup before updating to the bundled kit version. Edited or unowned files and other conflicts are preserved and shown as updates available. A write failure retains the prior version and must not be reported as current. This check does not write to every registered folder in the background or fetch files from the network.
 
 Kit updates change only managed guide/template/Skill resources and their ownership records. They must not modify the user's HTML or saved-input database. Read the latest installed guide when starting or resuming authoring. An already running AI conversation may cache older instructions; updating files does not automatically refresh that conversation, so explicitly ask it to reread the guide and Skill.
+
+Legacy `.my-knowledge` resources and `my-knowledge-html-authoring` skills are compatibility paths only. Canonical resources use `.mogledge` and `mogledge-html-authoring`. Preserve edited legacy guides and skills at their existing paths; install the new canonical resources separately rather than overwriting those originals. Canonical edited/unowned conflicts are still preserved and reported. An old skill path does not make a new guide current: explicitly read the canonical guide and Skill after migration.
 
 ## Discovery references
 

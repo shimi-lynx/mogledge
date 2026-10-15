@@ -6,16 +6,16 @@ From 0.9.0, dedicated-folder HTML uses a static `mogledge-document-id` UUID as i
 
 ## Create or convert an HTML
 
-Follow the repository's [HTML authoring skill](../.agents/skills/my-knowledge-html/SKILL.md). Mogledge requires no AI API or external service.
+Follow the repository's [HTML authoring skill](../.agents/skills/mogledge-html/SKILL.md). Mogledge requires no AI API or external service.
 
 ```sh
-node scripts/build-knowledge-html.mjs .agents/skills/my-knowledge-html/assets/generated-sample.json tests/fixtures/knowledge/Storage/Generated.html
-node scripts/build-knowledge-html.mjs .agents/skills/my-knowledge-html/assets/converted-sample.json tests/fixtures/knowledge/Storage/Converted.html
+node scripts/build-knowledge-html.mjs .agents/skills/mogledge-html/assets/generated-sample.json tests/fixtures/knowledge/Storage/Generated.html
+node scripts/build-knowledge-html.mjs .agents/skills/mogledge-html/assets/converted-sample.json tests/fixtures/knowledge/Storage/Converted.html
 ```
 
 The generator accepts JSON with `title`, `body`, `script`, optional `style` and optional `documentId`. It inserts exactly one static `<meta name="mogledge-document-id" content="UUID">`. Explicit `documentId` accepts a canonical hyphenated non-nil UUID and normalizes hex case. When omitted, a new output gets `crypto.randomUUID()` v4; an existing output retains its valid UUID. Existing missing, malformed or multiple IDs and conflicting explicit IDs are refused before writing. Preserve `documentId` explicitly when regenerating an existing logical document to a new output. Choose a fresh ID only for an independent document, and never rotate IDs as a restore-error workaround. It inlines the canonical `assets/storage.js`, `assets/export.js` and `assets/template.html`. Generation uses the repository's Vite+ formatter and installed development dependencies. The resulting file runs outside the repository without npm, sibling scripts or network dependencies. The generator embeds trusted author-supplied HTML/JavaScript; it is not a sanitizer.
 
-`Generated.html` demonstrates number, select and checkbox inputs. `Converted.html` converts the [legacy localStorage calculator](../.agents/skills/my-knowledge-html/assets/legacy-localstorage.html) to asynchronous restore/save. In an ordinary browser, its explicit import button maps the old `legacy-calculator-state` fields `number`/`operation`/`active` to `amount`/`mode`/`enabled`, preserving the old value. Browser state is not automatically imported into Native storage. Transparent compatibility with arbitrary direct localStorage code is outside this API.
+`Generated.html` demonstrates number, select and checkbox inputs. `Converted.html` converts the [legacy localStorage calculator](../.agents/skills/mogledge-html/assets/legacy-localstorage.html) to asynchronous restore/save. In an ordinary browser, its explicit import button maps the old `legacy-calculator-state` fields `number`/`operation`/`active` to `amount`/`mode`/`enabled`, preserving the old value. Browser state is not automatically imported into Native storage. Transparent compatibility with arbitrary direct localStorage code is outside this API.
 
 The canonical JavaScript `appId`/`schemaVersion` API is unchanged and cannot select a document UUID. Native reads the static source metadata. A dedicated-folder ID is not part of the storage key; moving a logical document between registered dedicated folders retains its UUID and input. Preserve it across edits, rename/move, root changes, reboot and atomic replacement. A different file with a copied UUID requires the main app's explicit share-or-new choice; independent documents need new UUIDs. Missing metadata remains viewable but requires an explicit main add-ID action for Native storage; missing, malformed or multiple UUIDs block storage and preserve saved values. Deliberately copied UUIDs can share data within this PC/profile; they are not secrets or protection against approved HTML and do not synchronize across PCs.
 

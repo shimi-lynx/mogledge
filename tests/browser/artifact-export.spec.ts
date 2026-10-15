@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 const token = "a".repeat(64);
-const adapter = readFileSync(".agents/skills/my-knowledge-html/assets/export.js", "utf8");
+const adapter = readFileSync(".agents/skills/mogledge-html/assets/export.js", "utf8");
 const bridge = readFileSync("src-tauri/src/document_server/export.js", "utf8").replace(
   "__MY_KNOWLEDGE_EXPORT_TOKEN__",
   JSON.stringify(token),

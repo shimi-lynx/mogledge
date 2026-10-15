@@ -1,5 +1,5 @@
 ---
-name: my-knowledge-html
+name: mogledge-html
 description: Generate standalone Mogledge HTML with saved input state, or convert existing HTML persistence to the shared asynchronous API. Support ordinary browsers without runtime dependencies.
 ---
 

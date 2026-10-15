@@ -24,8 +24,8 @@ const preview: HtmlAuthoringPreview = {
   readOnly: false,
   error: null,
   files: [
-    { path: ".my-knowledge/html-authoring/GUIDE.md", action: "create" },
-    { path: ".agents/skills/my-knowledge-html-authoring/SKILL.md", action: "conflict" },
+    { path: ".mogledge/html-authoring/GUIDE.md", action: "create" },
+    { path: ".agents/skills/mogledge-html-authoring/SKILL.md", action: "conflict" },
   ],
 };
 function api(): HtmlAuthoringApi {

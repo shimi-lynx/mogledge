@@ -17,7 +17,7 @@
 
 ## HTML authoring
 
-Before creating, changing or converting HTML storage logic, read the [HTML skill](.agents/skills/my-knowledge-html/SKILL.md) and [storage API](docs/document-storage.md). Use canonical adapters and the standalone template. Verify restoration gating and protection against overwriting saved data after restoration failure. This workflow is for externally authored HTML, not app development.
+Before creating, changing or converting HTML storage logic, read the [HTML skill](.agents/skills/mogledge-html/SKILL.md) and [storage API](docs/document-storage.md). Use canonical adapters and the standalone template. Verify restoration gating and protection against overwriting saved data after restoration failure. This workflow is for externally authored HTML, not app development.
 
 ## Build and update an existing app
 

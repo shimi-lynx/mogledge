@@ -633,22 +633,13 @@ impl Core {
         let Some(path) = self.settings_path.get() else {
             return Ok(());
         };
+        // An absent/empty registration list is ordinary onboarding, even if
+        // retained legacy settings mention a root. Never rewrite those settings.
         if let Some(value) =
             crate::root_recovery::read_settings_value(path).map_err(|_| "設定を読み取れません")?
         {
             if value.get("knowledgeRoot").is_some() {
-                let saved = crate::root_recovery::SavedRoot::parse(&value)?;
-                if !crate::managed_folders::has_selected(self)?
-                    && !crate::managed_folders::has_registry(self)?
-                {
-                    let mut state = self.workspace.lock().unwrap();
-                    state.snapshot.startup_recovery = Some(crate::root_recovery::StartupRecovery {
-                        reason: crate::root_recovery::RecoveryReason::ConfirmationRequired,
-                        can_retry: false,
-                    });
-                    *self.saved_startup_root.lock().unwrap() = Some(saved);
-                    return Ok(());
-                }
+                crate::root_recovery::SavedRoot::parse(&value)?;
             }
         }
         crate::managed_folders::restore(self)

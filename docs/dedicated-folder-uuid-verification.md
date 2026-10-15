@@ -22,6 +22,20 @@ cargo test --manifest-path tests/backend/Cargo.toml --test registered_root_displ
 
 Only changed cases are rerun after a failure or further implementation change. All fixtures are disposable; no real HTML, saved-input DB or formal app profile is migrated. Rust jobs and heavy Windows checks are kept sequential, using existing caches.
 
+## Mogledge naming and empty-folder follow-up
+
+The repository Skill is now `.agents/skills/mogledge-html`; installed Skills use `mogledge-html-authoring`. Kit v3 uses `.mogledge`. Legacy resources are preserved separately, including customized guides/Skills, manifests and folder IDs. No saved-input key, DB schema, app identifier or installed executable name changes. The new onboarding distinguishes an empty registration list from an unavailable selected registration.
+
+- `npm run check`: passed (423 formatted files; 234 TypeScript/lint files).
+- Focused React App/guide tests: 7 passed, including Japanese/English empty registration, final unregister and genuine missing-folder behavior.
+- Authoring generator/sample/kit checks: 17 passed before integration; final kit/adapters check: 25 passed after references and provenance regeneration.
+- `html_authoring::tests`: 11 passed, including legacy edited-resource retention, read-only inspection, canonical collision, retry, preserved folder ID, inconsistent markers, and existing locked-write/rollback cases.
+- `managed_folders::tests`: 4 passed, including fresh startup, retained legacy settings, all-unregistered startup and real registered-missing recovery.
+- Root-recovery checks: four unaffected cases passed; the legacy onboarding expectation and invalid-settings validation were corrected and rerun separately. Corrupt settings remain errors without rewrites.
+- Application/backend Clippy and Rust formatting passed after the final Native changes. Existing cached Windows builds use one Rust job.
+
+Native write probes require ordinary local write permissions. A first restricted run failed to publish fixture files; the authorized local rerun passed. No real workspace or saved-input records were changed by those tests. UI mock tests do not establish the real Native onboarding appearance, and automatic AI Skill discovery remains unverified.
+
 ## Native preview and limits
 
 The requested local Windows application preview uses a distinct compiled Tauri identifier, product title and synthetic configuration/local-data profile. Its private artifact manifest records the exact clean build-source SHA, executable hash/version, actual profile paths, launch ownership and validation results. The build is application-only; it does not replace the formal app or run an installer. Preview evidence is reported separately from browser/mock results.

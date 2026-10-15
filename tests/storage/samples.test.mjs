@@ -9,7 +9,7 @@ import { JSDOM } from "jsdom";
 const withoutDocumentId = (html) =>
   html.replace(/(<meta name="mogledge-document-id" content=")[^"]+("\s*\/>)/, "$1UUID$2");
 
-const assets = ".agents/skills/my-knowledge-html/assets/";
+const assets = ".agents/skills/mogledge-html/assets/";
 async function openSample(name, beforeParse = () => {}) {
   const html = await readFile("tests/fixtures/knowledge/Storage/" + name + ".html", "utf8");
   const dom = new JSDOM(html, {

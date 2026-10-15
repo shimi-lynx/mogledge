@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SearchMode } from "./types";
 
+// Preserve saved search preferences across the app rename.
 export const SEARCH_PREFERENCES_KEY = "my-knowledge.search-preferences";
 const MAX_STORAGE_CHARACTERS = 65_536;
 const MAX_ROOTS = 8;
