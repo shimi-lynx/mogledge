@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { collectNotices } from "./notices.mjs";
+import { cargoBuildArguments, writeCiTimings } from "./ci.mjs";
 import {
   assertBinaryPrivacy,
   assertCandidateLayout,
@@ -114,7 +115,7 @@ export async function verifyBundledMaterials(staging, app, platform = "darwin") 
   await compare(path.join(staging, "third-party"), path.join(resources, "third-party"));
 }
 
-export function macUpdaterBuildPlan(target, resources) {
+export function macUpdaterBuildPlan(target, resources, cargoArguments = cargoBuildArguments()) {
   if (!["x86_64-apple-darwin", "aarch64-apple-darwin"].includes(target))
     throw new Error("Updater app preparation requires a Mac target");
   const common = [
@@ -128,7 +129,7 @@ export function macUpdaterBuildPlan(target, resources) {
     JSON.stringify({ bundle: { resources } }),
   ];
   return {
-    build: ["build", ...common, "--no-bundle", "--", "--locked", "--jobs", "1"],
+    build: ["build", ...common, "--no-bundle", "--", ...cargoArguments],
     // Package the existing enrolled binary, keeping OS ad-hoc signing. Disabling
     // updater artifact generation only here prevents the CLI requesting a key.
     bundle: [
@@ -142,7 +143,7 @@ export function macUpdaterBuildPlan(target, resources) {
   };
 }
 
-export function windowsUpdaterBuildPlan(resources) {
+export function windowsUpdaterBuildPlan(resources, cargoArguments = cargoBuildArguments()) {
   // The native x64 host is checked by the caller. Retain the existing cache's
   // default-target layout and compile enrollment before disabling CLI signing.
   const common = [
@@ -154,7 +155,7 @@ export function windowsUpdaterBuildPlan(resources) {
     JSON.stringify({ bundle: { resources } }),
   ];
   return {
-    build: ["build", ...common, "--no-bundle", "--", "--locked", "--jobs", "1"],
+    build: ["build", ...common, "--no-bundle", "--", ...cargoArguments],
     bundle: [
       "bundle",
       ...common,
@@ -240,6 +241,7 @@ export async function identity(repo) {
 }
 
 async function main(platform, appOnly = false, updaterApp = false) {
+  const started = performance.now();
   const selected = platforms[platform];
   if (!selected || process.platform !== selected.os || process.arch !== selected.arch)
     throw new Error("Use the matching native runner");
@@ -309,6 +311,13 @@ async function main(platform, appOnly = false, updaterApp = false) {
     CARGO_TARGET_DIR: targetDirectory,
     CARGO_HOME: cargoHome,
   };
+  const cargoArguments = cargoBuildArguments(process.env);
+  const phases = [];
+  const runBuild = (phase, args) => {
+    const phaseStarted = performance.now();
+    run(process.execPath, args, { stdio: "inherit", env: buildEnvironment });
+    phases.push({ phase, seconds: Math.round((performance.now() - phaseStarted) / 10) / 100 });
+  };
   const verifyWindows = (exe, output) =>
     run("pwsh", [
       "-NoProfile",
@@ -333,19 +342,13 @@ async function main(platform, appOnly = false, updaterApp = false) {
     await mkdir(output);
     // The native default target preserves the owner's existing cache layout.
     // No app launch, installer, notices upload or distribution approval occurs.
-    run(
-      process.execPath,
-      [
-        "node_modules/@tauri-apps/cli/tauri.js",
-        "build",
-        "--no-bundle",
-        "--",
-        "--locked",
-        "--jobs",
-        "1",
-      ],
-      { stdio: "inherit", env: buildEnvironment },
-    );
+    runBuild("compile", [
+      "node_modules/@tauri-apps/cli/tauri.js",
+      "build",
+      "--no-bundle",
+      "--",
+      ...cargoArguments,
+    ]);
     const executable = path.join(targetDirectory, "release/my-knowledge.exe");
     const bytes = await readFile(executable);
     assertBinaryPrivacy(bytes, remappings);
@@ -401,15 +404,15 @@ async function main(platform, appOnly = false, updaterApp = false) {
     };
     const plan =
       selected.os === "win32"
-        ? windowsUpdaterBuildPlan(resources)
-        : macUpdaterBuildPlan(selected.target, resources);
-    run(process.execPath, [cli, ...plan.build], { stdio: "inherit", env: buildEnvironment });
-    run(process.execPath, [cli, ...plan.bundle], { stdio: "inherit", env: buildEnvironment });
+        ? windowsUpdaterBuildPlan(resources, cargoArguments)
+        : macUpdaterBuildPlan(selected.target, resources, cargoArguments);
+    runBuild("compile", [cli, ...plan.build]);
+    runBuild("bundle", [cli, ...plan.bundle]);
   } else {
     const args = ["build", "--target", selected.target];
     args.push(...(selected.os === "win32" ? ["--no-bundle"] : ["--bundles", "app"]));
-    args.push("--", "--locked", "--jobs", "1");
-    run(process.execPath, [cli, ...args], { stdio: "inherit", env: buildEnvironment });
+    args.push("--", ...cargoArguments);
+    runBuild("compile-and-bundle", [cli, ...args]);
   }
   const release = path.join(
     targetDirectory,
@@ -579,6 +582,21 @@ async function main(platform, appOnly = false, updaterApp = false) {
   await writeFile(path.join(output, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   if ((await readdir(output)).length !== (updaterApp ? 4 : 3))
     throw new Error("Unexpected upload contents");
+  if (process.env.GITHUB_ACTIONS === "true")
+    await writeCiTimings(path.join(work, "performance"), targetDirectory, remappings, {
+      sourceSha,
+      platform,
+      target: selected.target,
+      profile: "release",
+      features: updaterApp ? ["custom-protocol", "distribution-updater"] : ["custom-protocol"],
+      cargoJobs: 2,
+      cache: process.env.MOGLEDGE_RUST_CACHE_HIT === "hit" ? "hit" : "miss",
+      cacheKey: process.env.MOGLEDGE_RUST_CACHE_KEY,
+      rust: manifest.rust,
+      node: process.version,
+      phases,
+      builderSeconds: Math.round((performance.now() - started) / 10) / 100,
+    });
   console.log(`Verified candidate: ${path.basename(archive)}`);
 }
 
