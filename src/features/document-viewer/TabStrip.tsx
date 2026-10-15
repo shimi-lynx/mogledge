@@ -128,7 +128,8 @@ export function TabStrip({
               key={column}
               className={"tab-group " + (state.activeColumn === column ? "active" : "")}
               data-column={column}
-              data-tauri-drag-region={dragging ? undefined : true}
+              // Scrollbar presses target the scroller itself; Tauri must not turn them into window drags.
+              data-tauri-drag-region="false"
               role="tablist"
               aria-label={t(
                 state.split ? (column === 0 ? "左列の文書" : "右列の文書") : "開いている文書",
