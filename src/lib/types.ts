@@ -18,13 +18,12 @@ export type ManagedFolders = {
   selectedId: string | null;
 };
 export type DocumentIdentityStatus = {
-  status: "ready" | "missing" | "invalid" | "duplicate" | "legacyConflict";
+  status: "ready" | "missing" | "invalid" | "duplicate";
   uuid: string | null;
   canAssign: boolean;
   canShare: boolean;
-  legacyCandidates: { id: string; revision: number; appCount: number; path: string }[];
 };
-export type DocumentIdentityAction = "add" | "share" | "new" | "recover";
+export type DocumentIdentityAction = "add" | "share" | "new";
 export type StartupRecovery = {
   reason:
     | "confirmationRequired"
@@ -405,7 +404,6 @@ export interface Bridge {
     viewId: string,
     relativePath: string,
     action: DocumentIdentityAction,
-    sourceIdentity?: string,
   ): Promise<void>;
   chooseDisplayFolder?(this: void, workspaceId: string, viewId: string): Promise<Snapshot | null>;
   setDisplayFolder?(

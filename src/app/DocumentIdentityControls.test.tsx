@@ -6,14 +6,13 @@ import type { Bridge, DocumentIdentityStatus } from "../lib/types";
 
 beforeEach(() => setLanguage("en"));
 afterEach(cleanup);
-function fixture(status: DocumentIdentityStatus["status"], canAssign = true) {
+function fixture(status: DocumentIdentityStatus["status"], canAssign = true, canShare = true) {
   const api = {
     getDocumentIdentityStatus: vi.fn(async () => ({
       status,
-      uuid: status === "missing" || status === "legacyConflict" ? null : "document-uuid",
+      uuid: status === "missing" ? null : "document-uuid",
       canAssign,
-      canShare: true,
-      legacyCandidates: [{ id: "legacy-one", path: "old/tool.html", revision: 4, appCount: 2 }],
+      canShare,
     })),
     configureDocumentIdentity: vi.fn(async () => {}),
   } as unknown as Bridge;
@@ -43,7 +42,6 @@ test("missing identity is only written by an explicit add action and then reload
       "view",
       "tool.html",
       "add",
-      undefined,
     ),
   );
   await waitFor(() => expect(onConfigured).toHaveBeenCalledOnce());
@@ -62,64 +60,33 @@ test.each([
       "view",
       "tool.html",
       action,
-      undefined,
     ),
   );
 });
 
-test("legacy conflict has no default recovery record", async () => {
-  const { api } = fixture("legacyConflict");
+test("ready identity only reloads after review and never offers legacy recovery", async () => {
+  const { api, onConfigured } = fixture("ready");
+  expect(api.getDocumentIdentityStatus).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Review document ID" }));
-  const recover = await screen.findByRole<HTMLButtonElement>("button", {
-    name: "Recover the selected saved data",
-  });
-  expect(recover.disabled).toBe(true);
+  const reload = await screen.findByRole("button", { name: "Reload document" });
+  expect(api.getDocumentIdentityStatus).toHaveBeenCalledWith("workspace", "view", "tool.html");
+  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.queryByRole("button", { name: /Recover/ })).toBeNull();
   expect(api.configureDocumentIdentity).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "legacy-one" } });
-  fireEvent.click(recover);
-  await waitFor(() =>
-    expect(api.configureDocumentIdentity).toHaveBeenCalledWith(
-      "workspace",
-      "view",
-      "tool.html",
-      "recover",
-      "legacy-one",
-    ),
-  );
+  expect(onConfigured).not.toHaveBeenCalled();
+  fireEvent.click(reload);
+  await waitFor(() => expect(onConfigured).toHaveBeenCalledOnce());
+  expect(api.configureDocumentIdentity).not.toHaveBeenCalled();
 });
 
-test.each([true, false])(
-  "legacy conflict offers a fresh identity only when canAssign is %s",
-  async (canAssign) => {
-    const { api, onConfigured } = fixture("legacyConflict", canAssign);
-    fireEvent.click(screen.getByRole("button", { name: "Review document ID" }));
-    const recover = await screen.findByRole<HTMLButtonElement>("button", {
-      name: "Recover the selected saved data",
-    });
-    expect(recover.disabled).toBe(true);
-    expect(screen.getByRole<HTMLSelectElement>("combobox").value).toBe("");
-    expect(api.configureDocumentIdentity).not.toHaveBeenCalled();
-    const createNew = screen.queryByRole("button", {
-      name: "Use a new ID for a separate document",
-    });
-    if (!canAssign) {
-      expect(createNew).toBeNull();
-      return;
-    }
-    expect(createNew).not.toBeNull();
-    fireEvent.click(createNew!);
-    await waitFor(() =>
-      expect(api.configureDocumentIdentity).toHaveBeenCalledWith(
-        "workspace",
-        "view",
-        "tool.html",
-        "new",
-        undefined,
-      ),
-    );
-    await waitFor(() => expect(onConfigured).toHaveBeenCalledOnce());
-  },
-);
+test("read-only duplicate identities do not offer assignment or sharing", async () => {
+  const { api } = fixture("duplicate", false, false);
+  fireEvent.click(screen.getByRole("button", { name: "Review document ID" }));
+  await screen.findByText(/Another HTML file has the same document ID/);
+  expect(screen.queryByRole("button", { name: "Use a new ID for a separate document" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Share saved data with the same ID" })).toBeNull();
+  expect(api.configureDocumentIdentity).not.toHaveBeenCalled();
+});
 
 test("failed configuration preserves the controls and never reloads", async () => {
   const { api, onConfigured } = fixture("missing");

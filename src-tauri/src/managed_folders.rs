@@ -204,7 +204,11 @@ pub fn register(
     if html_authoring::reconcile(path.clone(), dir.clone(), true)? != "current" {
         return Err("制作キットの準備が未完了です。既存内容を保持しました".into());
     }
-    crate::document_identity::capture_legacy(core, &path, &dir)?;
+    core.document_state
+        .get()
+        .ok_or("StorageUnavailable")?
+        .verify_management()
+        .map_err(|_| "StorageUnavailable")?;
     if marker.is_none() {
         html_authoring::install_managed_marker(
             path.clone(),

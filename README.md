@@ -67,7 +67,7 @@ Self-build remains supported. The manual GitHub Actions workflow supports ordina
 
 ## Author HTML apps
 
-Each [dedicated folder](docs/registered-folders.md) receives the [HTML authoring kit](docs/html-authoring-kit.md): a complete template, guide and Codex/Claude Skills. Create or register folders through Settings; existing instructions and files are protected. Static HTML UUIDs preserve saved input across renames, folder moves and replacement saves. Uncertain old data and detected UUID copies require an explicit decision.
+Each [dedicated folder](docs/registered-folders.md) receives the [HTML authoring kit](docs/html-authoring-kit.md): a complete template, guide and Codex/Claude Skills. Create or register folders through Settings; existing instructions and files are protected. Static HTML UUIDs preserve saved input across renames, folder moves and replacement saves. Detected UUID copies require an explicit share-or-new decision. Legacy physical records and backups remain intact, but this workflow does not discover or inherit them. Ordinary JSON transfer remains available.
 
 For repository-based authoring, use the [HTML skill](.agents/skills/mogledge-html/SKILL.md), [storage API](docs/document-storage.md) and [artifact export API](docs/html-artifact-export.md). Restore saved input before calculation or saving; failed restoration must not overwrite existing input with defaults.
 

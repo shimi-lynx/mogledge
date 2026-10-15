@@ -1,5 +1,7 @@
 # Nested paths, UUID imports and new-document corrections
 
+The final policy below supersedes the earlier legacy-review behavior: current UUID storage remains supported, while automatic legacy matching, copying and its dedicated recovery UI are removed. Earlier measurements and preview records describe their stated source revisions.
+
 The 0.9.1 patch corrects two failures reproduced with artificial fixtures against main `d2e6334c920046ae4562c18a8eec3fd86f7c65cc`. The affected runtime code is unchanged from the published 0.9.0 product source. This work is an unmerged Draft PR and an isolated Windows preview, with no release, installer, Actions run or formal-app replacement.
 
 ## Scope
@@ -67,3 +69,17 @@ The unchanged full-row scan still scales with retained payload bytes. Admission 
 All 11 `document_identity::tests` regression cases passed with the timing probe, including the new no-candidate I/O guard and existing duplicate, exact-proof migration, same-location hold, unrelated-row, backup, nested-path and restart cases. Timing instrumentation is excluded from the final source. Application/backend Clippy passed again with `--lib --locked --offline -j 1 -- -D warnings`; Rust formatting and diff checks passed. Independent source review found no changed inheritance or duplicate decision. The earlier transfer evidence remains applicable because its resolver does not use the changed admission/duplicate helpers.
 
 The running preview remains the earlier `ea90580f3475b6b3af98c3414068ec1b4ec0ef3d` build and does not include this performance correction. A rebuilt preview, GUI latency checks and any application replacement remain unrun; merge and release are still on hold.
+
+## Final UUID-only policy
+
+The full legacy lookup originated in 0.9.0 PR #36, main commit `37b3032a4aeb327960bbc630baeda0109cb2e882`, to connect old physical saved records to new UUID identities and hold ambiguous inheritance. It copied and parsed saved JSON bodies, not only metadata. PR #41 did not introduce that mechanism.
+
+The final correction removes that compatibility path rather than optimizing its discovery. Folder registration, document selection/open and document-ID status no longer read retained `documents` or `recovery_records` rows to discover old input. ID addition creates a fresh UUID without copying old input. Old-record review/recovery controls and their IPC fields are removed; missing/invalid ID handling and copied-UUID new/shared decisions remain. Ordinary current-UUID JSON import, quota and quarantine management are unchanged.
+
+No DB rows, files or backups are deleted, initialized or migrated by this cleanup. Unused catalog proof fields remain readable and round-trip through existing catalogs, but do not authorize inheritance. Management-file identities, guarded physical reads, catalog compare-and-swap, conditional HTML replacement/backups, revocation, current saved-JSON validation and quotas remain enforced. Startup still performs its separate current-database integrity validation; this is not a claim that all startup data reads are removed.
+
+The focused Windows backend group passed 10 cases. The new SQL-authorizer regression rejects every read of `documents` and `recovery_records` during registration, selection, ID status and open, with 0 rows, one small row and 128 rows of 64 KiB each. Even an exact physical row and retained object proof are not inherited. After removing the test read denial, the current UUID saves and reloads normally while old row contents/revisions and source HTML remain unchanged. Existing duplicate/share/new-ID, nested path, replacement, restart and HTML-backup cases passed. The dedicated UI group passed 7 cases, and `npm run check` passed. No full suite is repeated.
+
+After independent review retained lightweight management-file checks in ID changes and registration, the three affected selection/save/duplicate cases passed again. Final application/backend Clippy passed with `--lib --locked --offline -j 1 -- -D warnings`. Canonical kit regeneration, its focused reproduction test, changed-file formatting, local links and diff checks passed; template and adapter bytes are unchanged.
+
+The earlier timing table predates this final policy and does not measure it. The one-build replacement preview's exact source, hash and minimal startup evidence are recorded after completion; broader GUI performance and macOS Native checks remain unrun. Merge, Actions, installer and release publication remain outside this update.

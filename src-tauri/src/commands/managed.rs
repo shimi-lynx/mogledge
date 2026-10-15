@@ -131,7 +131,6 @@ pub async fn configure_document_identity(
     view_id: String,
     relative_path: String,
     action: String,
-    source_identity: Option<String>,
 ) -> Result<(), String> {
     main_only(&webview)?;
     let core = core.inner().clone();
@@ -142,7 +141,6 @@ pub async fn configure_document_identity(
             &view_id,
             &relative_path,
             &action,
-            source_identity.as_deref(),
         )
     })
     .await
