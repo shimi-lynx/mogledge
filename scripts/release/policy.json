@@ -78,15 +78,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.8.4",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38689181533,
+    "verification_tooling_sha": "63319e5a06a9e45329751e63646a3374b1922c56",
+    "artifact_id": 11960129426,
+    "artifact_size": 130986917,
+    "artifact_sha256": "059a46096ef91038ba410d6784a29e1e2d0ec2fe46cab3124cf76abd2a551a91",
+    "artifact_name": "production-verified-0.8.2-38689181533-1",
+    "expires_at": "2026-10-18T09:11:11Z",
     "notes": "Remove redundant registered/displayed-folder labels and add privacy-safe update failure explanations with official manual recovery links. Windows is not Authenticode-signed; macOS uses ad-hoc signing and is not notarized. The reported Apple Silicon failure cause and Mac Native update/data-preservation/restart QA remain unconfirmed owner checks."
   }
 }
