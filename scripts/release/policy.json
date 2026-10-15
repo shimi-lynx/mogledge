@@ -79,15 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.9.0",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38740357248,
+    "verification_tooling_sha": "da0e6708c3ef58c09ed2c9545cf2a1e4324b11e4",
+    "artifact_id": 11975012326,
+    "artifact_size": 133830163,
+    "artifact_sha256": "0f9e0b85dae81072ab9da1183418029ba839ff96c15fd93a37d874e53094810f",
+    "artifact_name": "production-verified-0.8.2-38740357248-1",
+    "expires_at": "2026-10-18T13:10:41Z",
     "notes": "Add multiple Mogledge dedicated folders, complete local authoring kits and UUID-based saved-input continuity across rename, movement and replacement saves. Preserve legacy resources and explicit recovery decisions; distinguish ordinary first-run onboarding from a missing registered folder. After upgrading, register an existing folder through Settings. HTML without a document ID remains viewable; use the main app to add an ID before saving. Back up HTML and the complete profile before real-data migration. Windows is not Authenticode-signed; macOS uses ad-hoc signing and is not notarized. Native macOS, real-data migration, automatic AI Skill discovery and initial Native onboarding appearance remain unverified."
   }
 }
