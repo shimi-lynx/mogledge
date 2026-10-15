@@ -223,6 +223,11 @@ fn candidates(
     rows.sort_by_key(|row| (row.root != root || row.path != path, row.path != path));
     Ok(rows)
 }
+fn has_legacy_at_path(rows: &[LegacyRow], root: &str, path: &str) -> bool {
+    // A matching location warrants review, never automatic inheritance. A valid
+    // new UUID elsewhere must not be held by unrelated profile-wide records.
+    rows.iter().any(|row| row.root == root && row.path == path)
+}
 fn duplicate(core: &Core, value: &Catalog, uuid: &str, object: &str) -> Result<bool, String> {
     if value
         .bindings
@@ -337,7 +342,7 @@ pub(crate) fn admit(
         if let Some(row) = exact.first() {
             store.copy_identity(&row.id, row.revision, &key, &root_id, path)?;
             value.resolved_legacy.push(row.id.clone());
-        } else if !candidates(core, &root_id, path, &value)?.is_empty() {
+        } else if has_legacy_at_path(&candidates(core, &root_id, path, &value)?, &root_id, path) {
             return Err("DocumentLegacyConflict".into());
         }
     }
@@ -439,7 +444,9 @@ pub fn status(core: &Core, workspace: &str, view: &str, path: &str) -> Result<St
     let metadata = parse(std::str::from_utf8(&data).map_err(|_| "UTF-8で保存してください")?);
     let (value, _) = catalog(core)?;
     let root_id = knowledge::storage_root_identity(&dir).map_err(|_| "StorageUnavailable")?;
-    let legacy_candidates: Vec<_> = candidates(core, &root_id, path, &value)?
+    let rows = candidates(core, &root_id, path, &value)?;
+    let related_legacy = has_legacy_at_path(&rows, &root_id, path);
+    let legacy_candidates: Vec<_> = rows
         .into_iter()
         .map(|row| Candidate {
             id: format!("{}:{}", row.id, row.revision),
@@ -488,7 +495,7 @@ pub fn status(core: &Core, workspace: &str, view: &str, path: &str) -> Result<St
                 .get()
                 .ok_or("StorageUnavailable")?
                 .has_identity(&storage_key(&uuid))?;
-            let legacy_conflict = !has_state && !legacy_candidates.is_empty();
+            let legacy_conflict = !has_state && related_legacy;
             (
                 if duplicated {
                     "duplicate"
@@ -588,7 +595,11 @@ pub fn configure(
         (Metadata::Uuid(uuid), "new")
             if duplicate(core, &value, uuid, &object)?
                 || (!store.has_identity(&storage_key(uuid))?
-                    && !candidates(core, &root_id, path, &value)?.is_empty()) =>
+                    && has_legacy_at_path(
+                        &candidates(core, &root_id, path, &value)?,
+                        &root_id,
+                        path,
+                    )) =>
         {
             new_uuid()
         }
@@ -893,24 +904,148 @@ mod tests {
         assert_eq!(parse(&html(custom)), Metadata::Uuid(custom.into()));
     }
     #[test]
-    fn uncertain_legacy_records_require_recovery_or_explicit_new_without_path_inheritance() {
+    fn unrelated_legacy_does_not_hold_fresh_uuids_but_missing_ids_require_explicit_recovery() {
+        for same_root in [false, true] {
+            let f = Fixture::new();
+            let root = f.folder("docs");
+            let (canonical, dir) = knowledge::open_root(&root).unwrap();
+            let root_id = knowledge::storage_root_identity(&dir).unwrap();
+            drop((canonical, dir));
+            std::fs::write(
+                root.join("uncertain.html"),
+                "<!doctype html><head></head><input>",
+            )
+            .unwrap();
+            std::fs::write(root.join("fresh.html"), html(ID)).unwrap();
+            let database =
+                rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
+                    .unwrap();
+            let old = "e".repeat(64);
+            let data = "{\"app\":{\"name\":\"old uncertain\"}}";
+            database
+                .execute(
+                    "INSERT INTO documents VALUES(?1,?2,?3,4,?4,?5,1)",
+                    rusqlite::params![
+                        old,
+                        data,
+                        data.len() as i64,
+                        if same_root { root_id } else { "d".repeat(64) },
+                        if same_root {
+                            "unrelated-old-name.html"
+                        } else {
+                            "fresh.html"
+                        }
+                    ],
+                )
+                .unwrap();
+            database
+                .execute(
+                    "UPDATE quota SET bytes=?1,documents=1,generation=1",
+                    [data.len() as i64],
+                )
+                .unwrap();
+            drop(database);
+            f.register(&root);
+            let snapshot = f.select(&root);
+            let ws = snapshot.workspace_id.as_deref().unwrap();
+            let current = status(&f.core, ws, &snapshot.view_id, "uncertain.html").unwrap();
+            assert_eq!(current.status, "legacyConflict");
+            assert!(current.uuid.is_none());
+            assert_eq!(current.legacy_candidates.len(), 1);
+            assert!(configure(
+                &f.core,
+                ws,
+                &snapshot.view_id,
+                "uncertain.html",
+                "add",
+                None
+            )
+            .is_err());
+            let fresh_status = status(&f.core, ws, &snapshot.view_id, "fresh.html").unwrap();
+            assert_eq!(fresh_status.status, "ready");
+            assert_eq!(fresh_status.uuid.as_deref(), Some(ID));
+            assert!(!fresh_status.can_assign);
+            assert!(configure(&f.core, ws, &snapshot.view_id, "fresh.html", "new", None).is_err());
+            let fresh = f.open(&snapshot, "fresh.html");
+            assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
+            f.write(&fresh);
+            let reloaded = f.open(&snapshot, "fresh.html");
+            assert_eq!(f.read(&reloaded).unwrap(), json!({"name":"retained"}));
+            assert_eq!(
+                std::fs::read_to_string(root.join("fresh.html")).unwrap(),
+                html(ID)
+            );
+            assert_eq!(
+                status(&f.core, ws, &snapshot.view_id, "fresh.html")
+                    .unwrap()
+                    .status,
+                "ready"
+            );
+            assert!(configure(
+                &f.core,
+                ws,
+                &snapshot.view_id,
+                "uncertain.html",
+                "recover",
+                Some(&format!("{old}:3"))
+            )
+            .is_err());
+            configure(
+                &f.core,
+                ws,
+                &snapshot.view_id,
+                "uncertain.html",
+                "recover",
+                Some(&current.legacy_candidates[0].id),
+            )
+            .unwrap();
+            let recovered = f.open(&snapshot, "uncertain.html");
+            assert_eq!(f.read(&recovered).unwrap(), json!({"name":"old uncertain"}));
+            assert!(f
+                .core
+                .document_state
+                .get()
+                .unwrap()
+                .has_identity(&old)
+                .unwrap());
+            let key = f
+                .core
+                .session_for_token(&fresh)
+                .unwrap()
+                .logical_storage_identity
+                .unwrap();
+            assert!(f
+                .core
+                .document_state
+                .get()
+                .unwrap()
+                .copy_identity(&old, 4, &key, "f", "fresh.html")
+                .is_err());
+            assert_eq!(f.read(&reloaded).unwrap(), json!({"name":"retained"}));
+        }
+    }
+    #[test]
+    fn same_path_unproven_legacy_requires_review_and_retains_original_on_explicit_new() {
         let f = Fixture::new();
         let root = f.folder("docs");
-        std::fs::write(
-            root.join("uncertain.html"),
-            "<!doctype html><head></head><input>",
-        )
-        .unwrap();
-        std::fs::write(root.join("fresh.html"), html(ID)).unwrap();
+        let source = html(ID);
+        std::fs::write(root.join("held.html"), &source).unwrap();
+        let (canonical, dir) = knowledge::open_root(&root).unwrap();
+        let root_id = knowledge::storage_root_identity(&dir).unwrap();
+        let old = "e".repeat(64);
+        assert_ne!(
+            knowledge::storage_identity(&canonical, &dir, "held.html").unwrap(),
+            old
+        );
+        drop((canonical, dir));
         let database =
             rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
                 .unwrap();
-        let old = "e".repeat(64);
         let data = "{\"app\":{\"name\":\"old uncertain\"}}";
         database
             .execute(
-                "INSERT INTO documents VALUES(?1,?2,?3,4,?4,'unrelated-old-name.html',1)",
-                rusqlite::params![old, data, data.len() as i64, "d".repeat(64)],
+                "INSERT INTO documents VALUES(?1,?2,?3,4,?4,'held.html',1)",
+                rusqlite::params![old, data, data.len() as i64, root_id],
             )
             .unwrap();
         database
@@ -923,63 +1058,43 @@ mod tests {
         f.register(&root);
         let snapshot = f.select(&root);
         let ws = snapshot.workspace_id.as_deref().unwrap();
-        let current = status(&f.core, ws, &snapshot.view_id, "uncertain.html").unwrap();
-        assert_eq!(current.status, "legacyConflict");
-        assert!(current.uuid.is_none());
-        assert_eq!(current.legacy_candidates.len(), 1);
-        assert!(configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "add",
-            None
-        )
-        .is_err());
-        configure(&f.core, ws, &snapshot.view_id, "fresh.html", "new", None).unwrap();
-        let fresh = f.open(&snapshot, "fresh.html");
-        assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
-        assert!(configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "recover",
-            Some(&format!("{old}:3"))
-        )
-        .is_err());
-        configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "recover",
-            Some(&current.legacy_candidates[0].id),
-        )
-        .unwrap();
-        let recovered = f.open(&snapshot, "uncertain.html");
-        assert_eq!(f.read(&recovered).unwrap(), json!({"name":"old uncertain"}));
-        assert!(f
+        assert_eq!(
+            status(&f.core, ws, &snapshot.view_id, "held.html")
+                .unwrap()
+                .status,
+            "legacyConflict"
+        );
+        let held = f.open(&snapshot, "held.html");
+        assert!(f.read(&held).is_err());
+        assert_eq!(
+            std::fs::read_to_string(root.join("held.html")).unwrap(),
+            source
+        );
+        assert!(!f
             .core
             .document_state
             .get()
             .unwrap()
-            .has_identity(&old)
+            .has_identity(&storage_key(ID))
             .unwrap());
-        let key = f
-            .core
-            .session_for_token(&fresh)
-            .unwrap()
-            .logical_storage_identity
-            .unwrap();
-        assert!(f
-            .core
-            .document_state
-            .get()
-            .unwrap()
-            .copy_identity(&old, 4, &key, "f", "fresh.html")
-            .is_err());
+        configure(&f.core, ws, &snapshot.view_id, "held.html", "new", None).unwrap();
+        let fresh = f.open(&snapshot, "held.html");
         assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
+        assert_ne!(
+            parse(&std::fs::read_to_string(root.join("held.html")).unwrap()),
+            Metadata::Uuid(ID.into())
+        );
+        let database =
+            rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
+                .unwrap();
+        let retained: (String, i64) = database
+            .query_row(
+                "SELECT data,revision FROM documents WHERE id=?1",
+                [&old],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(retained, (data.into(), 4));
     }
     #[cfg(windows)]
     #[test]

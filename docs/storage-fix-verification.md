@@ -1,4 +1,4 @@
-# Nested paths and UUID import corrections
+# Nested paths, UUID imports and new-document corrections
 
 The 0.9.1 patch corrects two failures reproduced with artificial fixtures against main `d2e6334c920046ae4562c18a8eec3fd86f7c65cc`. The affected runtime code is unchanged from the published 0.9.0 product source. This work is an unmerged Draft PR and an isolated Windows preview, with no release, installer, Actions run or formal-app replacement.
 
@@ -28,3 +28,11 @@ Existing caches were reused with one Rust job and sequential heavy checks. A tra
 This establishes synthetic Native startup restoration on Windows, not manual input/save/restart, live-UI import, full device QA or macOS behavior. No installer was generated and no signing, Actions, release publication or formal-app update was performed.
 
 No real HTML, UUID, source JSON, saved-input database or stopped backup is modified by these checks. Successful synthetic import does not establish that a particular user's old records have been recovered. Existing QA tracking remains open in #25, including platform and real-device conditions. No full suite, macOS Native QA or real-data recovery is claimed.
+
+## Document-scoped legacy review
+
+The later authorized correction removes the profile-wide hold for a valid new UUID when unresolved legacy rows belong to other documents. Same-root/exact-path unresolved rows still require a decision, and physical/object proofs retain their existing migration rules. Location never authorizes automatic copying. Missing-ID review, duplicate UUID decisions, old-row retention and refusal to overwrite an existing target remain intact. No UUID is rewritten merely to make an unrelated new document usable.
+
+The affected `document_identity::tests` group passed 10 cases. The new/updated fixtures cover a same-name row in another root, an unrelated path in the same root, normal save/reload without UUID edits or inherited old input, missing-ID explicit recovery, and a true same-location unresolved row held until an explicit new-document decision with the old data/revision preserved. Existing same-UUID sharing/new-ID decisions, stale grants, exact legacy migration, nested Windows paths and restart behavior passed in that run.
+
+The previous 9 focused transfer results are reused: `state_transfer`, its tests, `ConnectedRoot` and guarded physical identity functions are unchanged, and its key resolver does not call the changed admission/status/new-decision predicates. Application/backend Clippy passed again with `--lib --locked --offline -j 1 -- -D warnings`. No full suite is repeated. The patch remains 0.9.1 within the same Draft PR; this is not another release increment. The replacement preview's exact source/activation evidence is added after completion.
