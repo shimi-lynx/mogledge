@@ -21,13 +21,14 @@ for (const variant of [
         import React from ${JSON.stringify(reactModule)};
         import { SettingsDialog } from '/src/app/SettingsDialog.tsx';
         const initial={revision:0,phase:'idle',currentVersion:'0.7.5',disabledReason:null,release:null,downloadedBytes:0,totalBytes:null,error:null};
-        window.updateCalls={check:0,download:0,restart:0};
+        window.updateCalls={check:0,download:0,restart:0,help:[]};
         const release={version:'0.8.0',notes:'Fixture release\\n'+ 'long-note-'.repeat(90) + '\\n<script>window.invalid=true</script>'};
         const api={status:async()=>initial,subscribe:async()=>()=>{},
           check:async()=>{window.updateCalls.check++;return {...initial,revision:1,phase:'available',release};},
           download:async()=>{window.updateCalls.download++;return {...initial,revision:2,phase:'ready',release};},
           cancel:async()=>({...initial,revision:3,phase:'cancelled'}),
-          restart:async()=>{window.updateCalls.restart++;return {...initial,revision:4,phase:'installing',release};}};
+          restart:async()=>{window.updateCalls.restart++;return {...initial,revision:4,phase:'error',release,error:'UpdatePreviousAppNotRestored'};},
+          openHelp:async(destination)=>{window.updateCalls.help.push(destination);throw new Error('/private/fixture');}};
         export function App(){return React.createElement(SettingsDialog,{platform:${JSON.stringify(variant.platform)},returnFocus:null,onClose:()=>{},updateApi:api});}
       `,
       });
@@ -54,6 +55,7 @@ for (const variant of [
       check: 0,
       download: 0,
       restart: 0,
+      help: [],
     });
     await check.click();
     await dialog
@@ -97,10 +99,48 @@ for (const variant of [
     }
     await expect(restart).toBeEnabled();
     await restart.click();
+    const recovery = dialog.getByRole("alert");
+    await expect(recovery).toContainText(
+      variant.language === "ja"
+        ? "旧アプリを元の場所へ戻せません"
+        : "previous app could not be restored",
+    );
+    await expect(
+      dialog.getByRole("button", {
+        name: variant.language === "ja" ? "更新して再起動" : "Update and restart",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    const manual = dialog.getByRole("button", {
+      name:
+        variant.language === "ja"
+          ? "手動更新・復旧の案内を開く"
+          : "Open manual update and recovery guide",
+      exact: true,
+    });
+    await manual.scrollIntoViewIfNeeded();
+    const helpBounds = (await manual.boundingBox())!;
+    expect(helpBounds.x).toBeGreaterThanOrEqual(0);
+    expect(helpBounds.x + helpBounds.width).toBeLessThanOrEqual(320);
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: test.info().outputPath(`updater-${variant.language}-recovery.png`),
+    });
+    await manual.click();
+    await expect(dialog.getByRole("alert")).toHaveCount(2);
+    await expect(dialog.getByRole("alert").first()).toContainText(
+      variant.language === "ja"
+        ? "旧アプリを元の場所へ戻せません"
+        : "previous app could not be restored",
+    );
+    await expect(dialog).not.toContainText("/private/fixture");
     expect(await page.evaluate("window.updateCalls")).toEqual({
       check: 1,
       download: 1,
       restart: 1,
+      help: ["manual"],
     });
     expect(await page.evaluate("window.invalid")).toBeUndefined();
   });

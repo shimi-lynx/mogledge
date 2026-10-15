@@ -6,6 +6,7 @@ test("application updater commands stay local to main; plugin update/process gra
   const directory = new URL("../../src-tauri/capabilities/", import.meta.url);
   const commands = [
     "get-app-update-status",
+    "open-app-update-help",
     "check-app-update",
     "download-app-update",
     "cancel-app-update",

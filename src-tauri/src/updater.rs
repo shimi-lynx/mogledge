@@ -109,6 +109,28 @@ pub fn get_app_update_status(
 }
 
 #[tauri::command]
+pub async fn open_app_update_help(
+    window: WebviewWindow,
+    destination: updater_model::UpdateHelpDestination,
+) -> Result<(), String> {
+    let url = updater_model::update_help_url(window.label(), destination).map_err(str::to_owned)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let target = crate::file_actions::ActionTarget {
+            action: crate::file_actions::FileAction::OpenBrowser,
+            target: url.to_owned(),
+        };
+        #[cfg(feature = "e2e")]
+        if let Some(result) = crate::os_actions::capture(&target) {
+            return result;
+        }
+        crate::os_actions::execute(&target, 0)
+    })
+    .await
+    .map_err(|_| "UpdateHelpOpenFailed".to_owned())?
+    .map_err(|_| "UpdateHelpOpenFailed".to_owned())
+}
+
+#[tauri::command]
 pub async fn check_app_update(
     window: WebviewWindow,
     state: State<'_, UpdaterState>,
@@ -202,6 +224,16 @@ mod native {
             | Error::MissingSignedVersion => "UpdateSignatureInvalid",
             _ if downloading => "UpdateDownloadFailed",
             _ => "UpdateCheckFailed",
+        }
+    }
+
+    fn install_diagnostic(error: Error) -> &'static str {
+        // Keep typed recovery information without exposing retained bundle paths.
+        // Other failures do not establish permissions, translocation or rollback.
+        match error {
+            Error::TempDirNotOnSameMountPoint => "UpdateInstallLocationUnavailable",
+            Error::PreviousAppNotRestored(_) => "UpdatePreviousAppNotRestored",
+            _ => "UpdateInstallFailed",
         }
     }
 
@@ -347,7 +379,7 @@ mod native {
             update
                 .restart_after_install(true)
                 .install(bytes)
-                .map_err(|_| "UpdateInstallFailed")
+                .map_err(install_diagnostic)
         })
         .await
         .map_err(|_| "UpdateInstallFailed")
@@ -361,6 +393,35 @@ mod native {
         // Windows hands relaunch to NSIS; on macOS applying the bundle needs relaunch.
         crate::tab_session_exit::allow_exit(&app);
         app.restart();
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{install_diagnostic, Error};
+
+        #[test]
+        fn classifies_only_known_install_failures_without_exposing_paths() {
+            assert_eq!(
+                install_diagnostic(Error::TempDirNotOnSameMountPoint),
+                "UpdateInstallLocationUnavailable"
+            );
+            assert_eq!(
+                install_diagnostic(Error::PreviousAppNotRestored(
+                    "/private/fixture-user/retained-previous.app".into()
+                )),
+                "UpdatePreviousAppNotRestored"
+            );
+            for error in [
+                Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "/private/fixture-user/unknown-install-stage",
+                )),
+                Error::TempDirNotFound,
+                Error::BinaryNotFoundInArchive,
+            ] {
+                assert_eq!(install_diagnostic(error), "UpdateInstallFailed");
+            }
+        }
     }
 }
 

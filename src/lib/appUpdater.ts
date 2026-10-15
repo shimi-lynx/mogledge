@@ -27,6 +27,7 @@ export type AppUpdaterApi = {
   download: () => Promise<UpdateSnapshot>;
   cancel: () => Promise<UpdateSnapshot>;
   restart: () => Promise<UpdateSnapshot>;
+  openHelp: (destination: "releases" | "manual") => Promise<void>;
   subscribe: (receive: (snapshot: UpdateSnapshot) => void) => Promise<() => void>;
 };
 export const appUpdaterApi: AppUpdaterApi = {
@@ -35,6 +36,7 @@ export const appUpdaterApi: AppUpdaterApi = {
   download: () => invoke("download_app_update"),
   cancel: () => invoke("cancel_app_update"),
   restart: () => invoke("restart_app_update"),
+  openHelp: (destination) => invoke("open_app_update_help", { destination }),
   subscribe: (receive) =>
     listen<UpdateSnapshot>("app-update-status", (event) => receive(event.payload)),
 };
@@ -52,6 +54,10 @@ const diagnostics: Readonly<Record<string, string>> = {
     "アプリの設定を保存できないため更新を中止しました。設定を確認し、更新を再確認してください。",
   UpdateInstallFailed:
     "更新を適用できません。現在のアプリと配布元の手動復旧手順を確認してください。",
+  UpdateInstallLocationUnavailable:
+    "アプリと同じボリュームに更新用の一時領域を確保できません。現在のアプリと手動更新の案内を確認してください。",
+  UpdatePreviousAppNotRestored:
+    "更新に失敗し、退避した旧アプリを元の場所へ戻せませんでした。現在のアプリと保管された旧アプリを確認し、手動復旧の案内に従ってください。",
 };
 export function updateDiagnostic(error: unknown): string {
   // Native failures may include filesystem paths, URLs or signature details.

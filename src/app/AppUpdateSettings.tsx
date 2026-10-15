@@ -11,6 +11,8 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
   const t = useT();
   const [snapshot, setSnapshot] = useState<UpdateSnapshot | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [helpError, setHelpError] = useState(false);
+  const [helpPending, setHelpPending] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const mounted = useRef(false);
   const operation = useRef(0);
@@ -67,6 +69,17 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
       }
     }
   };
+  const openHelp = async (destination: "releases" | "manual") => {
+    setHelpError(false);
+    setHelpPending(true);
+    try {
+      await api.openHelp(destination);
+    } catch {
+      if (mounted.current) setHelpError(true);
+    } finally {
+      if (mounted.current) setHelpPending(false);
+    }
+  };
 
   const phase = snapshot?.phase;
   const busy =
@@ -112,6 +125,23 @@ export function AppUpdateSettings({ api = appUpdaterApi }: { api?: AppUpdaterApi
       {phase === "disabled" && <p>{t(disabledText)}</p>}
       {phaseText && <p role="status">{t(phaseText)}</p>}
       {diagnostic && <p role="alert">{t(updateDiagnostic(diagnostic))}</p>}
+      {(phase === "disabled" || diagnostic) && (
+        <div>
+          <div className="resident-actions">
+            <button type="button" disabled={helpPending} onClick={() => void openHelp("releases")}>
+              {t("公式の配布ページを開く")}
+            </button>
+            <button type="button" disabled={helpPending} onClick={() => void openHelp("manual")}>
+              {t("手動更新・復旧の案内を開く")}
+            </button>
+          </div>
+          {helpError && (
+            <p role="alert">
+              {t("案内を開けませんでした。ブラウザーで公式配布元の案内を確認してください。")}
+            </p>
+          )}
+        </div>
+      )}
       {snapshot?.release && (
         <div className="app-update-release">
           <h3>{t("更新バージョン: {version}", { version: snapshot.release.version })}</h3>

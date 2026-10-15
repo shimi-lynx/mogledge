@@ -17,9 +17,25 @@ Check, download and a staged update can be cancelled. Cancellation invalidates l
 
 The Native host flushes pending workspace preferences before installation. It does not change the HTML storage contract. A flush or installation failure is reported with a fixed diagnostic; use the existing [backup and manual update procedure](update-guide.md) and confirm the installed application's state before recovery. A failed installation is not represented as a guaranteed rollback. The bundle identifier, profile locations and knowledge files are unchanged. Version 0.8.1 simplifies the shared update action; it does not enroll ordinary builds or activate a feed.
 
+### Installation failures and manual recovery
+
+Version 0.8.4 distinguishes two errors reported by the pinned updater, without displaying filesystem paths or raw Native errors:
+
+| Diagnostic                           | What is known                                                                                                                                                       | Next step                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Update temporary storage unavailable | The updater could not prepare temporary storage on the application's volume. This does not identify read-only storage, App Translocation or antivirus as the cause. | Check the actual running app and follow the manual update guide.                                                                                      |
+| Previous app not restored            | Installation failed and the updater could not restore the retained previous bundle to its original location.                                                        | Check both the current app and the retained previous app before following manual recovery. Do not assume either a successful replacement or rollback. |
+| Other installation failure           | Applying the update failed; this diagnostic does not establish a cause or the resulting bundle state.                                                               | Inspect the current app and follow the recovery guide.                                                                                                |
+
+Disabled builds and failure messages offer **Open official releases** and **Open manual update and recovery guide**. These buttons open only the fixed official pages in the browser when chosen. They do not check a feed, download, apply, restart or enroll the app. An opening failure is shown separately and does not replace the original warning. These routes are restricted to the local main window and accept a destination enum rather than a URL.
+
+Use [manual Mac update and recovery](update-guide.md#manual-mac-update-and-recovery) when in-app updating is unavailable. A valid updater signature does not establish OS trust, writable installation storage or successful application replacement. The installed old app uses its own updater code until it has been replaced; guidance added in a newer release cannot repair its first update attempt. A manual replacement may therefore be needed once.
+
+The locked `tauri-plugin-updater` 2.13.3 already includes the macOS bundle-retention/restoration fixes released in [2.13.2](https://github.com/tauri-apps/plugins-workspace/releases/tag/updater-v2.13.2) through [upstream PR #3578](https://github.com/tauri-apps/plugins-workspace/pull/3578). This guidance change does not update dependencies or establish the cause or resolution of a reported Apple Silicon failure. Actual Mac replacement, saved-data restoration and restart remain device QA; browser/API fixtures do not establish those results.
+
 ## Distribution enrolment and security
 
-The Rust feature `distribution-updater` is deliberately absent from default features. Its dependency is pinned to official `tauri-plugin-updater` 2.13.3. No JavaScript updater or process plugin is installed. Only the five application-specific commands in the local `main` capability can control it; each command also rejects a non-main host. No updater permissions, endpoints, artifact handles, arbitrary URLs, installer arguments or relaunch commands are exposed to user HTML or the storage-transition window.
+The Rust feature `distribution-updater` is deliberately absent from default features. Its dependency is pinned to official `tauri-plugin-updater` 2.13.3. No JavaScript updater or process plugin is installed. Only the five application-specific update controls in the local `main` capability can control it. A sixth application command opens the two fixed help destinations without controlling updates. All six commands also reject a non-main host. No updater permissions, endpoints, artifact handles, arbitrary URLs, installer arguments or relaunch commands are exposed to user HTML or the storage-transition window.
 
 Even when the feature is selected, debug/e2e builds remain disabled. A release build also requires:
 
