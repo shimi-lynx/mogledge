@@ -69,13 +69,18 @@ pub async fn mutate_tree(
 
 #[tauri::command]
 pub async fn choose_knowledge_root(
+    webview: tauri::Webview,
     app: AppHandle,
     core: State<'_, Arc<Core>>,
 ) -> Result<Option<Snapshot>, String> {
+    if webview.label() != "main" {
+        return Err("この操作はアプリの設定画面からのみ利用できます".into());
+    }
+    let captured = core.snapshot();
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
-        .set_title("knowledgeフォルダを選択")
+        .set_title("登録フォルダを選択（保存の基準）")
         .pick_folder(move |file| {
             let _ = tx.send(file);
         });
@@ -86,11 +91,119 @@ pub async fn choose_knowledge_root(
         .into_path()
         .map_err(|_| "ローカルフォルダを選択してください")?;
     let core = core.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || core.select(&path, true))
-        .await
-        .map_err(|_| "フォルダ選択処理に失敗しました".to_owned())?
-        .map(Some)
+    tauri::async_runtime::spawn_blocking(move || {
+        core.select_if_current(
+            captured.workspace_id.as_deref(),
+            &captured.view_id,
+            &path,
+            true,
+        )
+    })
+    .await
+    .map_err(|_| "フォルダ選択処理に失敗しました".to_owned())?
+    .map(Some)
 }
+
+#[tauri::command]
+pub async fn choose_display_folder(
+    webview: tauri::Webview,
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    workspace_id: String,
+    view_id: String,
+) -> Result<Option<Snapshot>, String> {
+    if webview.label() != "main" {
+        return Err("この操作はアプリ画面からのみ利用できます".into());
+    }
+    let snapshot = core.snapshot();
+    if snapshot.workspace_id.as_deref() != Some(&workspace_id) {
+        return Err("WorkspaceChanged".into());
+    }
+    if snapshot.view_id != view_id {
+        return Err("ViewChanged".into());
+    }
+    let root = snapshot.root_path.ok_or("RegisteredRootRequired")?;
+    let initial = std::path::PathBuf::from(root).join(
+        snapshot
+            .display_folder
+            .as_ref()
+            .map_or("", |folder| folder.relative_path.as_str()),
+    );
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("表示フォルダを選択（登録フォルダ内）")
+        .set_directory(initial)
+        .pick_folder(move |file| {
+            let _ = tx.send(file);
+        });
+    let Some(file) = rx.await.map_err(|_| "フォルダ選択が終了しました")? else {
+        return Ok(None);
+    };
+    let path = file
+        .into_path()
+        .map_err(|_| "ローカルフォルダを選択してください")?;
+    let core = core.inner().clone();
+    // Recheck the captured workspace after the asynchronous picker returns.
+    tauri::async_runtime::spawn_blocking(move || {
+        core.select_display_path_if_current(
+            &workspace_id,
+            &view_id,
+            snapshot.display_revision,
+            &path,
+            true,
+        )
+    })
+    .await
+    .map_err(|_| "表示フォルダを切り替えられません".to_owned())?
+    .map(Some)
+}
+
+#[tauri::command]
+pub async fn set_display_folder(
+    webview: tauri::Webview,
+    core: State<'_, Arc<Core>>,
+    workspace_id: String,
+    view_id: String,
+    relative_path: String,
+    expected_display_revision: u64,
+) -> Result<Snapshot, String> {
+    if webview.label() != "main" {
+        return Err("この操作はアプリ画面からのみ利用できます".into());
+    }
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        core.select_display_folder_if_current(
+            &workspace_id,
+            &view_id,
+            expected_display_revision,
+            &relative_path,
+            true,
+        )
+    })
+    .await
+    .map_err(|_| "表示フォルダを切り替えられません".to_owned())?
+}
+#[tauri::command]
+pub async fn get_document_storage_hold(
+    webview: tauri::Webview,
+    core: State<'_, Arc<Core>>,
+    workspace_id: String,
+    view_id: String,
+    tab_id: String,
+    request_id: u64,
+) -> Result<Option<crate::core::StorageHold>, String> {
+    if webview.label() != "main" {
+        return Err("この操作はアプリ画面からのみ利用できます".into());
+    }
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        core.document_storage_hold(&workspace_id, &view_id, &tab_id, request_id)
+    })
+    .await
+    .map_err(|_| "StorageUnavailable".to_owned())?
+}
+
 #[tauri::command]
 pub fn get_knowledge_tree(core: State<'_, Arc<Core>>) -> Snapshot {
     core.snapshot()

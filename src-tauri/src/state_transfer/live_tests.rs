@@ -983,6 +983,12 @@ fn migrated_profile_root_and_search_cache_are_not_portable_file_destinations() {
     let input = f.export();
     assert!(input.exists());
     assert_eq!(f.saved(), before);
-    assert!(include_str!("../startup_profile.rs")
-        .contains("DocumentState::new_in_profile(paths.document_state, local_profile)"));
+    let startup = include_str!("../startup_profile.rs");
+    assert!(startup.contains("let settings_path = paths.settings.clone();"));
+    assert_eq!(
+        startup
+            .matches("DocumentState::new_in_profile_with_settings(")
+            .count(),
+        2
+    );
 }

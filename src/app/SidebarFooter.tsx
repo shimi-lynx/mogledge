@@ -9,12 +9,15 @@ import "./sidebar-footer.css";
 import type { AppState } from "../lib/types";
 import type { WindowChrome } from "./windowChrome";
 
-export type SidebarFooterHandle = { openSettings: (returnFocus: HTMLElement | null) => void };
+export type SidebarFooterHandle = {
+  openSettings: (returnFocus: HTMLElement | null, page?: "folder") => void;
+};
 
 export function SidebarFooter({
   version,
   reloadDisabled,
   onReload,
+  onRegisterRoot,
   fallbackFocus,
   ref,
   state,
@@ -24,6 +27,7 @@ export function SidebarFooter({
   version: string | null;
   reloadDisabled: boolean;
   onReload: () => void;
+  onRegisterRoot?: () => void;
   fallbackFocus?: HTMLElement | null;
   ref?: Ref<SidebarFooterHandle>;
   state?: AppState;
@@ -41,16 +45,17 @@ export function SidebarFooter({
       viewId: state?.snapshot.viewId ?? "",
     });
   }, [limitsSession, state?.snapshot.workspaceId, state?.snapshot.viewId]);
-  const [settingsOpen, setSettingsOpen] = useState<{ returnFocus: HTMLElement | null } | null>(
-    null,
-  );
-  const openSettings = useCallback((returnFocus: HTMLElement | null) => {
+  const [settingsOpen, setSettingsOpen] = useState<{
+    returnFocus: HTMLElement | null;
+    page?: "folder";
+  } | null>(null);
+  const openSettings = useCallback((returnFocus: HTMLElement | null, page?: "folder") => {
     if (dialog.current) {
-      dialog.current.focus();
+      dialog.current.focus(page);
       return;
     }
     // A second request before React commits must retain the first origin too.
-    setSettingsOpen((current) => current ?? { returnFocus });
+    setSettingsOpen((current) => current ?? { returnFocus, page });
   }, []);
   useImperativeHandle(ref, () => ({ openSettings }), [openSettings]);
   const settingsKey = platform === "macos" ? "Cmd+," : "Ctrl+,";
@@ -93,6 +98,8 @@ export function SidebarFooter({
             state={state}
             rootContext={rootContext}
             platform={platform}
+            onRegisterRoot={onRegisterRoot}
+            initialPage={settingsOpen.page}
             managementContext={{
               workspaceId: state?.snapshot.workspaceId ?? null,
               viewId: state?.snapshot.viewId ?? "",

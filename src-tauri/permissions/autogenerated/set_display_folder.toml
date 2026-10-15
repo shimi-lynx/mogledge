@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-display-folder"
+description = "Enables the set_display_folder command without any pre-configured scope."
+commands.allow = ["set_display_folder"]
+
+[[permission]]
+identifier = "deny-set-display-folder"
+description = "Denies the set_display_folder command without any pre-configured scope."
+commands.deny = ["set_display_folder"]

@@ -8,7 +8,7 @@ Files created by your editor or external AI remain the source of truth. Search u
 
 Download [Mogledge 0.8.2](https://github.com/shimi-lynx/mogledge/releases/tag/v0.8.2) for Windows x64, Intel Mac or Apple Silicon Mac. For a first Mac installation, choose your architecture's `.zip`; Windows uses the `*-setup.exe` installer. See the [verified distribution record](docs/production-distribution.md#actual-publication-and-anonymous-verification) for source, hashes, OS trust limits and remaining device checks.
 
-Open a local folder with **Open knowledge**, then select an HTML file. Use the title-bar **Features and usage** button for bundled offline help. Settings let you switch between English and Japanese; your selected language is preserved.
+The registered/displayed-folder workflow is a source change; the published 0.8.2 binaries predate it. In the updated source, register a local folder, then select an HTML file. **Switch displayed folder** shows a child folder while preserving the registered folder used for saved input and tabs. Change the registration through **Settings → Registered folder**. See [registered and displayed folders](docs/registered-folders.md). Use the title-bar **Features and usage** button for bundled offline help. Settings let you switch between English and Japanese; your selected language is preserved.
 
 - Open documents in one or two columns; moving a tab keeps its live HTML state.
 - Search static text, use quick open, favorites, recent documents and saved workspaces.

@@ -25,7 +25,8 @@ const AppUpdateSettings = lazy(() =>
   import("./AppUpdateSettings").then((module) => ({ default: module.AppUpdateSettings })),
 );
 
-export type SettingsDialogHandle = { focus: () => void };
+type SettingsPage = "language" | "folder" | "resident" | "html" | "savedData" | "update";
+export type SettingsDialogHandle = { focus: (page?: SettingsPage) => void };
 
 export function SettingsDialog({
   onClose,
@@ -39,6 +40,8 @@ export function SettingsDialog({
   managementSession,
   limitsSession,
   updateApi,
+  onRegisterRoot,
+  initialPage = "language",
   platform = /Mac/i.test(navigator.platform) ? "macos" : "other",
 }: {
   onClose: () => void;
@@ -52,14 +55,15 @@ export function SettingsDialog({
   managementSession?: ManagementSession;
   limitsSession?: StorageLimitsSession;
   updateApi?: AppUpdaterApi;
+  onRegisterRoot?: () => void;
+  initialPage?: SettingsPage;
   platform?: WindowChrome["platform"];
 }) {
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const category = useRef<HTMLButtonElement>(null);
-  const [page, setPage] = useState<"language" | "resident" | "html" | "savedData" | "update">(
-    "language",
-  );
+  const [page, setPage] = useState<SettingsPage>(initialPage);
+  const hasRegisteredFolder = !!state?.snapshot.rootPath || !!state?.snapshot.startupRecovery;
   const [session] = useState(() => managementSession ?? new ManagementSession());
   const backdropPointer = useRef(false);
   const fallback = useRef(fallbackFocus);
@@ -67,7 +71,8 @@ export function SettingsDialog({
   useImperativeHandle(
     ref,
     () => ({
-      focus: () => {
+      focus: (requestedPage) => {
+        if (requestedPage) setPage(requestedPage);
         if (!dialog.current?.contains(document.activeElement)) category.current?.focus();
       },
     }),
@@ -166,6 +171,14 @@ export function SettingsDialog({
           </button>
           <button
             type="button"
+            aria-current={page === "folder" ? "page" : undefined}
+            aria-controls="settings-registered-folder-panel"
+            onClick={() => setPage("folder")}
+          >
+            {t("登録フォルダー")}
+          </button>
+          <button
+            type="button"
             aria-current={page === "resident" ? "page" : undefined}
             aria-controls="settings-resident-panel"
             onClick={() => setPage("resident")}
@@ -201,6 +214,41 @@ export function SettingsDialog({
           <section id="settings-language-panel" aria-labelledby="settings-language-heading">
             <h2 id="settings-language-heading">{t("表示言語を選択")}</h2>
             <LanguagePicker variant="settings" />
+          </section>
+        ) : page === "folder" ? (
+          <section id="settings-registered-folder-panel" aria-labelledby="settings-folder-heading">
+            <h2 id="settings-folder-heading">{t("登録フォルダー")}</h2>
+            <p className="registered-folder-path">
+              {state?.snapshot.rootPath ??
+                t(
+                  hasRegisteredFolder ? "登録フォルダーを復元できません" : "フォルダーは未登録です",
+                )}
+            </p>
+            <p>
+              {t(
+                "登録フォルダーは保存データの基準です。通常の表示切替では、このフォルダー内だけを表示し、保存先は変えません。",
+              )}
+            </p>
+            <p>
+              {t(
+                "登録先を変更しても既存の保存データは削除・移行・統合されません。新しい登録先との対応が未確認なら、保存データの利用を保留します。",
+              )}
+            </p>
+            <p>
+              {t(
+                "登録先を変更すると現在の文書タブが切り替わり、開いているHTMLの未保存入力・実行状態は保持されません。変更前に各HTMLの保存操作で入力を保存してください。保存できない入力は別に控えてください。表示フォルダーだけの切替では、開いているタブは保持されます。",
+              )}
+            </p>
+            <button
+              type="button"
+              disabled={!onRegisterRoot || state?.loading || state?.actionBusy}
+              onClick={() => {
+                onClose();
+                onRegisterRoot?.();
+              }}
+            >
+              {t(hasRegisteredFolder ? "登録フォルダーを変更" : "フォルダーを登録")}
+            </button>
           </section>
         ) : page === "resident" ? (
           <section id="settings-resident-panel" aria-label={t("常駐と呼び出し")}>

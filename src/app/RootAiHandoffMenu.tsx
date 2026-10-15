@@ -10,12 +10,14 @@ export function RootAiHandoffMenu({
   contextKey,
   onAiHandoff,
   onRootAction,
+  rootName,
 }: {
   children: ReactElement;
   disabled: boolean;
   contextKey: string;
   onAiHandoff: (returnFocus: HTMLElement) => void;
   onRootAction?: (action: RootAction) => void;
+  rootName?: string;
 }) {
   const t = useT();
   const trigger = useRef<HTMLDivElement>(null);
@@ -125,6 +127,11 @@ export function RootAiHandoffMenu({
             }
           }}
         >
+          {rootName && (
+            <div className="registered-folder-menu-label">
+              {t("登録フォルダー：{name}", { name: rootName })}
+            </div>
+          )}
           <button
             type="button"
             role="menuitem"

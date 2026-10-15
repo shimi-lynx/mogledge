@@ -103,6 +103,8 @@ export const bridge: Bridge = {
       viewId,
       relativePath,
     }),
+  getDocumentStorageHold: (workspaceId, viewId, tabId, requestId) =>
+    invoke("get_document_storage_hold", { workspaceId, viewId, tabId, requestId }),
   recoverDocumentState: (workspaceId, viewId, relativePath, candidate) =>
     invoke<void>("recover_document_state", { workspaceId, viewId, relativePath, candidate }),
   mutateTree: (workspaceId, viewId, mutation) =>
@@ -116,6 +118,15 @@ export const bridge: Bridge = {
     invoke<void>("close_document_tab", { workspaceId, viewId, tabId }),
   getTree: () => invoke<Snapshot>("get_knowledge_tree"),
   chooseRoot: () => invoke<Snapshot | null>("choose_knowledge_root"),
+  chooseDisplayFolder: (workspaceId, viewId) =>
+    invoke<Snapshot | null>("choose_display_folder", { workspaceId, viewId }),
+  setDisplayFolder: (workspaceId, viewId, relativePath, expectedDisplayRevision) =>
+    invoke<Snapshot>("set_display_folder", {
+      workspaceId,
+      viewId,
+      relativePath,
+      expectedDisplayRevision,
+    }),
   refresh: () => invoke<Snapshot>("refresh_knowledge"),
   retrySavedRoot: (viewId) => invoke<Snapshot>("retry_saved_root", { viewId }),
   openDocument: (workspaceId, viewId, tabId, requestId) =>

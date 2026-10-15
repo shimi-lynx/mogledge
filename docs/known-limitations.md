@@ -36,6 +36,8 @@ Nonempty-folder moves, anchored drops, reorder and trash remain rejected. Symlin
 
 ## Storage and recovery
 
+Registered-folder and displayed-folder separation preserves the current root-plus-HTML physical identity key; it does not merge existing parent/child registrations or solve external AI/editor replacement saves that change the HTML physical identity. Fresh Mac admission requires a validated empty profile, while uncertain retained input remains held with an app-frame notice. Synthetic and mocked UI checks do not establish Native Mac folder selection or restart behavior. See [registered folders](registered-folders.md).
+
 Only committed input saved through the [document storage API](document-storage.md) is persistent document state. Arbitrary JS/Canvas state, unsaved fields, browser localStorage and Native SQLite are separate. Export/save acknowledgement for every live view is unknown; timestamps and dirty flags do not prove flushing. External browser closure is not detected, so its registration can keep a saved-state management candidate on hold until app restart.
 
 Large configurable logical quotas do not guarantee SQLite row capacity, physical database capacity, free disk, memory or acceptable latency. Internal recovery is a separate fixed 512 MiB/4,096-entry area in the same database, including restored copies; it is neither an independent backup nor encryption. Quarantining releases active logical quota without promising disk reclamation. There is no permanent purge/VACUUM, automatic orphan cleanup or automatic older-copy eviction.

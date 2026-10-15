@@ -1,8 +1,8 @@
 // Keys describe app-owned text. User filenames, paths and HTML are parameters,
 // never keys: switching the shell language must not translate their contents.
 export const commonMessages: Readonly<Record<string, string>> = {
-  "Macの保存データは、独立したバックアップ後にフォルダーとHTMLごとの確認が必要です。未保存の入力を保存してから、確認ツールを開いてください。":
-    "Mac saved data needs an independent backup and confirmation for the folder and each HTML document. Save any unsaved input before opening the confirmation tool.",
+  "Macで既存の保存データとの対応が未確認の場合は、独立したバックアップ後にフォルダーとHTMLごとの確認が必要です。未保存の入力は別に控えてから、確認ツールを開いてください。新規環境で保存データがないことを正常に確認できた場合、この確認は不要です。":
+    "When the relationship to existing Mac saved data is unconfirmed, make an independent backup before confirming the folder and each HTML document. Keep a separate copy of unsaved input before opening the confirmation tool. This confirmation is unnecessary when a new profile has been successfully verified to have no saved data.",
   保存データの確認ツールを開く: "Open saved-data confirmation tool",
   言語: "Language",
   表示言語を選択: "Choose display language",

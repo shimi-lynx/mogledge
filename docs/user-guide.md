@@ -14,7 +14,9 @@ This does not attach file contents, read saved inputs, send an AI API request or
 
 ## Open and arrange documents
 
-Choose a knowledge folder, then open an HTML file from the tree. Save text files (HTML, CSS, JavaScript and JSON) as UTF-8, and keep images and other assets inside that folder with relative references. Documents run in isolated frames; external CDNs and arbitrary network requests are outside the supported scope.
+Register a knowledge folder, then open an HTML file from the tree. **Switch displayed folder** selects a child folder within that registration without changing saved-input keys or open tabs. **Settings → Registered folder** changes the registration itself; folders outside the registered scope are directed there. Restart restores the registered folder and the separately validated display folder. See [registered and displayed folders](registered-folders.md).
+
+Save text files (HTML, CSS, JavaScript and JSON) as UTF-8, and keep images and other assets inside the registered folder with relative references. Documents run in isolated frames; external CDNs and arbitrary network requests are outside the supported scope.
 
 The same document can be open in both columns. Move a tab between columns or reorder it by dragging; this keeps its live input, JavaScript and Canvas state. Right-click a tab for column actions, reload, close or close tabs to its right. Closing a tab discards unsaved runtime state. Reopening restores a document, not its previous JavaScript heap.
 

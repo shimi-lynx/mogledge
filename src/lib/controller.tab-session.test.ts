@@ -92,7 +92,7 @@ describe("automatic tab session", () => {
         zoom: 100,
         active: true,
       });
-      await controller.choose();
+      await controller.registerRoot();
       expect(api.chooseRoot).toHaveBeenCalledTimes(1);
       controller.stop();
     },
@@ -270,7 +270,7 @@ describe("automatic tab session", () => {
     await controller.start();
     await controller.select("0.html");
     await flush();
-    const switching = controller.choose();
+    const switching = controller.registerRoot();
     await flush();
     expect(api.chooseRoot).not.toHaveBeenCalled();
     finish();
@@ -313,7 +313,7 @@ describe("automatic tab session", () => {
     await flush();
     vi.useFakeTimers();
     try {
-      const switching = controller.choose();
+      const switching = controller.registerRoot();
       await vi.advanceTimersByTimeAsync(2500);
       await switching;
       expect(api.chooseRoot).not.toHaveBeenCalled();

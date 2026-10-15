@@ -1,4 +1,52 @@
 export const shellMessages: Readonly<Record<string, string>> = {
+  登録フォルダー: "Registered folder",
+  登録フォルダーを選択: "Choose a registered folder",
+  フォルダーを登録: "Register a folder",
+  登録フォルダーを変更: "Change registered folder",
+  登録フォルダーを管理: "Manage registered folder",
+  フォルダーは未登録です: "No folder is registered",
+  登録フォルダーを復元できません: "The registered folder could not be restored",
+  "登録フォルダーが別の物理フォルダーに置き換わっています。保存先は変更していません。設定の「登録フォルダー」で確認してください。":
+    "The registered folder was replaced by a different physical folder. The storage destination has not changed. Review the registered folder in Settings.",
+  表示フォルダー: "Displayed folder",
+  "登録フォルダー：{name}": "Registered folder: {name}",
+  "表示フォルダーを切り替え：{path}": "Switch displayed folder: {path}",
+  登録範囲をすべて表示: "Show the entire registered folder",
+  "表示範囲が変更されました。現在の表示フォルダーから選び直してください。登録先と保存先は変更していません。":
+    "The displayed scope changed. Select a folder again from the current displayed folder. The registered folder and storage destination have not changed.",
+  "選択フォルダー内／HTMLの親、未選択時は表示フォルダー{folder}に作成します":
+    "Create in the selected folder or the HTML's parent; without a selection, create in the displayed folder {folder}.",
+  "登録フォルダーを復元できません。保存フォルダーを再試行するか、設定の「登録フォルダー」で登録先を明示的に管理してください。":
+    "The registered folder could not be restored. Retry the saved folder, or manage the registered folder explicitly in Settings.",
+  "登録フォルダーは保存データの基準です。通常の表示切替では、このフォルダー内だけを表示し、保存先は変えません。":
+    "The registered folder is the basis for saved data. Switching the displayed folder stays within it and keeps the same storage destination.",
+  "登録先を変更しても既存の保存データは削除・移行・統合されません。新しい登録先との対応が未確認なら、保存データの利用を保留します。":
+    "Changing the registered folder does not delete, transfer or combine existing saved data. Saved data remains on hold when its relationship to the new folder is unconfirmed.",
+  "登録先を変更すると現在の文書タブが切り替わり、開いているHTMLの未保存入力・実行状態は保持されません。変更前に各HTMLの保存操作で入力を保存してください。保存できない入力は別に控えてください。表示フォルダーだけの切替では、開いているタブは保持されます。":
+    "Changing the registered folder replaces the current document tabs and does not retain their unsaved input or running state. Save input using each HTML app's own save action before changing it. If saving is unavailable, keep a separate copy of the input. Switching only the displayed folder keeps open tabs.",
+  保存データの利用を保留しています: "Saved data is on hold",
+  "保留対象の文書は閲覧できます。対応を確認するまで、これらの文書の保存データの復元・保存・削除は利用できません。入力を続ける前に確認してください。":
+    "You can view the listed documents. Restoring, saving and deleting saved data for these documents are unavailable until their identity is confirmed. Review this before continuing input in them.",
+  "既存の保存データとの対応が未確認です。データは保持されています。独立したバックアップを取ってから確認ツールを利用してください。":
+    "The relationship to existing saved data is unconfirmed. Your data is retained. Back it up independently before using the confirmation tool.",
+  "保存データを読み取れません。空のデータとして扱っていません。アクセス状態を確認してください。":
+    "Saved data could not be read. It has not been treated as empty. Check its availability and access permissions.",
+  "保存データの整合性を確認できません。空のデータとして扱っていません。データを保護し、独立したバックアップを確認してください。":
+    "Saved data could not be validated. It has not been treated as empty. Preserve it and review an independent backup before recovery.",
+  "登録範囲外のフォルダーです。登録先を変更する場合は、設定の「登録フォルダー」を開いてください。":
+    "That folder is outside the registered folder. Use Settings > Registered folder to change the registered folder explicitly.",
+  "同じ表示フォルダーであることを確認できません。登録範囲全体を表示しています。範囲内のフォルダーを選び直してください。":
+    "The displayed folder could not be confirmed as the same physical folder. The registered folder is shown instead. Select a folder within it again.",
+  "フォルダーは閲覧できます。既存データの対応を確認するまで、保存データの復元・保存・削除は利用できません。HTMLの入力を続ける前に確認してください。":
+    "You can browse the folder. Restoring, saving and deleting saved data are unavailable until its identity is confirmed. Review this before continuing input in the HTML app.",
+  StorageIdentityConfirmationRequired:
+    "The relationship to existing saved data is unconfirmed. Your data is retained. Back it up independently before using the confirmation tool.",
+  DisplayFolderOutsideRegisteredRoot:
+    "That folder is outside the registered folder. Use Settings > Registered folder to change the registered folder explicitly.",
+  DisplayFolderIdentityChanged:
+    "The displayed folder could not be confirmed as the same physical folder. The registered folder is shown instead. Select a folder within it again.",
+  StorageCorrupt:
+    "Saved data could not be validated. It has not been treated as empty. Preserve it and review an independent backup before recovery.",
   "保存データの識別方式を確認する必要があります。データは保持されています。アプリを終了し、保存データの移行手順を確認してください。":
     "The saved-data identity format needs confirmation. Your data is retained. Quit the app and review the saved-data transition procedure.",
   "保存フォルダーの確認が必要です。選び直してください。":

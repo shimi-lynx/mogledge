@@ -23,14 +23,16 @@ impl Fixture {
         let profile = temp.path().join("profile");
         fs::create_dir(&profile).unwrap();
         let settings = profile.join("settings.json");
+        // Normal first launch initializes storage before any root registration.
+        // Existing registration with a missing DB must remain a protected loss.
+        let state = profile.join("document-state");
+        drop(DocumentState::new(state.clone()).unwrap());
         fs::write(
             &settings,
             serde_json::to_vec(&json!({"knowledgeRoot":root,"keep":{"futurePreference":true}}))
                 .unwrap(),
         )
         .unwrap();
-        let state = profile.join("document-state");
-        drop(DocumentState::new(state.clone()).unwrap());
         let database = state.join("state.sqlite");
         let core = Core::new(0);
         core.settings_path.set(settings.clone()).unwrap();

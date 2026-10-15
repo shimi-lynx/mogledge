@@ -188,7 +188,7 @@ describe("successful per-column document navigation", () => {
     expect(controller.getSnapshot().selectedPath).toBe("c.html");
     const pendingRoot = controller.navigateHistory("back");
     update({ ...tree, workspaceId: "new", viewId: "new-view" });
-    await controller.choose();
+    await controller.registerRoot();
     reply({ relativePath: "b.html", identity: "a".repeat(64) });
     await pendingRoot;
     expect(history(controller).entries).toHaveLength(0);

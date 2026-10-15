@@ -67,7 +67,7 @@ it("derives Native tab/request from main records, rejects hidden/help/stale URLs
   const help = controller.openHelp()!;
   expect(controller.artifactContext(help, reloaded.url!)).toBeNull();
   snapshot = { ...snapshot, workspaceId: "other", viewId: "other-view", nodes: [] };
-  await controller.choose();
+  await controller.registerRoot();
   expect(controller.artifactContext(first.id, reloaded.url!)).toBeNull();
   controller.stop();
 });

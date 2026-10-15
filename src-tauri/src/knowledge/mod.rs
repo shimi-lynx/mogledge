@@ -591,6 +591,22 @@ impl ReadOnlyDirectoryGuard {
 
 pub const MAX_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 
+impl ReadOnlyDirectoryGuard {
+    pub(crate) fn storage_identity(&self) -> io::Result<String> {
+        #[cfg(unix)]
+        {
+            storage_root_identity(self.chain.last().unwrap())
+        }
+        #[cfg(windows)]
+        {
+            // Use the retained read guard's supported local/provider boundary;
+            // display navigation grants no ordinary-only writer authority.
+            let dir = windows::open_root_dir(&self.0)?;
+            storage_root_identity(&dir)
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReadError {
     ResourceBusy,

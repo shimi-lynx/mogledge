@@ -146,6 +146,7 @@ export class KnowledgeController {
   private sessionFlight: Promise<void> | null = null;
   private sessionRestoreFlight: Promise<void> | null = null;
   private sessionUnlisten?: () => void;
+  private savedRootRetryPending = false;
   constructor(private api: Bridge) {}
   // Only main derives Native IDs/request/revision; opaque HTML supplies none of them.
   artifactContext(id: string, url: string): ArtifactContext | null {
@@ -265,6 +266,7 @@ export class KnowledgeController {
     }
   }
   stop() {
+    this.savedRootRetryPending = false;
     this.sessionReady = false;
     this.sessionGeneration++;
     if (this.sessionTimer) clearTimeout(this.sessionTimer);
@@ -350,7 +352,26 @@ export class KnowledgeController {
       });
       return;
     }
-    if (snapshot.revision < current.revision) return;
+    // Display scope has an independent ordering: neither a delayed tree read nor
+    // an old selection may reverse a newer display change or physical fallback.
+    const newerDisplay = (snapshot.displayRevision ?? 0) > (current.displayRevision ?? 0);
+    if ((snapshot.displayRevision ?? 0) < (current.displayRevision ?? 0))
+      snapshot = {
+        ...snapshot,
+        displayFolder: current.displayFolder,
+        displayRevision: current.displayRevision,
+      };
+    if (snapshot.revision < current.revision) {
+      if (newerDisplay)
+        this.set({
+          snapshot: {
+            ...current,
+            displayFolder: snapshot.displayFolder,
+            displayRevision: snapshot.displayRevision,
+          },
+        });
+      return;
+    }
     this.applyMoves(snapshot.pathMoves ?? []);
     this.cancelHistory();
     this.histories = this.histories.map((history) =>
@@ -1127,11 +1148,83 @@ export class KnowledgeController {
     }
   }
   async choose() {
+    if (!this.state.snapshot.rootPath) {
+      if (this.state.snapshot.startupRecovery) {
+        this.set({ error: "RegisteredRootRecoveryRequired" });
+        return;
+      }
+      await this.registerRoot();
+      return;
+    }
+    const choose = this.api.chooseDisplayFolder;
+    if (!choose) {
+      this.set({ error: "DisplayFolderSelectionUnavailable" });
+      return;
+    }
+    await this.displayAction(choose);
+  }
+  async registerRoot() {
     await this.workspaceAction(() => this.api.chooseRoot());
+  }
+  async switchDisplayFolder(relativePath: string): Promise<boolean> {
+    const select = this.api.setDisplayFolder;
+    if (!select) {
+      this.set({ error: "DisplayFolderSelectionUnavailable" });
+      return false;
+    }
+    const displayRevision = this.state.snapshot.displayRevision ?? 0;
+    return this.displayAction((workspace, view) =>
+      select(workspace, view, relativePath, displayRevision),
+    );
+  }
+  private async displayAction(
+    action: (workspace: string, view: string) => Promise<Snapshot | null>,
+  ): Promise<boolean> {
+    const snapshot = this.state.snapshot;
+    if (this.stopped || this.state.loading || this.state.actionBusy || !snapshot.workspaceId)
+      return false;
+    // Display navigation leaves admitted document grants and session save targets
+    // intact. Only explicit root management uses workspaceAction and its flush.
+    this.cancelWorkspaceSelection();
+    const generation = ++this.workspaceGeneration;
+    this.set({ actionBusy: true, error: null, actionMessage: null });
+    const current = () =>
+      !this.stopped &&
+      generation === this.workspaceGeneration &&
+      snapshot.workspaceId === this.state.snapshot.workspaceId &&
+      snapshot.viewId === this.state.snapshot.viewId;
+    try {
+      const next = await action(snapshot.workspaceId, snapshot.viewId);
+      if (!current() || !next) return false;
+      // A display-only response must never silently replace storage ownership.
+      if (
+        next.workspaceId !== snapshot.workspaceId ||
+        next.viewId !== snapshot.viewId ||
+        next.rootPath !== snapshot.rootPath
+      ) {
+        this.set({ error: "DisplayFolderOutsideRegisteredRoot" });
+        return false;
+      }
+      if ((next.displayRevision ?? 0) < (this.state.snapshot.displayRevision ?? 0)) return false;
+      // Replace pre-selection reads with an authoritative cached read. Display
+      // changes themselves never reload documents or mark their content dirty.
+      this.syncGeneration++;
+      this.acceptSnapshot(next);
+      await this.synchronize();
+      if (!current()) return false;
+      if ((next.displayRevision ?? 0) < (this.state.snapshot.displayRevision ?? 0)) return false;
+      return true;
+    } catch (error) {
+      if (current()) this.set({ error: error instanceof Error ? error.message : String(error) });
+      return false;
+    } finally {
+      if (current()) this.set({ actionBusy: false });
+    }
   }
   async retrySavedRoot() {
     if (
       this.stopped ||
+      this.savedRootRetryPending ||
       this.state.loading ||
       this.state.actionBusy ||
       this.state.snapshot.workspaceId ||
@@ -1141,7 +1234,13 @@ export class KnowledgeController {
       return;
     const retry = this.api.retrySavedRoot;
     const view = this.state.snapshot.viewId;
-    await this.workspaceAction(() => retry(view));
+    const lifecycle = this.lifecycle;
+    this.savedRootRetryPending = true;
+    try {
+      await this.workspaceAction(() => retry(view));
+    } finally {
+      if (lifecycle === this.lifecycle) this.savedRootRetryPending = false;
+    }
   }
   async refresh() {
     await this.workspaceAction(() => this.api.refresh());
@@ -2502,6 +2601,7 @@ export class KnowledgeController {
       record.lazyDocument = undefined;
       record.sessionAdmitted = true;
       this.updateTab(id, { url, deferred: false, dirty: this.state.snapshot.revision > revision });
+      void this.checkDocumentStorage(id, record, native, request, url);
     } catch (error) {
       const latest = this.state.tabs.find((item) => item.id === id);
       if (
@@ -2527,6 +2627,43 @@ export class KnowledgeController {
     } finally {
       if (this.requests.get(id) === record && request === record.request)
         this.updateTab(id, { loading: false });
+    }
+  }
+  private async checkDocumentStorage(
+    id: string,
+    record: TabRequest,
+    native: string,
+    request: number,
+    url: string,
+  ) {
+    const check = this.api.getDocumentStorageHold;
+    const tab = this.state.tabs.find((item) => item.id === id);
+    if (!check || !tab) return;
+    const path = tab.path;
+    const current = () => {
+      const latest = this.state.tabs.find((item) => item.id === id);
+      return (
+        !this.stopped &&
+        !record.closing &&
+        this.requests.get(id) === record &&
+        record.nativeId === native &&
+        record.request === request &&
+        record.workspace === this.state.snapshot.workspaceId &&
+        record.view === this.state.snapshot.viewId &&
+        latest?.path === path &&
+        latest.url === url
+      );
+    };
+    try {
+      // The admitted grant keeps its original hold even if current DB authority
+      // changes. HTML may stop initializing when its restoration is rejected.
+      const storageHold = await check(record.workspace, record.view, native, request);
+      if (current()) this.updateTab(id, { storageHold: storageHold ?? undefined });
+    } catch (error) {
+      if (current())
+        this.updateTab(id, {
+          storageHold: { reason: error instanceof Error ? error.message : String(error) },
+        });
     }
   }
   async closeTabsToRight(id: string) {

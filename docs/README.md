@@ -5,6 +5,7 @@ These guides describe current Mogledge behavior. They separate user operations, 
 | Guide                                                 | Purpose                                                                             |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [User guide](user-guide.md)                           | Open HTML, tabs, search, workspaces, shortcuts and residency                        |
+| [Registered folders](registered-folders.md)           | Separate the saved-input root from the displayed folder and preserve ownership      |
 | [Tab sessions](tab-sessions.md)                       | Automatic restart layout, lazy loading and safe failure behavior                    |
 | [First build](first-run.md)                           | Prepare a machine and protect custom local AI instructions                          |
 | [Update and rollback](update-guide.md)                | Replace the app while preserving profiles, files and launch entries                 |

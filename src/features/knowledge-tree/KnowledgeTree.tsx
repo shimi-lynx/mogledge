@@ -3,7 +3,7 @@ import type { TreeNode, FileAction, TreeMutation, PathMove } from "../../lib/typ
 import { useT } from "../../lib/i18n";
 import { FileContextMenu } from "./FileContextMenu";
 import { MutationDialog, type MutationIntent } from "./MutationDialog";
-import { htmlNameParts, renamedHtmlPath, treeLabel, visibleRows } from "./model";
+import { displayedNodes, htmlNameParts, renamedHtmlPath, treeLabel, visibleRows } from "./model";
 import { FolderIcon } from "./FolderIcon";
 import { CreationIcon } from "./CreationIcon";
 import { TrashDialog } from "./TrashDialog";
@@ -21,6 +21,7 @@ export function KnowledgeTree({
   nodes,
   workspaceId,
   rootPath,
+  displayFolder = "",
   viewId,
   selected,
   onSelect,
@@ -44,6 +45,7 @@ export function KnowledgeTree({
   nodes: TreeNode[];
   workspaceId: string | null;
   rootPath?: string | null;
+  displayFolder?: string;
   viewId?: string;
   selected: string | null;
   onSelect: (path: string) => void;
@@ -83,7 +85,10 @@ export function KnowledgeTree({
   const appliedFocusRequest = useRef<{ workspaceId: string | null; id: number } | null>(null);
   const submitting = useRef(false);
   const container = useRef<HTMLDivElement>(null);
-  const rows = useMemo(() => visibleRows(nodes, expanded), [nodes, expanded]);
+  const rows = useMemo(
+    () => visibleRows(displayedNodes(nodes, displayFolder), expanded),
+    [nodes, displayFolder, expanded],
+  );
   useEffect(() => {
     setExpanded(new Set());
     setFocused(null);
@@ -98,7 +103,7 @@ export function KnowledgeTree({
     pendingTreeFocus.current = null;
     setScrollTop(0);
     if (container.current) container.current.scrollTop = 0;
-  }, [workspaceId]);
+  }, [workspaceId, displayFolder]);
   useEffect(() => {
     const fresh = (pathMoves ?? []).filter((move) => move.revision > moveRevision.current);
     if (!fresh.length) return;
@@ -211,7 +216,10 @@ export function KnowledgeTree({
       return;
     }
     if (action === "createHtml" || action === "createFolder") {
-      setIntent({ kind: action, parent: node?.kind === "folder" ? path : parentOf(path) });
+      setIntent({
+        kind: action,
+        parent: node?.kind === "folder" || path === displayFolder ? path : parentOf(path),
+      });
       return;
     }
     if (action === "move") {
@@ -321,6 +329,11 @@ export function KnowledgeTree({
       ? "操作中のため作成できません"
       : "";
   const creation = rootCreationLabels(rootPath, t);
+  const creationSelection = displayFolder
+    ? t("選択フォルダー内／HTMLの親、未選択時は表示フォルダー{folder}に作成します", {
+        folder: displayFolder,
+      })
+    : creation.selection;
   return (
     <>
       {onMutation && (
@@ -328,26 +341,26 @@ export function KnowledgeTree({
           <button
             type="button"
             aria-label={t("HTMLを作成")}
-            aria-description={creationUnavailable ? t(creationUnavailable) : creation.selection}
+            aria-description={creationUnavailable ? t(creationUnavailable) : creationSelection}
             title={t("{label}：{hint}", {
               label: t("HTMLを作成"),
-              hint: creationUnavailable ? t(creationUnavailable) : creation.selection,
+              hint: creationUnavailable ? t(creationUnavailable) : creationSelection,
             })}
             disabled={actionBusy || !workspaceId}
-            onClick={() => request(focused ?? "", "createHtml")}
+            onClick={() => request(focused ?? displayFolder, "createHtml")}
           >
             <CreationIcon kind="html" />
           </button>
           <button
             type="button"
             aria-label={t("フォルダーを作成")}
-            aria-description={creationUnavailable ? t(creationUnavailable) : creation.selection}
+            aria-description={creationUnavailable ? t(creationUnavailable) : creationSelection}
             title={t("{label}：{hint}", {
               label: t("フォルダーを作成"),
-              hint: creationUnavailable ? t(creationUnavailable) : creation.selection,
+              hint: creationUnavailable ? t(creationUnavailable) : creationSelection,
             })}
             disabled={actionBusy || !workspaceId}
-            onClick={() => request(focused ?? "", "createFolder")}
+            onClick={() => request(focused ?? displayFolder, "createFolder")}
           >
             <CreationIcon kind="folder" />
           </button>
@@ -392,7 +405,7 @@ export function KnowledgeTree({
             return;
           if (onMutation && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
             event.preventDefault();
-            request(focused ?? "", event.shiftKey ? "createFolder" : "createHtml");
+            request(focused ?? displayFolder, event.shiftKey ? "createFolder" : "createHtml");
             return;
           }
           const focusedIndex = rows.findIndex((row) => row.node.relativePath === focused);

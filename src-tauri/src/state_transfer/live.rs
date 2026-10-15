@@ -149,6 +149,9 @@ fn target(core: &Core, context: &Context, path: &str) -> Result<Target, Transfer
     if !knowledge::contains(&workspace.snapshot.nodes, path) {
         return Err(failure("target_unavailable"));
     }
+    if workspace.snapshot.storage_hold.is_some() {
+        return Err(failure("target_identity_confirmation_required"));
+    }
     let root = workspace
         .root
         .clone()

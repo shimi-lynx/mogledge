@@ -248,7 +248,7 @@ describe("root-local favorites and user display success", () => {
     api.validateWorkspaceDocument = vi.fn(async () => "a.html");
     await controller.start();
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     await flush();
     respond({ ...emptyLists, error: "old root" });
     await flush();
@@ -371,7 +371,7 @@ describe("independent document views and column layout", () => {
     expect(controller.selectFromSnapshot({ ...selection, relativePath: "c.html" })).toBe(true);
     await flush();
     update({ ...snapshot, workspaceId: "new-root", viewId: "new-view" });
-    await controller.choose();
+    await controller.registerRoot();
     resolveOpen("http://local/old-root/c.html");
     await flush();
     expect(controller.getSnapshot().tabs).toHaveLength(0);
@@ -749,7 +749,7 @@ describe("closed view history", () => {
     expect(api.createTab).toHaveBeenCalledTimes(3);
     await controller.closeTab(controller.getSnapshot().tabs[0].id);
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     expect(controller.getSnapshot().closed).toEqual([]);
     await controller.reopen();
     expect(controller.getSnapshot().tabs).toEqual([]);
@@ -1126,7 +1126,7 @@ describe("retained document tabs", () => {
     emit(change(2, ["c.html"], true));
     await flush();
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     failClose("旧rootの失敗");
     failWatch("旧watchの失敗");
     await closing;
@@ -1227,7 +1227,7 @@ describe("retained document tabs", () => {
     const pending = controller.select("a.html");
     await flush();
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     resolve("late");
     await pending;
     expect(controller.getSnapshot().tabs).toHaveLength(0);
@@ -1285,7 +1285,7 @@ describe("limited file actions", () => {
           choose = resolve;
         }),
     );
-    const selecting = controller.choose();
+    const selecting = controller.registerRoot();
     reject("old OS failure");
     await pending;
     expect(controller.getSnapshot().error).toBeNull();
@@ -1385,7 +1385,7 @@ describe("limited file actions", () => {
     await controller.performFileAction("b.html", "copyPath");
     expect(api.performFileAction).toHaveBeenCalledTimes(1);
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     reject("旧rootの失敗");
     await pending;
     expect(controller.getSnapshot().error).toBeNull();
@@ -1576,7 +1576,7 @@ describe("tree mutations", () => {
     );
     const pending = controller.mutateTree({ kind: "createHtml", parent: "", name: "old" });
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     resolve({ snapshot, createdPath: "a.html", moves: [], warning: null });
     await pending;
     expect(controller.getSnapshot().snapshot.workspaceId).toBe("two");
@@ -1660,7 +1660,7 @@ describe("mutation completion context", () => {
     const pending = controller.mutateTree({ kind: "move", source: move.from, parent: "Target" });
     await flush();
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     finish("old move URL");
     expect(await pending).toBe("作業フォルダーが変更されました");
     expect(controller.getSnapshot().snapshot.workspaceId).toBe("two");
@@ -1809,7 +1809,7 @@ describe("explicit document state recovery", () => {
     expect(getCandidate).toHaveBeenCalledTimes(1);
     expect(api.performFileAction).not.toHaveBeenCalled();
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
-    await controller.choose();
+    await controller.registerRoot();
     resolve(recoveryCandidate);
     await pending;
     expect(confirm).not.toHaveBeenCalled();
@@ -1837,7 +1837,7 @@ describe("explicit document state recovery", () => {
       await flush();
       if (transition === "view") {
         update({ ...snapshot, viewId: "view-two" });
-        await controller.choose();
+        await controller.registerRoot();
       } else controller.stop();
       confirm(true);
       await pending;
@@ -1955,7 +1955,7 @@ it("legacy confirmation does not dispatch retry and cancelling picker keeps reco
   await controller.start();
   await controller.retrySavedRoot();
   expect(api.retrySavedRoot).not.toHaveBeenCalled();
-  await controller.choose();
+  await controller.registerRoot();
   expect(controller.getSnapshot().snapshot.startupRecovery?.reason).toBe("confirmationRequired");
   controller.stop();
 });
