@@ -78,15 +78,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.8.3",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38677141877,
+    "verification_tooling_sha": "0040f279217891b5b11c46fa259c083d7120fba1",
+    "artifact_id": 11946204203,
+    "artifact_size": 131825115,
+    "artifact_sha256": "a0d3540572c57bfad3ee2c69c311bbd6e227d60780344678f7602fc3d3289813",
+    "artifact_name": "production-verified-0.8.2-38677141877-1",
+    "expires_at": "2026-10-18T03:38:32Z",
     "notes": "Preserve saved input and tab-session roots when switching displayed folders. Windows is not Authenticode-signed; macOS uses ad-hoc signing and is not notarized. Signed in-app update, saved-data preservation and restart QA remain owner checks after publication."
   }
 }
