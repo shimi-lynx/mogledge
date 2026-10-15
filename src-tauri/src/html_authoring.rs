@@ -1337,6 +1337,17 @@ mod tests {
             .as_ref()
             .unwrap()
             .contains("`.mogledge/html-authoring/GUIDE.md`"));
+        let guidance = current.guide_instruction.as_ref().unwrap();
+        for instruction in [
+            "AGENTS.override.md",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "CLAUDE.local.md",
+            "additional instructions",
+            "does not grant filesystem access",
+        ] {
+            assert!(guidance.contains(instruction));
+        }
         let raw = " 日本語 / path / $& \n\t ";
         let request = Request {
             context: root(),
@@ -1375,7 +1386,7 @@ mod tests {
             .guide_instruction
             .as_ref()
             .unwrap()
-            .contains("../.mogledge/"));
+            .contains("`.mogledge/"));
         ai_handoff::perform(
             &f.core,
             &Request {
@@ -1389,7 +1400,8 @@ mod tests {
                 assert_eq!(
                     target.target,
                     format!(
-                        "{}\n\n{raw}\n\n{}",
+                        "Working directory: {}\n\n{}\n\n{raw}\n\n{}",
+                        document.working_directory,
                         document.selected_path,
                         document.guide_instruction.as_ref().unwrap()
                     )

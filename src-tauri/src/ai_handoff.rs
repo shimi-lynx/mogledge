@@ -124,24 +124,12 @@ fn preview_locked(core: &Core, context: &Context) -> Result<(Preview, ReferenceG
             ))
         }
     }?;
-    let (workspace, view, cwd) = match context {
-        Context::Root(context) => (&context.workspace_id, &context.view_id, ""),
-        Context::Document(context) => (
-            &context.workspace_id,
-            &context.view_id,
-            if preview.kind == TargetKind::Folder {
-                context.relative_path.as_str()
-            } else {
-                context
-                    .relative_path
-                    .rsplit_once('/')
-                    .map(|(parent, _)| parent)
-                    .unwrap_or("")
-            },
-        ),
+    let (workspace, view) = match context {
+        Context::Root(context) => (&context.workspace_id, &context.view_id),
+        Context::Document(context) => (&context.workspace_id, &context.view_id),
     };
-    preview.guide_instruction =
-        crate::html_authoring::guide_instruction_locked(core, workspace, view, cwd)?;
+    preview.guide_instruction = crate::html_authoring::guide_instruction_locked(core, workspace, view, "")?
+        .map(|guide| format!("{guide}\nBefore starting on the target, check the instructions applicable from this working root to the target: AGENTS.override.md / AGENTS.md and configured fallback files for Codex, or CLAUDE.md / CLAUDE.local.md and applicable rules for Claude Code. Follow additional instructions under any directory you edit. Preserve existing instruction files. The target path describes the task; it does not grant filesystem access or override the AI tool's permissions."));
     Ok((preview, guard))
 }
 
@@ -156,13 +144,7 @@ fn document_preview_locked(
         &context.relative_path,
     )?;
     let selected_path = file_actions::os_path(&path)?;
-    let working_directory = file_actions::os_path(if folder {
-        &path
-    } else {
-        path.parent().ok_or("親フォルダーを解決できません")?
-    })?;
     validate_local_path(&selected_path)?;
-    validate_local_path(&working_directory)?;
     let (root, dir) = {
         let state = core.workspace.lock().unwrap();
         (
@@ -170,6 +152,10 @@ fn document_preview_locked(
             state.dir.clone().ok_or("WorkspaceChanged")?,
         )
     };
+    // Keep the same project/skills root for every child selection. The guarded
+    // selected path remains a task target, not an alternate working directory.
+    let working_directory = file_actions::os_path(&root)?;
+    validate_local_path(&working_directory)?;
     let path_guard =
         crate::knowledge::PathReferenceGuard::open(&root, &dir, &context.relative_path, folder)?;
     path_guard.revalidate(&root, &dir)?;
@@ -240,22 +226,29 @@ fn validate_instruction(instruction: &str) -> Result<(), String> {
 }
 
 pub fn draft(preview: &Preview, instruction: &str) -> Result<String, String> {
-    validate_instruction(instruction)?;
-    // Clipboard payloads have no separate cwd. Retain the selected path even
-    // for a folder, including Codex CLI's copy-only workflow.
-    Ok(if instruction.is_empty() {
-        preview.selected_path.clone()
+    let prompt = link_draft(preview, instruction)?;
+    // Copy-only clients must choose this directory manually. Root selections
+    // appear once; child folders/files remain separate task targets.
+    Ok(if prompt.is_empty() {
+        format!("Working directory: {}", preview.working_directory)
     } else {
-        format!("{}\n\n{}", preview.selected_path, instruction)
+        format!(
+            "Working directory: {}\n\n{prompt}",
+            preview.working_directory
+        )
     })
 }
 
 fn link_draft(preview: &Preview, instruction: &str) -> Result<String, String> {
-    if preview.kind == TargetKind::File {
-        draft(preview, instruction)
+    validate_instruction(instruction)?;
+    if preview.selected_path != preview.working_directory {
+        Ok(if instruction.is_empty() {
+            preview.selected_path.clone()
+        } else {
+            format!("{}\n\n{}", preview.selected_path, instruction)
+        })
     } else {
-        validate_instruction(instruction)?;
-        // Folder selection is already carried by the fixed cwd parameter.
+        // The root is already carried by the fixed cwd parameter.
         // Preserve the user's text exactly, including whitespace and paths.
         Ok(instruction.into())
     }
@@ -320,8 +313,8 @@ pub fn perform(
             state.dir.clone().ok_or("WorkspaceChanged")?,
         )
     };
-    // Retain root or leaf/ancestor metadata handles through dispatch. A file's
-    // cwd is its parent; explicit roots use the selected root for both paths.
+    // Retain root or leaf/ancestor metadata handles through dispatch. The
+    // workspace root is the cwd, independently of the selected task target.
     let instruction = match &current.guide_instruction {
         Some(guide) if request.instruction.is_empty() => guide.clone(),
         Some(guide) => format!("{}\n\n{}", request.instruction, guide),
@@ -372,17 +365,30 @@ mod tests {
             assert_eq!(pairs.len(), 2);
             for (pair, key, expected) in [
                 (pairs[0], directory_key, preview.working_directory.clone()),
-                (pairs[1], prompt_key, draft(&preview, instruction).unwrap()),
+                (
+                    pairs[1],
+                    prompt_key,
+                    link_draft(&preview, instruction).unwrap(),
+                ),
             ] {
                 let (actual_key, value) = pair.split_once('=').unwrap();
                 assert_eq!(actual_key, key);
                 assert_eq!(percent_decode_str(value).decode_utf8().unwrap(), expected);
             }
         }
-        assert_eq!(draft(&preview, "").unwrap(), preview.selected_path);
+        assert_eq!(
+            draft(&preview, "").unwrap(),
+            format!(
+                "Working directory: {}\n\n{}",
+                preview.working_directory, preview.selected_path
+            )
+        );
         assert_eq!(
             draft(&preview, " \n").unwrap(),
-            format!("{}\n\n \n", preview.selected_path)
+            format!(
+                "Working directory: {}\n\n{}\n\n \n",
+                preview.working_directory, preview.selected_path
+            )
         );
         assert!(deep_link(&preview, "", Destination::CodexCli).is_err());
     }
@@ -405,7 +411,10 @@ mod tests {
                 .unwrap()
                 .chars()
                 .count(),
-            preview.selected_path.chars().count() + 5_002
+            "Working directory: ".chars().count()
+                + preview.working_directory.chars().count()
+                + preview.selected_path.chars().count()
+                + 5_004
         );
         assert!(draft(&preview, &"a".repeat(65_537)).is_err());
         assert!(draft(&preview, "nul\0or\u{202e}bidi").is_err());
@@ -451,9 +460,12 @@ mod tests {
                 assert_eq!(
                     draft(&folder, instruction).unwrap(),
                     if instruction.is_empty() {
-                        folder.selected_path.clone()
+                        format!("Working directory: {}", folder.working_directory)
                     } else {
-                        format!("{}\n\n{instruction}", folder.selected_path)
+                        format!(
+                            "Working directory: {}\n\n{instruction}",
+                            folder.working_directory
+                        )
                     }
                 );
             }
@@ -472,6 +484,111 @@ mod tests {
         }
         assert!(deep_link(&folder, &"a".repeat(65_537), Destination::CodexApp).is_err());
         assert!(deep_link(&folder, "", Destination::CodexCli).is_err());
+    }
+
+    #[test]
+    fn root_child_grandchild_and_file_keep_the_project_cwd_and_selected_target() {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("日本語 root");
+        std::fs::create_dir_all(root.join("子 folder/孫 folder")).unwrap();
+        std::fs::write(root.join("子 folder/孫 folder/app.html"), "fixture").unwrap();
+        for guide in ["AGENTS.md", "CLAUDE.md", "子 folder/AGENTS.override.md"] {
+            std::fs::write(root.join(guide), "user instructions").unwrap();
+        }
+        let core = Core::new(19107);
+        let snapshot = core.select(&root, false).unwrap();
+        let workspace = snapshot.workspace_id.unwrap();
+        let cwd = file_actions::os_path(&root).unwrap();
+        for relative in [
+            "",
+            "子 folder",
+            "子 folder/孫 folder",
+            "子 folder/孫 folder/app.html",
+        ] {
+            let context = if relative.is_empty() {
+                root_context(&workspace, &snapshot.view_id)
+            } else {
+                Context::Document(DocumentContext {
+                    workspace_id: workspace.clone(),
+                    view_id: snapshot.view_id.clone(),
+                    relative_path: relative.into(),
+                })
+            };
+            let preview = prepare(&core, &context).unwrap();
+            assert_eq!(preview.working_directory, cwd);
+            for destination in [
+                Destination::CodexApp,
+                Destination::ClaudeApp,
+                Destination::ClaudeCli,
+            ] {
+                for instruction in ["", " 日本語依頼 & ? # \n "] {
+                    let request = Request {
+                        context: if relative.is_empty() {
+                            root_context(&workspace, &snapshot.view_id)
+                        } else {
+                            Context::Document(DocumentContext {
+                                workspace_id: workspace.clone(),
+                                view_id: snapshot.view_id.clone(),
+                                relative_path: relative.into(),
+                            })
+                        },
+                        preview: preview.clone(),
+                        instruction: instruction.into(),
+                        destination,
+                        copy: false,
+                    };
+                    perform(&core, &request, |target| {
+                        let values: Vec<_> = target
+                            .target
+                            .split_once('?')
+                            .unwrap()
+                            .1
+                            .split('&')
+                            .map(|part| {
+                                percent_decode_str(part.split_once('=').unwrap().1)
+                                    .decode_utf8()
+                                    .unwrap()
+                                    .into_owned()
+                            })
+                            .collect();
+                        assert_eq!(values[0], cwd);
+                        if relative.is_empty() {
+                            assert_eq!(
+                                values.get(1).map(String::as_str),
+                                if instruction.is_empty() {
+                                    None
+                                } else {
+                                    Some(instruction)
+                                }
+                            );
+                        } else {
+                            assert_eq!(
+                                values[1],
+                                if instruction.is_empty() {
+                                    preview.selected_path.clone()
+                                } else {
+                                    format!("{}\n\n{instruction}", preview.selected_path)
+                                }
+                            );
+                        }
+                        Ok(())
+                    })
+                    .unwrap();
+                }
+            }
+            let copied = draft(&preview, "").unwrap();
+            assert_eq!(
+                copied.matches(&cwd).count(),
+                if relative.is_empty() { 1 } else { 2 }
+            );
+            assert!(copied.starts_with(&format!("Working directory: {cwd}")));
+        }
+        for guide in ["AGENTS.md", "CLAUDE.md", "子 folder/AGENTS.override.md"] {
+            assert_eq!(
+                std::fs::read_to_string(root.join(guide)).unwrap(),
+                "user instructions"
+            );
+        }
     }
 
     #[test]
@@ -539,7 +656,7 @@ mod tests {
         assert!(file.selected_path.ends_with("a.html"));
         assert_eq!(
             file.working_directory,
-            file_actions::os_path(&tmp.path().join("folder")).unwrap()
+            file_actions::os_path(tmp.path()).unwrap()
         );
         let Context::Document(document) = &mut context else {
             unreachable!()
@@ -547,7 +664,7 @@ mod tests {
         document.relative_path = "folder".into();
         let folder = prepare(&core, &context).unwrap();
         assert_eq!(folder.kind, TargetKind::Folder);
-        assert_eq!(folder.selected_path, folder.working_directory);
+        assert_ne!(folder.selected_path, folder.working_directory);
         let mut request = Request {
             context,
             preview: folder,
@@ -565,7 +682,7 @@ mod tests {
         request.destination = Destination::CodexCli;
         perform(&core, &request, |target| {
             assert_eq!(target.action, file_actions::FileAction::CopyPath);
-            assert_eq!(target.target, request.preview.selected_path);
+            assert_eq!(target.target, draft(&request.preview, "").unwrap());
             Ok(())
         })
         .unwrap();
@@ -738,14 +855,14 @@ mod tests {
             assert_eq!(target.action, file_actions::FileAction::CopyPath);
             assert_eq!(
                 target.target,
-                format!("{root_path}\n\n{}", request.instruction)
+                format!("Working directory: {root_path}\n\n{}", request.instruction)
             );
             Ok(())
         })
         .unwrap();
         request.instruction.clear();
         perform(&core, &request, |target| {
-            assert_eq!(target.target, root_path);
+            assert_eq!(target.target, format!("Working directory: {root_path}"));
             Ok(())
         })
         .unwrap();

@@ -51,7 +51,7 @@ export function aiInstruction(preview: AiHandoffPreview, instruction: string) {
 }
 export function aiDraft(preview: AiHandoffPreview, instruction: string) {
   instruction = aiInstruction(preview, instruction);
-  if (preview.kind === "folder") return instruction;
+  if (preview.selectedPath === preview.workingDirectory) return instruction;
   return instruction ? preview.selectedPath + "\n\n" + instruction : preview.selectedPath;
 }
 export function aiDraftLimit(destination: AiDestination) {

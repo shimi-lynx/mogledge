@@ -8,9 +8,15 @@ Use **Send to AI** when you want an external AI tool to create or edit an HTML t
 2. Choose the receiving tool and enter an optional request.
 3. Open its draft, or copy the request and paste it yourself.
 
-ChatGPT/Codex and Claude Code integrations launch their supported application/CLI entry points. Codex CLI uses copying rather than automatic draft submission. Files include their path in the request and use their parent folder as the working directory. Folder/root launches pass the folder as working directory without automatically adding its path to the draft body; copy-only routes include it because they cannot separately convey the working directory. Empty requests are allowed.
+ChatGPT/Codex and Claude Code integrations keep the currently selected dedicated root as the working directory. Selected child folders, nested folders and files appear in the draft as task targets. Selecting the root uses the working-directory parameter without repeating its path in the draft. Empty requests still carry the selected child/file target and the dedicated folder's authoring-guide instructions. Codex CLI uses copying: choose the stated working root manually, start Codex there and paste into its input. Copies state the working root and include a separate target only when it differs.
 
-This does not attach file contents, read saved inputs, send an AI API request or grant the external tool new permissions. Receiver installation/link handling and actual OS clipboard behavior have [known limits](known-limitations.md). For storage-capable HTML, optionally prepare the [authoring kit](html-authoring-kit.md) first.
+Before starting on the target, the guide instruction asks the AI to check applicable instructions from the working root to the target: `AGENTS.override.md` / `AGENTS.md` and configured fallback files for Codex, or `CLAUDE.md` / `CLAUDE.local.md` and applicable rules for Claude Code. It also asks the AI to follow additional instructions under directories it edits. Existing instruction files are preserved. Root startup alone does not prove that a client loaded nested instructions or an authoring Skill. Client trust and permission prompts may remain.
+
+This does not attach file contents, read saved inputs, send an AI API request or grant the external tool new permissions. A task target in a prompt is not an OS access restriction. Receiver installation/link handling and actual OS clipboard behavior have [known limits](known-limitations.md). Dedicated folders include the [authoring kit](html-authoring-kit.md); legacy unregistered folders retain their existing optional-guide setting.
+
+Integration references: [Codex app links](https://learn.chatgpt.com/docs/reference/commands#deep-links), [Codex instruction discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md), [Claude Code CLI links](https://code.claude.com/docs/en/deep-links) and [Claude instruction loading](https://code.claude.com/docs/en/memory). The existing desktop URI routes are retained; actual receiving-client versions, draft display and clipboard behavior require Native checks.
+
+See the [working-root verification record](ai-handoff-root-verification.md) for tested cases and receiving-client limits.
 
 ## Open and arrange documents
 
