@@ -46,3 +46,24 @@ Before replacement, the canonical synthetic document's Save action reported comp
 A retained artificial legacy row was then added to the isolated profile alongside a new UUID document at `資料/二階層/Fresh Document.html`. Existing session items were retained and the artificial tab appended. In the actual updated Windows WebView, the new document reported no saved value and had no DB row before its first explicit Save. Native accessibility invoked its Save and Save/reload buttons: completion and restoration were observed, with amount 2, double mode, the enabled checkbox and result 4. A screenshot agrees. Read-only SQLite fingerprints confirm the previous preview rows and the unrelated legacy row remain unchanged; the new HTML and UUID remain byte-identical.
 
 The app was left running at the same preview location. Actual settings, SQLite and WebView paths were reverified under the same isolated identifier. The artifact manifest records exact source, hash, profile and launch identity. This adds Native button-driven save/reload evidence; physical input/IME, fresh-input restoration after another full process restart, live-UI import, macOS Native QA and real-data recovery remain unrun. Later edits to this evidence record are documentation-only and do not change the binary's build source.
+
+## HTML selection latency follow-up
+
+Source inspection found two existing costs in UUID admission. Opening a document with a never-saved UUID read and parsed all retained payloads twice. Duplicate checking opened registered roots even when no other object claimed that UUID. Both paths also exist on main; this is not evidence that the latest legacy-scope correction introduced them. Corrected nested-path admission can expose work that previously ended early with a storage hold.
+
+Admission now reuses one validated row snapshot for physical/object proofs and unresolved-location review. Duplicate checking opens registered roots only when another object claims the same UUID. Actual conflicts still verify the registry, root and object; exact copying still uses its revision-checked transaction. Catalog compare-and-swap, management-file identity checks, quotas and existing-target protection remain unchanged. No cross-process transaction guarantee is added.
+
+Synthetic Windows debug-backend measurements used disposable profiles, one registered root and a small valid HTML file. The larger profile held 128 unrelated legacy rows of 64 KiB each, approximately 8 MiB total. The baseline was `ccee37bd0be72238b1cb49735852939032dd34d3`. Repeated opens were measured after phase probes, with three baseline samples and six corrected samples across two runs:
+
+| Retained legacy payloads | Baseline median (range) | Corrected median (range) |
+| ------------------------ | ----------------------- | ------------------------ |
+| None                     | 0.875 s (0.693–0.900 s) | 0.206 s (0.172–0.295 s)  |
+| Approximately 8 MiB      | 1.553 s (1.250–1.791 s) | 0.886 s (0.591–2.278 s)  |
+
+First admission in fresh fixture instances took 0.184–0.226 s without legacy payloads and 0.678–1.368 s with them. After explicit saving, opens took 0.148–0.256 s and 0.281–0.494 s respectively; existing saved UUIDs bypass the full legacy scan. These are backend timings, not WebView render or perceived click latency. OS caches were not flushed. The 2.278 s outlier and changing metadata-I/O times show that the remaining jitter is not resolved by this small correction.
+
+The unchanged full-row scan still scales with retained payload bytes. Admission holds the lifecycle/workspace locks while performing guarded I/O, so concurrent operations can queue; the serial fixture does not measure a user's actual lock wait. Registered-root verification is not an HTML-tree content scan. Existing read-error retries were not exercised by successful fixture reads. No real HTML or saved inputs were read or changed. Existing apps remained running without UI interactions.
+
+All 11 `document_identity::tests` regression cases passed with the timing probe, including the new no-candidate I/O guard and existing duplicate, exact-proof migration, same-location hold, unrelated-row, backup, nested-path and restart cases. Timing instrumentation is excluded from the final source. Application/backend Clippy passed again with `--lib --locked --offline -j 1 -- -D warnings`; Rust formatting and diff checks passed. Independent source review found no changed inheritance or duplicate decision. The earlier transfer evidence remains applicable because its resolver does not use the changed admission/duplicate helpers.
+
+The running preview remains the earlier `ea90580f3475b6b3af98c3414068ec1b4ec0ef3d` build and does not include this performance correction. A rebuilt preview, GUI latency checks and any application replacement remain unrun; merge and release are still on hold.

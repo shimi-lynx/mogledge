@@ -206,22 +206,25 @@ fn candidates(
     path: &str,
     value: &Catalog,
 ) -> Result<Vec<LegacyRow>, String> {
+    let rows = core
+        .document_state
+        .get()
+        .ok_or("StorageUnavailable")?
+        .identity_rows()?;
+    let mut rows = unresolved_rows(rows, value);
+    // Locations rank the review list but never authorize data inheritance.
+    rows.sort_by_key(|row| (row.root != root || row.path != path, row.path != path));
+    Ok(rows)
+}
+fn unresolved_rows(rows: Vec<LegacyRow>, value: &Catalog) -> Vec<LegacyRow> {
     let keys: std::collections::HashSet<_> = value
         .bindings
         .iter()
         .map(|b| storage_key(&b.uuid))
         .collect();
-    let mut rows: Vec<_> = core
-        .document_state
-        .get()
-        .ok_or("StorageUnavailable")?
-        .identity_rows()?
-        .into_iter()
+    rows.into_iter()
         .filter(|row| !keys.contains(&row.id) && !value.resolved_legacy.contains(&row.id))
-        .collect();
-    // Locations rank the review list but never authorize data inheritance.
-    rows.sort_by_key(|row| (row.root != root || row.path != path, row.path != path));
-    Ok(rows)
+        .collect()
 }
 fn has_legacy_at_path(rows: &[LegacyRow], root: &str, path: &str) -> bool {
     // A matching location warrants review, never automatic inheritance. A valid
@@ -236,14 +239,19 @@ fn duplicate(core: &Core, value: &Catalog, uuid: &str, object: &str) -> Result<b
     {
         return Ok(false);
     }
-    let registered = crate::managed_folders::registered_paths(core)?;
-    let mut conflict = false;
-    let mut shared_lineage = false;
-    for binding in value
+    let mut others = value
         .bindings
         .iter()
         .filter(|b| b.uuid == uuid && b.object != object)
-    {
+        .peekable();
+    // Root verification is needed only when another object claims this UUID.
+    if others.peek().is_none() {
+        return Ok(false);
+    }
+    let registered = crate::managed_folders::registered_paths(core)?;
+    let mut conflict = false;
+    let mut shared_lineage = false;
+    for binding in others {
         if !registered.contains(&binding.root) {
             conflict = true;
             continue;
@@ -334,6 +342,8 @@ pub(crate) fn admit(
             .map(|p| p.source.clone())
             .chain(std::iter::once(physical.into()))
             .collect();
+        // Proof and unresolved-location checks share one validated snapshot;
+        // rereading it would parse every saved payload a second time.
         let rows = store.identity_rows()?;
         let exact: Vec<_> = rows.iter().filter(|r| proven.contains(&r.id)).collect();
         if exact.len() > 1 {
@@ -342,7 +352,7 @@ pub(crate) fn admit(
         if let Some(row) = exact.first() {
             store.copy_identity(&row.id, row.revision, &key, &root_id, path)?;
             value.resolved_legacy.push(row.id.clone());
-        } else if has_legacy_at_path(&candidates(core, &root_id, path, &value)?, &root_id, path) {
+        } else if has_legacy_at_path(&unresolved_rows(rows, &value), &root_id, path) {
             return Err("DocumentLegacyConflict".into());
         }
     }
@@ -802,6 +812,28 @@ mod tests {
             )
             .unwrap();
         }
+    }
+    #[test]
+    fn duplicate_opens_registered_roots_only_for_another_object_with_the_same_uuid() {
+        let core = Core::new(19271);
+        // No profile is configured: a registry read would fail. Unrelated UUIDs
+        // and this object's existing binding do not require that I/O.
+        let mut value = Catalog::default();
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings.push(Binding {
+            uuid: new_uuid(),
+            object: "other-object".into(),
+            physical: "synthetic".into(),
+            root: std::env::temp_dir(),
+            path: "synthetic.html".into(),
+            shared: false,
+        });
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings[0].uuid = ID.into();
+        value.bindings[0].object = "current-object".into();
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings[0].object = "other-object".into();
+        assert!(duplicate(&core, &value, ID, "current-object").is_err());
     }
     #[test]
     #[cfg(windows)]
