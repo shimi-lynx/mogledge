@@ -162,7 +162,7 @@ Import over an existing record:
 {"command":"quit"}
 ```
 
-Use the identity returned by `inspect_target`; the target must be a regular `.html`/`.htm` file. If no target record exists, omit `backup_path` and `replace_confirmation`; unnecessary backup selection is rejected. These optional commands discard a pending plan or compare a portable file with the current target after reopening a session:
+Use the identity returned by `inspect_target`; the target must be a regular `.html`/`.htm` file. Dedicated-folder UUIDs select logical saved-input records. An import plan also retains the physical target identity and rejects a changed UUID or a replaced file, including a replacement with the same UUID. Confirmation and the final transaction check both revalidate the target. If no target record exists, omit `backup_path` and `replace_confirmation`; unnecessary backup selection is rejected. These optional commands discard a pending plan or compare a portable file with the current target after reopening a session:
 
 ```json
 {"command":"cancel","plan_id":"<planId>"}

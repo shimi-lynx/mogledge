@@ -634,10 +634,8 @@ pub fn configure(
     {
         let output = edited_source(source, &uuid, matches!(metadata, Metadata::Uuid(_)))?;
         let relative = knowledge::validate_relative(path)?;
-        let parent = write_fs::LockedDir::open(
-            &dir,
-            &relative.parent().unwrap_or(Path::new("")).to_string_lossy(),
-        )?;
+        let parent_relative = path.rsplit_once('/').map_or("", |(parent, _)| parent);
+        let parent = write_fs::LockedDir::open(&dir, parent_relative)?;
         let leaf = relative
             .file_name()
             .unwrap()
@@ -792,6 +790,82 @@ mod tests {
                 },
             )
             .unwrap();
+        }
+    }
+    #[test]
+    #[cfg(windows)]
+    fn nested_windows_object_proof_and_uuid_admission() {
+        let f = Fixture::new();
+        let root = f.folder("synthetic-documents");
+        std::fs::create_dir_all(root.join("資料/二階層")).unwrap();
+        let paths = [
+            "direct.html",
+            "資料/control.html",
+            "資料/二階層/calculator.html",
+        ];
+        for path in paths {
+            std::fs::write(root.join(path), html(&new_uuid())).unwrap();
+        }
+        f.register(&root);
+        let (root, dir) = knowledge::open_root(&root).unwrap();
+        let _gate = f.core.gate.lock().unwrap();
+        for path in paths {
+            knowledge::object_identity(&root, &dir, path).unwrap();
+            let physical = knowledge::storage_identity(&root, &dir, path).unwrap();
+            let source = std::fs::read_to_string(root.join(path)).unwrap();
+            admit(&f.core, &root, &dir, path, &source, &physical).unwrap();
+        }
+    }
+    #[test]
+    fn nested_metadata_add_retains_original_html_backup_and_allows_storage() {
+        let f = Fixture::new();
+        let root = f.folder("synthetic-documents");
+        let relative = "資料/二階層/tool.html";
+        std::fs::create_dir_all(root.join(relative).parent().unwrap()).unwrap();
+        let original =
+            "<!doctype html><html><head><title>人工文書</title></head><body><input></body></html>";
+        std::fs::write(root.join(relative), original).unwrap();
+        f.register(&root);
+        let snapshot = f.select(&root);
+        configure(
+            &f.core,
+            snapshot.workspace_id.as_deref().unwrap(),
+            &snapshot.view_id,
+            relative,
+            "add",
+            None,
+        )
+        .unwrap();
+        let edited = std::fs::read_to_string(root.join(relative)).unwrap();
+        assert!(matches!(parse(&edited), Metadata::Uuid(_)));
+        let token = f.open(&snapshot, relative);
+        f.write(&token);
+        assert_eq!(f.read(&token).unwrap(), json!({"name":"retained"}));
+        let backups: Vec<_> = std::fs::read_dir(f.profile.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".html"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(backups[0].path()).unwrap(),
+            original
+        );
+    }
+    #[test]
+    #[cfg(windows)]
+    fn external_backslashes_and_escape_paths_stay_rejected() {
+        let root = tempfile::tempdir().unwrap();
+        let (path, dir) = knowledge::open_root(root.path()).unwrap();
+        for relative in [
+            "資料\\二階層\\tool.html",
+            "../tool.html",
+            "/tool.html",
+            "C:/tool.html",
+            "資料/.hidden/tool.html",
+        ] {
+            assert!(knowledge::validate_relative(relative).is_err());
+            assert!(knowledge::object_identity(&path, &dir, relative).is_err());
         }
     }
     #[test]
