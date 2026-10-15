@@ -1,4 +1,4 @@
-.registered-folder-summary {
+.display-folder-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8,13 +8,7 @@
   color: var(--surface-muted);
   border-bottom: 1px solid var(--surface-border);
 }
-.registered-folder-summary > span:first-child {
-  flex-basis: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.registered-folder-summary button {
+.display-folder-actions button {
   font: inherit;
   padding: 3px 6px;
 }
