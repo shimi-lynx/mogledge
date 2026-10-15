@@ -11,7 +11,7 @@ for (const language of ["ja", "en"] as const) {
     await page.route("**/@tauri-apps_api_app.js*", (route) =>
       route.fulfill({
         contentType: "application/javascript",
-        body: 'export const getVersion=async()=>"0.8.2";',
+        body: 'export const getVersion=async()=>"0.8.4";',
       }),
     );
     await page.route("**/src/lib/bridge.ts", (route) =>
@@ -40,11 +40,19 @@ for (const language of ["ja", "en"] as const) {
     await page.goto("/");
     const root = page.locator(".workspace-button");
     await expect(root).toHaveText("Parent");
+    await expect(page.locator(".display-folder-actions")).toHaveCount(0);
     await root.click();
     await expect(root).toHaveText("Child");
-    await expect(page.locator(".registered-folder-summary")).toContainText(
-      language === "ja" ? "登録フォルダー：Parent" : "Registered folder: Parent",
-    );
+    await expect(
+      page.getByText(language === "ja" ? "登録フォルダー：Parent" : "Registered folder: Parent", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText(language === "ja" ? "表示フォルダー" : "Displayed folder", { exact: true }),
+    ).toHaveCount(0);
+    await expect(root).toHaveAttribute("title", /\/fixture\/Parent\/Child/);
+    await expect(page.locator(".display-folder-actions")).toBeVisible();
     await expect(page.getByRole("treeitem", { name: "tool HTML", exact: true })).toHaveAttribute(
       "data-path",
       "Child/tool.html",
@@ -53,7 +61,8 @@ for (const language of ["ja", "en"] as const) {
     expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(0);
     await page.reload();
     await expect(root).toHaveText("Child");
-    await expect(page.locator(".registered-folder-summary")).toContainText("Parent");
+    await expect(page.locator(".display-folder-actions")).toBeVisible();
+    await expect(root).toHaveAttribute("title", /\/fixture\/Parent\/Child/);
     expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(0);
     await page.screenshot({ path: test.info().outputPath(`registered-child-${language}.png`) });
     const hide = language === "ja" ? "左メニューを閉じる" : "Hide sidebar";
@@ -64,6 +73,19 @@ for (const language of ["ja", "en"] as const) {
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
       await page.setViewportSize({ width: 320, height: 640 });
+      await page
+        .getByRole("button", {
+          name: language === "ja" ? "左メニューを開く" : "Show sidebar",
+          exact: true,
+        })
+        .click();
+      await expect(root).toBeVisible();
+      await expect(page.locator(".display-folder-actions")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+      await page.screenshot({
+        path: test.info().outputPath(`displayed-child-narrow-${language}-${scheme}.png`),
+      });
+      await page.getByRole("button", { name: hide, exact: true }).click();
       await expect(hold).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
       await page.screenshot({
@@ -84,6 +106,7 @@ for (const language of ["ja", "en"] as const) {
       })
       .click();
     await expect(root).toHaveText("Parent");
+    await expect(page.locator(".display-folder-actions")).toHaveCount(0);
     await expect(page.getByRole("treeitem", { name: "parent HTML", exact: true })).toBeVisible();
     await page.evaluate("window.chooseOutside=true");
     await root.click();

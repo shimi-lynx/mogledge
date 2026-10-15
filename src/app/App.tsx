@@ -589,21 +589,15 @@ export function App() {
               </button>
             </RootAiHandoffMenu>
           </div>
-          {state.snapshot.rootPath && (
-            <div className="registered-folder-summary">
-              <span title={state.snapshot.rootPath}>
-                {t("登録フォルダー：{name}", { name: rootName })}
-              </span>
-              <span>{t("表示フォルダー")}</span>
-              {displayFolder && (
-                <button
-                  type="button"
-                  disabled={state.loading || state.actionBusy}
-                  onClick={() => void controller.switchDisplayFolder("")}
-                >
-                  {t("登録範囲をすべて表示")}
-                </button>
-              )}
+          {state.snapshot.rootPath && displayFolder && (
+            <div className="display-folder-actions">
+              <button
+                type="button"
+                disabled={state.loading || state.actionBusy}
+                onClick={() => void controller.switchDisplayFolder("")}
+              >
+                {t("登録範囲をすべて表示")}
+              </button>
             </div>
           )}
           <div

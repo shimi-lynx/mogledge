@@ -1,6 +1,6 @@
 # Registered and displayed folders
 
-This correction is prepared for 0.8.3. Published 0.8.2 binaries predate it.
+Published 0.8.3 includes the registered/displayed-folder correction; earlier 0.8.2 binaries predate it.
 
 The registered folder is the physical root used for saved input, document references, tabs, favorites and workspace preferences. **Switch displayed folder** changes only the folder shown in the tree within that registered scope. Opening a child folder this way preserves the registered root, live tabs and their admitted storage destinations.
 
@@ -52,3 +52,11 @@ Unchanged controller/tree and adapter behavior retains its targeted evidence. Br
 Product manifests and the current Windows validation helper are aligned at 0.8.3. This patch corrects registered-folder and saved-input behavior; it does not introduce a new storage identity or migrate retained input. Existing 0.8.2 signing/publication pins and historical verification remain unchanged. Targeted source evidence above is reused because the later changes only align product metadata and describe the agreed build/QA sequence. The candidate workflow checks the final source, product version, executable metadata, bundled source and dependency notices on each selected OS. Signing, publication and installed-app replacement remain separate operations.
 
 The final metadata adjustment passed product-version/identifier consistency, the frontend type/lint/format check, Windows-helper syntax, 107 local links and independent source review. Distribution fixtures passed 26 cases with four explicit skips (three filesystem-symlink cases and the opt-in Rust privacy probe); those skipped checks are not counted as passed.
+
+## Sidebar labels in 0.8.4
+
+The sidebar omits the repeated **Registered folder: name** and **Displayed folder** text below the folder selector. The selector still shows the current displayed folder name and its full path on hover. **Show the entire registered folder** remains available while a child folder is displayed. The registered root remains visible in **Settings → Registered folder** and the root context menu.
+
+This presentation change does not alter registered-root or displayed-folder state, saved-input keys, tab grants, restoration, root-management actions or storage-hold/error notices. The registered-root name is no longer continuously displayed while browsing a child; use Settings or the context menu when that distinction is needed.
+
+Targeted App/controller tests passed 42 cases, including the retained live document and return-to-root operation. Two Japanese/English browser cases passed using a mocked Native bridge, covering child restoration, return controls, storage-hold/error actions and 320-pixel light/dark layouts. Screenshot inspection and the frontend type/lint/format check passed. These checks do not establish Mac launch, updater installation, native pickers or real-profile behavior; no desktop app was launched or installed for this presentation change.

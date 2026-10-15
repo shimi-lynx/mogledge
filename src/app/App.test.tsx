@@ -160,7 +160,11 @@ it("switches the displayed child without registering it or closing its document 
   await waitFor(() =>
     expect(view.container.querySelector(".workspace-name")?.textContent).toBe("Examples"),
   );
-  expect(view.getByText("登録フォルダー：knowledge")).toBeTruthy();
+  expect(view.queryByText("登録フォルダー：knowledge")).toBeNull();
+  expect(view.queryByText("表示フォルダー")).toBeNull();
+  expect(view.container.querySelector(".workspace-button")?.getAttribute("title")).toContain(
+    "/knowledge/Examples",
+  );
   expect(view.queryByRole("treeitem", { name: "outside HTML" })).toBeNull();
   expect(view.getByRole("treeitem", { name: "0 HTML" }).getAttribute("data-path")).toBe(
     "Examples/0.html",
@@ -170,6 +174,7 @@ it("switches the displayed child without registering it or closing its document 
   expect(bridge.closeTab).not.toHaveBeenCalled();
   fireEvent.click(view.getByRole("button", { name: "登録範囲をすべて表示" }));
   await view.findByRole("treeitem", { name: "outside HTML" });
+  expect(view.container.querySelector(".display-folder-actions")).toBeNull();
   expect(bridge.setDisplayFolder).toHaveBeenCalledWith("layout", "view-layout", "", 0);
   expect(view.container.querySelector("iframe")).toBe(frame);
   expect(bridge.chooseRoot).not.toHaveBeenCalled();
