@@ -123,7 +123,7 @@ describe("folder favorites", () => {
     expect(await staleTree).toBeNull();
     const staleRoot = controller.selectWorkspaceFolder(folder);
     update({ workspaceId: "root-two", viewId: "view-two", rootPath: "/other-fixture" });
-    await controller.choose();
+    await controller.registerRoot();
     respond(folder.relativePath);
     expect(await staleRoot).toBeNull();
     expect(api.createTab).not.toHaveBeenCalled();

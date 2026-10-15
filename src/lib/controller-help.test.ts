@@ -101,7 +101,7 @@ it("retains document views and help across columns, rescans and workspace change
     nodes: [],
     revision: 1,
   });
-  await controller.choose();
+  await controller.registerRoot();
   expect(controller.getSnapshot().tabs).toEqual([
     expect.objectContaining({ id: help, kind: "help", column: 0 }),
   ]);

@@ -1,6 +1,6 @@
 # Restarting with the previous tabs
 
-Mogledge automatically remembers the open tabs for each knowledge root: their order, left and right panes, active tabs and pane, document zoom, and the bundled help tab. The same HTML can remain open independently in both panes. Named workspace sets remain a separate, explicit feature.
+Mogledge automatically remembers the open tabs for each registered knowledge root: their order, left and right panes, active tabs and pane, document zoom, and the bundled help tab. The same HTML can remain open independently in both panes. Named workspace sets remain a separate, explicit feature. [Display-folder switching](registered-folders.md) leaves this registered root and existing tabs intact; restart never registers the last displayed child as the saved-input root.
 
 On startup, the saved root must first pass the existing root recovery and identity checks. Only visible documents are loaded. Other restored tabs remain placeholders until selected; their HTML, iframe and document grants are not created in advance. Missing files remain marked tabs without blocking the other pane or startup. A replacement file is checked against the saved physical document identity before loading. If a loaded file disappears, its last successfully admitted navigation reference survives grant revocation so layout changes and controlled Quit remain available, including before the first automatic write. This reference does not authorize document reads or saved-input writes; a successful later load must admit the physical file again.
 

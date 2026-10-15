@@ -1,6 +1,35 @@
 import { expect, it } from "vite-plus/test";
-import { visibleRows, countDocuments, treeLabel, htmlNameParts, renamedHtmlPath } from "./model";
+import {
+  displayedNodes,
+  visibleRows,
+  countDocuments,
+  treeLabel,
+  htmlNameParts,
+  renamedHtmlPath,
+} from "./model";
 import type { TreeNode } from "../../lib/types";
+it("limits display to a child while preserving registered-root-relative document paths", () => {
+  const document: TreeNode = {
+    name: "a.html",
+    relativePath: "parent/child/a.html",
+    kind: "html",
+    children: [],
+  };
+  const child: TreeNode = {
+    name: "child",
+    relativePath: "parent/child",
+    kind: "folder",
+    children: [document],
+  };
+  const nodes: TreeNode[] = [
+    { name: "parent", relativePath: "parent", kind: "folder", children: [child] },
+  ];
+  expect(displayedNodes(nodes, "")).toBe(nodes);
+  expect(displayedNodes(nodes, "parent/child")).toEqual([document]);
+  expect(displayedNodes(nodes, "parent/child/a.html")).toEqual([]);
+  expect(displayedNodes(nodes, "parent-other")).toEqual([]);
+  expect(document.relativePath).toBe("parent/child/a.html");
+});
 it("only flattens expanded folders while counting all HTML", () => {
   const nodes: TreeNode[] = [
     {

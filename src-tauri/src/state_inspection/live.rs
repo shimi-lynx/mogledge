@@ -156,6 +156,19 @@ fn check_context(core: &Core, context: &Context) -> Result<u64, InspectionError>
     }
     Ok(state.snapshot.revision)
 }
+fn check_storage_authority(core: &Core) -> Result<(), InspectionError> {
+    if core
+        .workspace
+        .lock()
+        .map_err(|_| fail("state_unavailable"))?
+        .snapshot
+        .storage_hold
+        .is_some()
+    {
+        return Err(fail("storage_identity_confirmation_required"));
+    }
+    Ok(())
+}
 fn connected(core: &Core, profile: &std::path::Path) -> Option<ConnectedRoot> {
     let state = core.workspace.lock().ok()?;
     if state.snapshot.watch_error.is_some() {
@@ -389,6 +402,7 @@ pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, Inspection
     };
     let _gate = core.gate.lock().map_err(|_| fail("state_unavailable"))?;
     let workspace_revision = check_context(core, &request.context)?;
+    check_storage_authority(core)?;
     let mut plans = core
         .live_management
         .plans
@@ -427,6 +441,7 @@ pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, Inspection
             for id in &candidate_ids {
                 budget.check()?;
                 let record=management::read_record(&transaction,id,request.operation==Operation::Restore)?;
+                if report.database_schema_version==3 && !crate::storage_identity_transition::document_confirmed(&transaction,&record.root,&record.id).map_err(backend_error)? {return Err(fail("storage_identity_confirmation_required"));}
                 let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
                 let count=recovery_store::validated_app_count(&record.data,record.bytes).map_err(backend_error)?;
                 if request.operation==Operation::Restore {
@@ -517,6 +532,7 @@ pub fn confirm(core: &Core, confirmation: Confirmation) -> Result<Value, Inspect
     let _gate = core.gate.lock().map_err(|_| fail("state_unavailable"))?;
     let result = (|| {
         check_plan(core, &plan)?;
+        check_storage_authority(core)?;
         core.document_state.get().ok_or_else(||fail("state_unavailable"))?.management_connection(|connection,profile,database_id,bytes| {
             let budget=Budget::new(connection,Some(plan.clone()))?;
             let transaction=Transaction::begin(connection)?;

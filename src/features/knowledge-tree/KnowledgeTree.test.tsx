@@ -55,6 +55,49 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it("creates in the displayed child by default while keeping the explicit registered-root action", async () => {
+  setLanguage("ja");
+  const onMutation = vi.fn(async () => null);
+  const view = render(
+    <KnowledgeTree
+      nodes={[{ name: "child", relativePath: "parent/child", kind: "folder", children: [] }]}
+      workspaceId="registered-parent"
+      rootPath="/fixture/registered"
+      displayFolder="parent/child"
+      selected={null}
+      onSelect={vi.fn()}
+      onMutation={onMutation}
+    />,
+  );
+  const createHtml = view.getByRole("button", { name: "HTMLを作成" });
+  expect(createHtml.getAttribute("aria-description")).toContain("表示フォルダーparent/child");
+  fireEvent.click(createHtml);
+  expect(view.getByText("作成先: parent/child")).toBeTruthy();
+  fireEvent.change(view.getByRole("textbox", { name: "名前" }), { target: { value: "tool" } });
+  fireEvent.click(view.getByRole("button", { name: "作成する" }));
+  await waitFor(() =>
+    expect(onMutation).toHaveBeenCalledWith({
+      kind: "createHtml",
+      parent: "parent/child",
+      name: "tool",
+    }),
+  );
+  await waitFor(() => expect(view.queryByRole("dialog")).toBeNull());
+  fireEvent.click(view.getByRole("button", { name: "ルートにフォルダーを作成" }));
+  expect((view.getByRole("combobox", { name: "作成先" }) as HTMLInputElement).value).toBe(
+    "registered（ルート）",
+  );
+  fireEvent.change(view.getByRole("textbox", { name: "名前" }), { target: { value: "new-child" } });
+  fireEvent.click(view.getByRole("button", { name: "作成する" }));
+  await waitFor(() =>
+    expect(onMutation).toHaveBeenCalledWith({
+      kind: "createFolder",
+      parent: "",
+      name: "new-child",
+    }),
+  );
+});
+
 it("offers AI path handoff for files and folders without changing the selected document", () => {
   const onSelect = vi.fn();
   const onAiHandoff = vi.fn();

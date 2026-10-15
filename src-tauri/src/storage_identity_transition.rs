@@ -57,6 +57,123 @@ pub(crate) fn root_confirmed(connection: &Connection, root: &str) -> Result<bool
         .map_err(sql)
 }
 
+// A fresh registration records proof that there were no saved or recovery
+// records at the atomic decision. The historical backup_hash column stores
+// this enrollment marker OR an offline independent-backup digest. A marker is
+// never evidence that a backup exists. An explicit offline root confirmation
+// replaces it with its backup digest and disables automatic new admission.
+fn fresh_root_marker(root: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    hash.update(b"mogledge-empty-profile-registration-v1\0");
+    hash.update(root.as_bytes());
+    format!("{:x}", hash.finalize())
+}
+
+pub(crate) fn root_freshly_registered(
+    connection: &Connection,
+    root: &str,
+) -> Result<bool, MigrationError> {
+    if !root_confirmed(connection, root)? {
+        return Ok(false);
+    }
+    connection.query_row("SELECT EXISTS(SELECT 1 FROM identity_roots WHERE root=?1 AND backup_hash=?2 AND legacy_identity='')", rusqlite::params![root, fresh_root_marker(root)], |row| row.get(0)).map_err(sql)
+}
+
+pub(crate) fn register_empty_root(
+    connection: &Connection,
+    root: &str,
+) -> Result<bool, MigrationError> {
+    if root_confirmed(connection, root)? {
+        return Ok(true);
+    }
+    let version = version(connection)?;
+    let documents: i64 = connection
+        .query_row("SELECT count(*) FROM documents", [], |row| row.get(0))
+        .map_err(sql)?;
+    let recovery: i64 = if version >= 2 {
+        connection.query_row("SELECT (SELECT count(*) FROM recovery_records)+(SELECT count(*) FROM state_tombstones)", [], |row| row.get(0)).map_err(sql)?
+    } else {
+        0
+    };
+    if documents != 0 || recovery != 0 {
+        return Ok(false);
+    }
+    // Full payload/integrity validation belongs only to the empty-profile
+    // enrollment decision. Ordinary confirmed-root selection reads metadata.
+    crate::identifier_migration::validate_db(connection)?;
+    match version {
+        1 => connection
+            .execute_batch(&format!(
+                "{};{};{ROOTS_DDL};{CONFIRMATIONS_DDL};PRAGMA user_version=3;",
+                crate::state_inspection::recovery_store::RECORDS_DDL,
+                crate::state_inspection::recovery_store::TOMBSTONES_DDL
+            ))
+            .map_err(sql)?,
+        2 => connection
+            .execute_batch(&format!(
+                "{ROOTS_DDL};{CONFIRMATIONS_DDL};PRAGMA user_version=3;"
+            ))
+            .map_err(sql)?,
+        3 => {}
+        _ => return Err(MigrationError::UnsupportedDatabase),
+    }
+    connection
+        .execute(
+            "INSERT INTO identity_roots VALUES(?1,?2,?3,?4,'')",
+            rusqlite::params![
+                root,
+                SCHEME,
+                crate::core::random_token(),
+                fresh_root_marker(root)
+            ],
+        )
+        .map_err(sql)?;
+    validate_metadata(connection)?;
+    Ok(true)
+}
+
+pub(crate) fn admit_fresh_document(
+    connection: &Connection,
+    root: &str,
+    document: &str,
+    relative: &str,
+) -> Result<bool, MigrationError> {
+    if document_confirmed(connection, root, document)? {
+        return Ok(true);
+    }
+    if !root_freshly_registered(connection, root)? {
+        return Ok(false);
+    }
+    // An editor's replacement must not turn a failed restoration into empty
+    // success. Existing identity/path records need the separate recovery flow.
+    let collision: bool = connection.query_row("SELECT EXISTS(SELECT 1 FROM documents WHERE id=?1 OR (root=?2 AND path=?3)) OR EXISTS(SELECT 1 FROM recovery_records WHERE document_id=?1 OR (root=?2 AND path=?3)) OR EXISTS(SELECT 1 FROM state_tombstones WHERE document_id=?1)", rusqlite::params![document,root,relative], |row| row.get(0)).map_err(sql)?;
+    if collision {
+        return Ok(false);
+    }
+    let generation: i64 = connection
+        .query_row(
+            "SELECT generation FROM quota WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(sql)?;
+    connection
+        .execute(
+            "INSERT INTO identity_confirmations VALUES(?1,?2,?3,?4,'',0,'',?5)",
+            rusqlite::params![
+                document,
+                root,
+                SCHEME,
+                crate::core::random_token(),
+                generation
+            ],
+        )
+        .map_err(sql)?;
+    validate_metadata(connection)?;
+    Ok(true)
+}
+
 /// A missing binding is restoration failure, including read and delete. It
 /// must never look like a successful empty value that an HTML can overwrite.
 pub(crate) fn document_confirmed(

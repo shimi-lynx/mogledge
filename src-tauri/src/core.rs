@@ -21,6 +21,11 @@ pub struct Snapshot {
     pub startup_recovery: Option<crate::root_recovery::StartupRecovery>,
     pub workspace_id: Option<String>,
     pub root_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_folder: Option<crate::workspace_settings::DocumentRef>,
+    pub display_revision: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_hold: Option<StorageHold>,
     pub revision: u64,
     pub nodes: Vec<TreeNode>,
     pub watch_error: Option<String>,
@@ -28,6 +33,11 @@ pub struct Snapshot {
     pub view_id: String,
     pub document_origin: String,
     pub path_moves: Vec<crate::tree_mutations::PathMove>,
+}
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageHold {
+    pub reason: String,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +57,9 @@ pub struct Session {
     pub dir: Arc<Dir>,
     pub entry: String,
     pub storage_identity: Option<String>,
+    // Permission is fixed at grant admission. Later confirmation cannot
+    // silently turn a failed restoration token into write authority.
+    pub storage_hold: Option<StorageHold>,
 }
 pub struct DocumentTab {
     // Navigation metadata survives grant revocation. It conveys no read/write
@@ -71,6 +84,7 @@ pub struct Workspace {
 type Sink = Arc<dyn Fn(Change) + Send + Sync>;
 
 pub struct Core {
+    pub(crate) persistent_storage_identity: bool,
     saved_startup_root: Mutex<Option<crate::root_recovery::SavedRoot>>,
     pub(crate) artifact_export: Arc<crate::artifact_export::Service>,
     pub origin: String,
@@ -98,7 +112,13 @@ pub fn random_token() -> String {
 
 impl Core {
     pub fn new(port: u16) -> Arc<Self> {
+        Self::new_with_storage_identity_policy(port, crate::storage_identity_transition::enabled())
+    }
+    /// Shared production policy seam for portable identity-boundary checks.
+    /// Physical identifiers continue to use the target OS's normal algorithm.
+    pub fn new_with_storage_identity_policy(port: u16, persistent: bool) -> Arc<Self> {
         Arc::new(Self {
+            persistent_storage_identity: persistent,
             saved_startup_root: Mutex::new(None),
             artifact_export: Arc::new(crate::artifact_export::Service::default()),
             origin: format!("http://127.0.0.1:{port}"),
@@ -140,8 +160,27 @@ impl Core {
         let _gate = self.gate.lock().unwrap();
         self.select_locked(path, persist)
     }
+    pub fn select_if_current(
+        self: &Arc<Self>,
+        expected_workspace: Option<&str>,
+        expected_view: &str,
+        path: &Path,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let _gate = self.gate.lock().unwrap();
+        {
+            let state = self.workspace.lock().unwrap();
+            if state.snapshot.workspace_id.as_deref() != expected_workspace {
+                return Err("WorkspaceChanged".into());
+            }
+            if state.snapshot.view_id != expected_view {
+                return Err("ViewChanged".into());
+            }
+        }
+        self.select_locked(path, persist)
+    }
     fn select_locked(self: &Arc<Self>, path: &Path, persist: bool) -> Result<Snapshot, String> {
-        if !crate::storage_identity_transition::enabled() {
+        if !self.persistent_storage_identity {
             // Preserve an acknowledged namespace even when DB initialization
             // failed. Reselecting a folder must not bypass startup's scheme hold.
             if let Some(settings) = self.settings_path.get() {
@@ -165,38 +204,33 @@ impl Core {
         started: Instant,
     ) -> Result<Snapshot, String> {
         let root_guard = knowledge::RootReferenceGuard::open(&root, &dir)?;
-        if !crate::storage_identity_transition::enabled() {
+        if !self.persistent_storage_identity {
             if let Some(store) = self.document_state.get() {
                 if store.identity_schema_version()? == 3 {
                     return Err("StorageIdentityConfirmationRequired".into());
                 }
             }
         }
-        if crate::storage_identity_transition::enabled() {
+        let storage_hold = if self.persistent_storage_identity {
             let identity =
                 knowledge::storage_root_identity(&dir).map_err(|_| "StorageIdentityUnavailable")?;
-            let store = self
-                .document_state
-                .get()
-                .ok_or("StorageIdentityConfirmationRequired")?;
-            if !store.identity_root_confirmed(&identity)? {
-                return Err("StorageIdentityConfirmationRequired".into());
+            match self.document_state.get() {
+                None => Some(StorageHold {
+                    reason: "StorageUnavailable".into(),
+                }),
+                Some(store) => match store.register_storage_root(&identity) {
+                    Ok(true) => None,
+                    Ok(false) => Some(StorageHold {
+                        reason: "StorageIdentityConfirmationRequired".into(),
+                    }),
+                    Err(reason) => Some(StorageHold { reason }),
+                },
             }
-            // The DB is authoritative; settings are published last by the
-            // stopped-profile transition. A crash between the two stays held.
-            let settings = self
-                .settings_path
-                .get()
-                .ok_or("StorageIdentityConfirmationRequired")?;
-            let value = crate::root_recovery::read_settings_value(settings)?
-                .ok_or("StorageIdentityConfirmationRequired")?;
-            if value["knowledgeRootIdentityScheme"].as_str()
-                != Some(crate::storage_identity_transition::SCHEME)
-                || value["knowledgeRootIdentity"].as_str() != Some(&identity)
-            {
-                return Err("StorageIdentityConfirmationRequired".into());
-            }
-        }
+        } else {
+            self.document_state.get().is_none().then(|| StorageHold {
+                reason: "StorageUnavailable".into(),
+            })
+        };
         let settings = crate::workspace_settings::load(self, &dir);
         let id = random_token();
         let watch = watcher::start(Arc::downgrade(self), root.clone(), id.clone());
@@ -221,6 +255,9 @@ impl Core {
             startup_recovery: None,
             workspace_id: Some(id),
             root_path: Some(root.to_string_lossy().into()),
+            display_folder: None,
+            display_revision: 0,
+            storage_hold,
             revision: 1,
             nodes,
             watch_error: error.or(order_error),
@@ -249,28 +286,314 @@ impl Core {
                 snapshot.watch_error.is_some(),
             );
         }
+        if !persist {
+            if let Err(error) = self.restore_display_locked() {
+                self.workspace.lock().unwrap().snapshot.watch_error = Some(error);
+            }
+        }
+        Ok(self.snapshot())
+    }
+    fn display_reference(
+        root: &Path,
+        dir: &Arc<Dir>,
+        relative: &str,
+    ) -> Result<Option<crate::workspace_settings::DocumentRef>, String> {
+        let root_guard = knowledge::RootReferenceGuard::open(root, dir)?;
+        let folder = (!relative.is_empty())
+            .then(|| knowledge::ReadOnlyDirectoryGuard::open(root, dir, relative))
+            .transpose()?;
+        let identity = match &folder {
+            Some(folder) => folder.storage_identity(),
+            None => knowledge::storage_root_identity(dir),
+        }
+        .map_err(|_| "StorageIdentityUnavailable")?;
+        if let Some(folder) = &folder {
+            folder.revalidate(root, dir)?;
+        }
+        root_guard.revalidate(root, dir)?;
+        Ok(
+            (!relative.is_empty()).then(|| crate::workspace_settings::DocumentRef {
+                relative_path: relative.into(),
+                identity,
+            }),
+        )
+    }
+    pub fn select_display_folder(
+        self: &Arc<Self>,
+        workspace: &str,
+        view: &str,
+        relative: &str,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let _gate = self.gate.lock().unwrap();
+        self.select_display_locked(workspace, view, relative, persist, None, None)
+    }
+    pub fn select_display_folder_if_current(
+        self: &Arc<Self>,
+        workspace: &str,
+        view: &str,
+        expected_display_revision: u64,
+        relative: &str,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let _gate = self.gate.lock().unwrap();
+        self.check_display_revision(workspace, view, expected_display_revision)?;
+        self.select_display_locked(workspace, view, relative, persist, None, None)
+    }
+    fn check_display_revision(
+        &self,
+        workspace: &str,
+        view: &str,
+        expected: u64,
+    ) -> Result<(), String> {
+        let state = self.workspace.lock().unwrap();
+        Self::check_view(&state, workspace, view)?;
+        if state.snapshot.display_revision != expected {
+            return Err("DisplayFolderChanged".into());
+        }
+        Ok(())
+    }
+    fn select_display_locked(
+        &self,
+        workspace: &str,
+        view: &str,
+        relative: &str,
+        persist: bool,
+        expected_identity: Option<&str>,
+        captured_guard: Option<&knowledge::ReadOnlyDirectoryGuard>,
+    ) -> Result<Snapshot, String> {
+        let mut state = self.workspace.lock().unwrap();
+        Self::check_view(&state, workspace, view)?;
+        let root = state.root.as_ref().ok_or("WorkspaceChanged")?;
+        let dir = state.dir.as_ref().ok_or("WorkspaceChanged")?;
+        let root_guard = knowledge::RootReferenceGuard::open(root, dir)?;
+        let folder = (!relative.is_empty())
+            .then(|| knowledge::ReadOnlyDirectoryGuard::open(root, dir, relative))
+            .transpose()?;
+        let folder_identity = match &folder {
+            Some(folder) => folder.storage_identity(),
+            None => knowledge::storage_root_identity(dir),
+        }
+        .map_err(|_| "StorageIdentityUnavailable")?;
+        if expected_identity.is_some_and(|expected| expected != folder_identity) {
+            return Err("DisplayFolderIdentityChanged".into());
+        }
+        let display = (!relative.is_empty()).then(|| crate::workspace_settings::DocumentRef {
+            relative_path: relative.into(),
+            identity: folder_identity,
+        });
+        if let Some(folder) = &folder {
+            folder.revalidate(root, dir)?;
+        }
+        if let Some(captured) = captured_guard {
+            captured.revalidate(root, dir)?;
+        }
+        if persist {
+            let identity =
+                knowledge::storage_root_identity(dir).map_err(|_| "StorageIdentityUnavailable")?;
+            self.save_display_settings(&identity, display.as_ref())?;
+            // Retained ancestor handles bind both the settings decision and
+            // the resulting view to the same registered physical directory.
+        }
+        if let Some(folder) = &folder {
+            folder.revalidate(root, dir)?;
+        }
+        if let Some(captured) = captured_guard {
+            captured.revalidate(root, dir)?;
+        }
+        root_guard.revalidate(root, dir)?;
+        state.snapshot.display_folder = display;
+        state.snapshot.display_revision += 1;
+        let mut snapshot = state.snapshot.clone();
+        snapshot.document_origin = self.origin.clone();
         Ok(snapshot)
     }
+    pub fn select_display_path(
+        self: &Arc<Self>,
+        workspace: &str,
+        view: &str,
+        path: &Path,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let _gate = self.gate.lock().unwrap();
+        self.select_display_path_locked(workspace, view, path, persist)
+    }
+    pub fn select_display_path_if_current(
+        self: &Arc<Self>,
+        workspace: &str,
+        view: &str,
+        expected_display_revision: u64,
+        path: &Path,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let _gate = self.gate.lock().unwrap();
+        self.check_display_revision(workspace, view, expected_display_revision)?;
+        self.select_display_path_locked(workspace, view, path, persist)
+    }
+    fn select_display_path_locked(
+        &self,
+        workspace: &str,
+        view: &str,
+        path: &Path,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let (root, dir) = {
+            let state = self.workspace.lock().unwrap();
+            Self::check_view(&state, workspace, view)?;
+            (
+                state.root.clone().ok_or("WorkspaceChanged")?,
+                state.dir.clone().ok_or("WorkspaceChanged")?,
+            )
+        };
+        let (selected, selected_dir) = knowledge::open_root(path)?;
+        let relative = selected
+            .strip_prefix(&root)
+            .map_err(|_| "DisplayFolderOutsideRegisteredRoot")?;
+        let relative = relative
+            .to_str()
+            .ok_or("DisplayFolderOutsideRegisteredRoot")?
+            .replace('\\', "/");
+        let root_guard = knowledge::RootReferenceGuard::open(&root, &dir)?;
+        let retained = (!relative.is_empty())
+            .then(|| knowledge::ReadOnlyDirectoryGuard::open(&root, &dir, &relative))
+            .transpose()?;
+        let matches = match &retained {
+            Some(folder) => {
+                folder
+                    .storage_identity()
+                    .map_err(|_| "StorageIdentityUnavailable")?
+                    == knowledge::storage_root_identity(&selected_dir)
+                        .map_err(|_| "StorageIdentityUnavailable")?
+            }
+            None => knowledge::same_directory(&dir, &selected_dir)?,
+        };
+        if !matches {
+            return Err("DisplayFolderIdentityChanged".into());
+        }
+        if let Some(retained) = &retained {
+            retained.revalidate(&root, &dir)?;
+        }
+        root_guard.revalidate(&root, &dir)?;
+        let expected_identity = knowledge::storage_root_identity(&selected_dir)
+            .map_err(|_| "StorageIdentityUnavailable")?;
+        self.select_display_locked(
+            workspace,
+            view,
+            &relative,
+            persist,
+            Some(&expected_identity),
+            retained.as_ref(),
+        )
+    }
+    fn restore_display_locked(&self) -> Result<(), String> {
+        let Some(path) = self.settings_path.get() else {
+            return Ok(());
+        };
+        let Some(value) = crate::root_recovery::read_settings_value(path)? else {
+            return Ok(());
+        };
+        let Some(display) = value.get("knowledgeDisplayFolder") else {
+            return Ok(());
+        };
+        let saved: crate::workspace_settings::DocumentRef =
+            serde_json::from_value(display.clone()).map_err(|_| "DisplayFolderIdentityChanged")?;
+        if saved.relative_path.len() > 4096 || !crate::state_inspection::digest_id(&saved.identity)
+        {
+            return Err("DisplayFolderIdentityChanged".into());
+        }
+        let mut state = self.workspace.lock().unwrap();
+        let root = state.root.as_ref().ok_or("WorkspaceChanged")?;
+        let dir = state.dir.as_ref().ok_or("WorkspaceChanged")?;
+        let identity =
+            knowledge::storage_root_identity(dir).map_err(|_| "StorageIdentityUnavailable")?;
+        if value["knowledgeDisplayRootIdentity"].as_str() != Some(&identity) {
+            return Err("DisplayFolderIdentityChanged".into());
+        }
+        let current = Self::display_reference(root, dir, &saved.relative_path)
+            .map_err(|_| "DisplayFolderIdentityChanged")?;
+        if current.as_ref() != Some(&saved) {
+            return Err("DisplayFolderIdentityChanged".into());
+        }
+        state.snapshot.display_folder = current;
+        Ok(())
+    }
+    fn revalidate_display(state: &mut Workspace) {
+        let Some(saved) = state.snapshot.display_folder.as_ref() else {
+            return;
+        };
+        let matches = match (&state.root, &state.dir) {
+            (Some(root), Some(dir)) => Self::display_reference(root, dir, &saved.relative_path)
+                .is_ok_and(|current| current.as_ref() == Some(saved)),
+            _ => false,
+        };
+        if !matches {
+            // Retain the saved choice for inspection. Replacing a directory at
+            // its former path cannot silently replace the display authority.
+            state.snapshot.display_folder = None;
+            state.snapshot.display_revision += 1;
+            state.snapshot.watch_error = Some("DisplayFolderIdentityChanged".into());
+        }
+    }
     fn save_settings(&self, root: &Path, dir: &Dir) -> Result<(), String> {
-        use std::io::Write;
-        let path = self.settings_path.get().ok_or("設定保存先が未初期化です")?;
-        let parent = path.parent().ok_or("設定保存先が無効です")?;
-        std::fs::create_dir_all(parent).map_err(|_| "設定フォルダを作成できません")?;
+        let path = self.settings_path.get().ok_or("StorageUnavailable")?;
         let mut value = crate::root_recovery::read_settings_value(path)?
             .unwrap_or_else(|| serde_json::json!({}));
-        let map = value.as_object_mut().ok_or("設定の形式が無効です")?;
+        let map = value.as_object_mut().ok_or("StorageCorrupt")?;
         map.insert("knowledgeRoot".into(), serde_json::json!(root));
         map.insert(
             "knowledgeRootIdentity".into(),
-            serde_json::json!(knowledge::storage_root_identity(dir)
-                .map_err(|_| "作業フォルダーの識別情報を取得できません")?),
+            serde_json::json!(
+                knowledge::storage_root_identity(dir).map_err(|_| "StorageIdentityUnavailable")?
+            ),
         );
-        if crate::storage_identity_transition::enabled() {
+        if self.persistent_storage_identity {
             map.insert(
                 "knowledgeRootIdentityScheme".into(),
                 serde_json::json!(crate::storage_identity_transition::SCHEME),
             );
         }
+        // A registration change never promotes a previous display path to the
+        // new registered root or carries its navigation choice across identities.
+        map.remove("knowledgeDisplayFolder");
+        map.remove("knowledgeDisplayRootIdentity");
+        self.publish_settings(&value)
+    }
+    fn save_display_settings(
+        &self,
+        root_identity: &str,
+        display: Option<&crate::workspace_settings::DocumentRef>,
+    ) -> Result<(), String> {
+        let path = self.settings_path.get().ok_or("StorageUnavailable")?;
+        let mut value =
+            crate::root_recovery::read_settings_value(path)?.ok_or("StorageUnavailable")?;
+        let map = value.as_object_mut().ok_or("StorageCorrupt")?;
+        if map
+            .get("knowledgeRootIdentity")
+            .and_then(serde_json::Value::as_str)
+            != Some(root_identity)
+        {
+            return Err("RegisteredFolderIdentityChanged".into());
+        }
+        match display {
+            Some(display) => {
+                map.insert("knowledgeDisplayFolder".into(), serde_json::json!(display));
+                map.insert(
+                    "knowledgeDisplayRootIdentity".into(),
+                    serde_json::json!(root_identity),
+                );
+            }
+            None => {
+                map.remove("knowledgeDisplayFolder");
+                map.remove("knowledgeDisplayRootIdentity");
+            }
+        }
+        self.publish_settings(&value)
+    }
+    fn publish_settings(&self, value: &serde_json::Value) -> Result<(), String> {
+        use std::io::Write;
+        let path = self.settings_path.get().ok_or("StorageUnavailable")?;
+        let parent = path.parent().ok_or("StorageUnavailable")?;
+        std::fs::create_dir_all(parent).map_err(|_| "StorageUnavailable")?;
         let json = serde_json::to_vec_pretty(&value).map_err(|_| "設定を作成できません")?;
         if json.len() > 1024 * 1024 {
             return Err("StorageCapacityExceeded".into());
@@ -316,7 +639,7 @@ impl Core {
     fn restore_root_locked(self: &Arc<Self>, saved: crate::root_recovery::SavedRoot) {
         use crate::root_recovery::{RecoveryReason, StartupRecovery};
         let scheme_matches = saved.scheme.as_deref()
-            == if crate::storage_identity_transition::enabled() {
+            == if self.persistent_storage_identity {
                 Some(crate::storage_identity_transition::SCHEME)
             } else {
                 None
@@ -463,6 +786,9 @@ impl Core {
             if error.is_some() {
                 state.snapshot.watch_error = error;
             }
+            if reconcile {
+                Self::revalidate_display(&mut state);
+            }
             state.snapshot.revision += 1;
             if let Some(index) = self.index.get() {
                 index.changed(
@@ -504,7 +830,7 @@ impl Core {
             knowledge::same_directory(state.dir.as_ref().ok_or("WorkspaceChanged")?, &dir)?
         };
         if !same || canonical != root {
-            return self.select_locked(&canonical, false);
+            return Err("RegisteredFolderIdentityChanged".into());
         }
         let (watch, error) = match watcher::start(Arc::downgrade(self), root.clone(), id.clone()) {
             Ok(handle) => (Some(handle), None),
@@ -528,6 +854,7 @@ impl Core {
             state.mutation_echoes.clear();
             state.snapshot.revision += 1;
             state.snapshot.watch_error = error.or(order_error);
+            Self::revalidate_display(&mut state);
             state.order = order;
             if let Some(index) = self.index.get() {
                 index.changed(
@@ -562,6 +889,23 @@ impl Core {
             return Err("ViewChanged".into());
         }
         Ok(())
+    }
+    pub fn document_storage_hold(
+        &self,
+        workspace: &str,
+        view: &str,
+        tab_id: &str,
+        request_id: u64,
+    ) -> Result<Option<StorageHold>, String> {
+        let _gate = self.gate.lock().unwrap();
+        let state = self.workspace.lock().unwrap();
+        Self::check_view(&state, workspace, view)?;
+        let tab = state.tabs.get(tab_id).ok_or("TabClosed")?;
+        if tab.latest_request != request_id {
+            return Err("Superseded".into());
+        }
+        let session = tab.session.as_ref().ok_or("StorageUnavailable")?;
+        Ok(session.storage_hold.clone())
     }
     pub fn create_tab(
         &self,
@@ -803,6 +1147,7 @@ impl Core {
         if !knowledge::contains(&state.snapshot.nodes, &relative) {
             return Err("HTMLが見つかりません".into());
         }
+        let root_storage_hold = state.snapshot.storage_hold.clone();
         let tab = state.tabs.get_mut(tab_id).ok_or("TabClosed")?;
         if tab.latest_request != request || tab.revocation != revocation {
             return Err("Superseded".into());
@@ -814,6 +1159,25 @@ impl Core {
         {
             return Err("文書が置き換えられました".into());
         }
+        let storage_hold = if root_storage_hold.is_some() {
+            root_storage_hold
+        } else if self.persistent_storage_identity {
+            let admission = match (&storage_identity, self.document_state.get()) {
+                (Some(identity), Some(store)) => knowledge::storage_root_identity(&dir)
+                    .map_err(|_| "StorageUnavailable".to_owned())
+                    .and_then(|root| store.admit_document_storage(&root, identity, &relative)),
+                _ => Err("StorageUnavailable".into()),
+            };
+            match admission {
+                Ok(true) => None,
+                Ok(false) => Some(StorageHold {
+                    reason: "StorageIdentityConfirmationRequired".into(),
+                }),
+                Err(reason) => Some(StorageHold { reason }),
+            }
+        } else {
+            None
+        };
         let token = random_token();
         let encoded = relative
             .split('/')
@@ -840,6 +1204,7 @@ impl Core {
             dir,
             entry: relative,
             storage_identity,
+            storage_hold,
         });
         Ok(url)
     }

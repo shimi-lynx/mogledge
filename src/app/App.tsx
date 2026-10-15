@@ -26,6 +26,7 @@ import { WorkspaceLists } from "../features/workspace-lists/WorkspaceLists";
 import { FavoritesSidebar } from "../features/workspace-lists/FavoritesSidebar";
 import type { DocumentSelection } from "../lib/types";
 import { rootFolderName } from "../lib/rootDisplay";
+import "./registered-folder.css";
 import { reconcileSearchScope, type SelectedSearchScope } from "../features/document-search/scope";
 import { TitleBar } from "./TitleBar";
 import { SidebarFooter, type SidebarFooterHandle } from "./SidebarFooter";
@@ -41,6 +42,24 @@ import {
 
 const StateTransferDialog = lazy(() => import("./StateTransferDialog"));
 const AiHandoffDialog = lazy(() => import("./AiHandoffDialog"));
+const folderStatusMessages: Record<string, string> = {
+  StorageIdentityConfirmationRequired:
+    "既存の保存データとの対応が未確認です。データは保持されています。独立したバックアップを取ってから確認ツールを利用してください。",
+  StorageUnavailable:
+    "保存データを読み取れません。空のデータとして扱っていません。アクセス状態を確認してください。",
+  StorageCorrupt:
+    "保存データの整合性を確認できません。空のデータとして扱っていません。データを保護し、独立したバックアップを確認してください。",
+  DisplayFolderOutsideRegisteredRoot:
+    "登録範囲外のフォルダーです。登録先を変更する場合は、設定の「登録フォルダー」を開いてください。",
+  DisplayFolderIdentityChanged:
+    "同じ表示フォルダーであることを確認できません。登録範囲全体を表示しています。範囲内のフォルダーを選び直してください。",
+  RegisteredRootRecoveryRequired:
+    "登録フォルダーを復元できません。保存フォルダーを再試行するか、設定の「登録フォルダー」で登録先を明示的に管理してください。",
+  RegisteredFolderIdentityChanged:
+    "登録フォルダーが別の物理フォルダーに置き換わっています。保存先は変更していません。設定の「登録フォルダー」で確認してください。",
+  DisplayFolderChanged:
+    "表示範囲が変更されました。現在の表示フォルダーから選び直してください。登録先と保存先は変更していません。",
+};
 
 export function App() {
   const t = useT();
@@ -63,6 +82,12 @@ export function App() {
       (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     settingsFooter.current?.openSettings(target);
   }, []);
+  const openRegisteredFolderSettings = () => {
+    settingsFooter.current?.openSettings(
+      document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      "folder",
+    );
+  };
   const [controller] = useState(() => new KnowledgeController(bridge));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   useResident(controller);
@@ -83,10 +108,6 @@ export function App() {
     returnFocus: Element | null;
   } | null>(null);
   const shellComposing = useRef(false);
-  const [treeFocusRequest, setTreeFocusRequest] = useState<
-    { path: string; id: number; workspaceId: string; viewId: string; revision: number } | undefined
-  >();
-  const treeFocusSerial = useRef(0);
   const [workspaceLists, setWorkspaceLists] = useState<{
     workspaceId: string;
     viewId: string;
@@ -122,7 +143,6 @@ export function App() {
   }, [searchScope, selectedSearchScope]);
   useEffect(() => {
     setDraggedTab(null);
-    setTreeFocusRequest(undefined);
   }, [state.snapshot.workspaceId]);
   const focusDocument = useCallback(() => {
     const element = document.activeElement;
@@ -425,12 +445,8 @@ export function App() {
         return false;
       setSidebarVisible(true);
       setSidebarView("files");
-      setTreeFocusRequest({
-        path: selection.relativePath,
-        id: ++treeFocusSerial.current,
-        workspaceId: selection.workspaceId,
-        viewId: selection.viewId,
-        revision: selection.revision,
+      void controller.switchDisplayFolder(selection.relativePath).then((changed) => {
+        if (changed) setFilesFocusRequest((request) => request + 1);
       });
       return true;
     },
@@ -438,8 +454,23 @@ export function App() {
   );
   const focusMenu = useCallback(() => menuButton.current?.focus(), []);
   const rootName = rootFolderName(state.snapshot.rootPath) ?? t("ルート");
+  const rootStorageHold = state.snapshot.storageHold;
+  const visibleHeldDocuments = state.tabs.flatMap((tab) =>
+    tab.storageHold && (tab.id === state.columns[0] || (state.split && tab.id === state.columns[1]))
+      ? [{ id: tab.id, path: tab.path, reason: tab.storageHold.reason }]
+      : [],
+  );
+  const displayFolder = state.snapshot.displayFolder?.relativePath ?? "";
+  const displayName = rootFolderName(displayFolder) ?? rootName;
+  const displayPath = state.snapshot.rootPath
+    ? displayFolder
+      ? state.snapshot.rootPath.replace(/[\\/]+$/, "") + "/" + displayFolder
+      : state.snapshot.rootPath
+    : null;
   const rawFeedback = state.error ?? state.snapshot.watchError;
-  const feedback = rawFeedback ? translateUiMessage(rawFeedback, language) : null;
+  const feedback = rawFeedback
+    ? translateUiMessage(folderStatusMessages[rawFeedback] ?? rawFeedback, language)
+    : null;
   return (
     <main
       className="app"
@@ -497,6 +528,7 @@ export function App() {
         >
           <div className="sidebar-toolbar">
             <RootAiHandoffMenu
+              rootName={rootName}
               disabled={!state.snapshot.workspaceId || state.loading || state.actionBusy}
               contextKey={JSON.stringify([state.snapshot.workspaceId, state.snapshot.viewId])}
               onRootAction={(action) => void controller.performRootAction(action)}
@@ -515,13 +547,30 @@ export function App() {
             >
               <button
                 className="workspace-button"
-                onClick={() => void controller.choose()}
-                disabled={state.loading}
-                title={state.snapshot.rootPath ?? t("knowledgeフォルダを選択")}
+                onClick={() => {
+                  if (state.snapshot.startupRecovery) openRegisteredFolderSettings();
+                  else void controller.choose();
+                }}
+                disabled={state.loading || state.actionBusy}
+                title={
+                  displayPath
+                    ? t("表示フォルダーを切り替え：{path}", { path: displayPath })
+                    : t(
+                        state.snapshot.startupRecovery
+                          ? "登録フォルダーを管理"
+                          : "登録フォルダーを選択",
+                      )
+                }
               >
                 <FolderIcon className="file-icon folder workspace-icon" />
                 <span className="workspace-name">
-                  {state.snapshot.workspaceId ? rootName : t("フォルダを選択")}
+                  {state.snapshot.workspaceId
+                    ? displayName
+                    : t(
+                        state.snapshot.startupRecovery
+                          ? "登録フォルダーを管理"
+                          : "登録フォルダーを選択",
+                      )}
                 </span>
                 <svg
                   aria-hidden="true"
@@ -540,6 +589,23 @@ export function App() {
               </button>
             </RootAiHandoffMenu>
           </div>
+          {state.snapshot.rootPath && (
+            <div className="registered-folder-summary">
+              <span title={state.snapshot.rootPath}>
+                {t("登録フォルダー：{name}", { name: rootName })}
+              </span>
+              <span>{t("表示フォルダー")}</span>
+              {displayFolder && (
+                <button
+                  type="button"
+                  disabled={state.loading || state.actionBusy}
+                  onClick={() => void controller.switchDisplayFolder("")}
+                >
+                  {t("登録範囲をすべて表示")}
+                </button>
+              )}
+            </div>
+          )}
           <div
             id="knowledge-files"
             className="sidebar-files"
@@ -548,6 +614,7 @@ export function App() {
             <KnowledgeTree
               nodes={state.snapshot.nodes}
               rootPath={state.snapshot.rootPath}
+              displayFolder={displayFolder}
               workspaceId={state.snapshot.workspaceId}
               viewId={state.snapshot.viewId}
               selected={state.selectedPath}
@@ -613,7 +680,6 @@ export function App() {
                     ].map((entry) => entry.relativePath)
                   : undefined
               }
-              focusRequest={treeFocusRequest}
               onFavorite={(path, add) => void controller.setFavorite(path, add)}
               onFileAction={(path, action) => void controller.performFileAction(path, action)}
               onSearchFolder={searchFolder}
@@ -654,10 +720,13 @@ export function App() {
                 <p>{t("AIやエディタで作成したHTMLを、ひとつの場所に。")}</p>
                 <button
                   className="primary-button"
-                  onClick={() => void controller.choose()}
-                  disabled={state.loading}
+                  onClick={() => {
+                    if (state.snapshot.startupRecovery) openRegisteredFolderSettings();
+                    else void controller.choose();
+                  }}
+                  disabled={state.loading || state.actionBusy}
                 >
-                  {t("knowledgeを開く")}
+                  {t(state.snapshot.startupRecovery ? "登録フォルダーを管理" : "フォルダーを登録")}
                 </button>
                 <p className="hint">{t("ファイルは元の場所に保存されます。")}</p>
                 {!state.snapshot.startupRecovery && (
@@ -671,21 +740,33 @@ export function App() {
               recovery={state.snapshot.startupRecovery}
               loading={state.loading}
               onRetry={() => void controller.retrySavedRoot()}
-              onChoose={() => void controller.choose()}
+              onChoose={openRegisteredFolderSettings}
               platform={chrome.platform}
             />
           )}
           {(state.error || state.snapshot.watchError) && (
             <div className="workspace-feedback">
-              {state.error && <p role="alert">{translateUiMessage(state.error, language)}</p>}
+              {state.error && (
+                <p role="alert">
+                  {translateUiMessage(folderStatusMessages[state.error] ?? state.error, language)}
+                </p>
+              )}
               {state.snapshot.watchError && (
-                <p role="status">{translateUiMessage(state.snapshot.watchError, language)}</p>
+                <p role="status">
+                  {translateUiMessage(
+                    folderStatusMessages[state.snapshot.watchError] ?? state.snapshot.watchError,
+                    language,
+                  )}
+                </p>
               )}
               <button
                 disabled={state.loading || !state.snapshot.workspaceId}
                 onClick={() => void controller.refresh()}
               >
                 {t("再走査")}
+              </button>
+              <button type="button" onClick={openRegisteredFolderSettings}>
+                {t("登録フォルダーを管理")}
               </button>
             </div>
           )}
@@ -706,6 +787,7 @@ export function App() {
             platform={chrome.platform}
             reloadDisabled={!state.snapshot.workspaceId || state.loading}
             onReload={() => void controller.refresh()}
+            onRegisterRoot={() => void controller.registerRoot()}
           />
         </aside>
         {sidebarVisible && (
@@ -717,6 +799,42 @@ export function App() {
           />
         )}
         <section className="content">
+          {(rootStorageHold || visibleHeldDocuments.length > 0) && (
+            <div className="storage-hold-notice" role="status">
+              <strong>{t("保存データの利用を保留しています")}</strong>
+              {rootStorageHold ? (
+                <p>
+                  {translateUiMessage(
+                    folderStatusMessages[rootStorageHold.reason] ?? rootStorageHold.reason,
+                    language,
+                  )}
+                </p>
+              ) : (
+                <ul>
+                  {visibleHeldDocuments.map((document) => (
+                    <li key={document.id}>
+                      <strong>{document.path}</strong>{" "}
+                      {translateUiMessage(
+                        folderStatusMessages[document.reason] ?? document.reason,
+                        language,
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p>
+                {t(
+                  rootStorageHold
+                    ? "フォルダーは閲覧できます。既存データの対応を確認するまで、保存データの復元・保存・削除は利用できません。HTMLの入力を続ける前に確認してください。"
+                    : "保留対象の文書は閲覧できます。対応を確認するまで、これらの文書の保存データの復元・保存・削除は利用できません。入力を続ける前に確認してください。",
+                )}
+              </p>
+              <button type="button" onClick={openRegisteredFolderSettings}>
+                {t("登録フォルダーを管理")}
+              </button>
+              <StorageIdentityAction platform={chrome.platform} />
+            </div>
+          )}
           <div className="viewer-content">
             <DocumentDeck
               state={state}

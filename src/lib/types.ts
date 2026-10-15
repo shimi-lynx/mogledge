@@ -20,7 +20,12 @@ export type Snapshot = {
   startupRecovery?: StartupRecovery;
   pathMoves?: PathMove[];
   workspaceId: string | null;
+  // The registered root owns document identities, tabs and saved inputs.
   rootPath: string | null;
+  // Display navigation never changes root-relative document paths or ownership.
+  displayFolder?: WorkspaceDocument;
+  displayRevision?: number;
+  storageHold?: { reason: string };
   revision: number;
   nodes: TreeNode[];
   watchError: string | null;
@@ -141,6 +146,7 @@ export type DocumentTab = {
   dirty: boolean;
   missing: boolean;
   error: string | null;
+  storageHold?: { reason: string };
 };
 export type AppState = {
   stateTransfer?: import("./stateTransfer").TransferView;
@@ -323,6 +329,13 @@ export interface Bridge {
     viewId: string,
     relativePath: string,
   ): Promise<RecoveryCandidate | null>;
+  getDocumentStorageHold?(
+    this: void,
+    workspaceId: string,
+    viewId: string,
+    tabId: string,
+    requestId: number,
+  ): Promise<{ reason: string } | null>;
   recoverDocumentState?(
     this: void,
     workspaceId: string,
@@ -346,6 +359,14 @@ export interface Bridge {
   beginView(this: void): Promise<Snapshot>;
   getTree(this: void): Promise<Snapshot>;
   chooseRoot(this: void): Promise<Snapshot | null>;
+  chooseDisplayFolder?(this: void, workspaceId: string, viewId: string): Promise<Snapshot | null>;
+  setDisplayFolder?(
+    this: void,
+    workspaceId: string,
+    viewId: string,
+    relativePath: string,
+    expectedDisplayRevision: number,
+  ): Promise<Snapshot>;
   refresh(this: void): Promise<Snapshot>;
   retrySavedRoot?(this: void, viewId: string): Promise<Snapshot>;
   createTab(

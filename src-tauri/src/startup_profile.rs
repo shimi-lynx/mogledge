@@ -338,6 +338,7 @@ fn initialize(
         .parent()
         .ok_or("保存profileが無効です")?
         .to_owned();
+    let settings_path = paths.settings.clone();
     #[cfg(feature = "e2e")]
     if fail == Some("settings-once") {
         let _ = core.settings_path.set(paths.settings.clone());
@@ -347,12 +348,19 @@ fn initialize(
         .map_err(|_| "設定を重複して初期化できません")?;
     #[cfg(feature = "e2e")]
     if fail == Some("state-once") {
-        let state =
-            DocumentState::new_in_profile(paths.document_state.clone(), local_profile.clone())
-                .map_err(|_| "文書保存状態を初期化できません")?;
+        let state = DocumentState::new_in_profile_with_settings(
+            paths.document_state.clone(),
+            local_profile.clone(),
+            settings_path.clone(),
+        )
+        .map_err(|_| "文書保存状態を初期化できません")?;
         let _ = core.document_state.set(state);
     }
-    match DocumentState::new_in_profile(paths.document_state, local_profile) {
+    match DocumentState::new_in_profile_with_settings(
+        paths.document_state,
+        local_profile,
+        settings_path,
+    ) {
         Ok(state) => core
             .document_state
             .set(state)

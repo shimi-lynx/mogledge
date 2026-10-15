@@ -83,6 +83,7 @@ export function failNavigation(
 
 // Cancel before moving a column's history to a different owner, on reload
 // invalidation, or when abandoning a navigation. Root/view changes reset it.
+// Display-folder navigation retains document history under the registered root.
 export function cancelNavigation(history: NavigationHistory): NavigationHistory {
   return history.pending ? { ...history, pending: null } : history;
 }

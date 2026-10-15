@@ -227,7 +227,7 @@ it("does not apply a late receipt after context invalidation", async () => {
   await flush();
   const pending = controller.confirmStateTransfer(false, true);
   update({ workspaceId: "next", viewId: "next-view" });
-  await controller.choose();
+  await controller.registerRoot();
   const count = vi.mocked(api.openDocument).mock.calls.length;
   finish(receipt);
   await pending;

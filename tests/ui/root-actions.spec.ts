@@ -24,7 +24,7 @@ for (const language of ["ja", "en"] as const) {
         let fail=false;
         let snapshot={workspaceId:'workspace',viewId:'view',rootPath:'/fixture/日本語 空白 root',nodes:[],revision:1,watchError:null};
         rootActionsApi.perform=async(context,action)=>{window.rootActionCalls.push({context,action});if(fail)throw Error('permission denied: 日本語 空白 root');};
-        const controller=new KnowledgeController({beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},chooseRoot:async()=>{window.rootChooseCount++;return snapshot;},refresh:async()=>snapshot});
+        const controller=new KnowledgeController({beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},chooseDisplayFolder:async()=>{window.rootChooseCount++;return snapshot;},getDocumentStorageHold:async()=>{throw Error('unexpected admitted-document probe');},refresh:async()=>snapshot});
         export function App(){
           const state=React.useSyncExternalStore(controller.subscribe,controller.getSnapshot);
           const lang=useLanguage().language;
