@@ -1,12 +1,12 @@
 # Distribution path privacy
 
-For the prepared Windows NSIS/Mac updater candidates and separate native signing/publication approvals, see [production distribution](../../docs/production-distribution.md). Its policy remains disabled until actual 0.8.2 candidate and verification artifact pins are reviewed. The existing 0.8.1 signing trial is separate.
+For the prepared Windows NSIS/Mac updater candidates, protected signing approval and separate manual publication, see [production distribution](../../docs/production-distribution.md). Its policy remains disabled until actual 0.8.2 candidate and verification artifact pins are reviewed. The existing 0.8.1 signing trial is separate.
 
 The distribution builder remaps compiler-generated source paths before compiling
 and checks final executable bytes before packaging. This prevents a successful
 identity/version check from accepting an executable that still contains local
 build directories. License/material review and Native download/update QA remain
-separate requirements; neither workflow approval gate changes.
+separate requirements; the signing approval gate remains protected.
 
 ## Windows application only
 

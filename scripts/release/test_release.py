@@ -195,6 +195,16 @@ class VerificationTests(unittest.TestCase):
 
 
 class PublicationTests(unittest.TestCase):
+    def test_signing_environment_protection_still_blocks_publication_before_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            self.fixture(Path(temporary))
+            for operation in (release.publication_prepare, release.publish):
+                with self.subTest(operation=operation.__name__), patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "policy", return_value=self.config), patch.object(release, "approval", side_effect=release.signing.ValidationError("Signing protection changed")) as approval, patch.object(release, "request") as request, patch.object(release.signing, "download") as download, self.assertRaisesRegex(ValueError, "Signing protection changed"):
+                    operation(self.root / "verifier", self.root / "publication")
+                approval.assert_called_once_with(self.config)
+                request.assert_not_called()
+                download.assert_not_called()
+
     def test_workflow_changes_after_binary_build_fail_without_broader_permissions(self):
         workflows = [{"name": "release-signing.yml", "sha": "c" * 40, "type": "file"}]
         responses = [{"default_branch": "main"}, {"object": {"sha": "b" * 40}}, workflows, workflows]
@@ -301,20 +311,23 @@ class PublicationTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_two_manual_workflows_have_distinct_native_human_approvals(self):
+    def test_only_signing_requires_environment_approval_and_receives_secrets(self):
         root = release.ROOT.parents[1]
         signing = (root / ".github/workflows/release-signing.yml").read_text()
         publication = (root / ".github/workflows/release-publication.yml").read_text()
         for text in (signing, publication):
             self.assertIn("workflow_dispatch:", text)
             self.assertIn("permissions: {}", text)
-            self.assertEqual(text.count("environment: release"), 1)
             self.assertNotIn("pull_request:", text)
             self.assertNotIn("push:", text)
             self.assertNotIn("cancel-in-progress: true", text)
         self.assertEqual(signing.count("secrets."), 2)
+        self.assertEqual(signing.count("environment: release"), 1)
+        self.assertIn("    environment: release", signing.split("  sign:", 1)[1].split("  verify:", 1)[0])
         self.assertNotIn("contents: write", signing)
         self.assertNotIn("secrets.", publication)
+        self.assertNotIn("environment:", publication)
+        self.assertEqual(publication.count("contents: write"), 1)
         prepare, publish = publication.split("  publish:", 1)
         self.assertNotIn("contents: write", prepare)
         self.assertIn("contents: write", publish)

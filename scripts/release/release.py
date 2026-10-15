@@ -274,7 +274,7 @@ def publish(verifier, destination):
     source_context("release-publication.yml")
     config = policy()
     publication_policy(config)
-    # Repeat the exact artifact, crypto and protection checks after native approval.
+    # Repeat artifact, crypto and signing-Environment protection checks before writes.
     publication_prepare(verifier, destination)
     approval(config)
     for endpoint in ("git/ref/tags/v0.8.2", "releases/tags/v0.8.2"):
