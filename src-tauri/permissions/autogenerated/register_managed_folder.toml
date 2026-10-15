@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-register-managed-folder"
+description = "Enables the register_managed_folder command without any pre-configured scope."
+commands.allow = ["register_managed_folder"]
+
+[[permission]]
+identifier = "deny-register-managed-folder"
+description = "Denies the register_managed_folder command without any pre-configured scope."
+commands.deny = ["register_managed_folder"]

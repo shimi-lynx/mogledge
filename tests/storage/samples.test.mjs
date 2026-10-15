@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JSDOM } from "jsdom";
 
+const withoutDocumentId = (html) =>
+  html.replace(/(<meta name="mogledge-document-id" content=")[^"]+("\s*\/>)/, "$1UUID$2");
+
 const assets = ".agents/skills/my-knowledge-html/assets/";
 async function openSample(name, beforeParse = () => {}) {
   const html = await readFile("tests/fixtures/knowledge/Storage/" + name + ".html", "utf8");
@@ -48,12 +51,14 @@ test("standalone generated/converted fixtures exactly match canonical source and
       );
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
-        await readFile(output, "utf8"),
-        await readFile(
-          "tests/fixtures/knowledge/Storage/" +
-            (name === "generated" ? "Generated" : "Converted") +
-            ".html",
-          "utf8",
+        withoutDocumentId(await readFile(output, "utf8")),
+        withoutDocumentId(
+          await readFile(
+            "tests/fixtures/knowledge/Storage/" +
+              (name === "generated" ? "Generated" : "Converted") +
+              ".html",
+            "utf8",
+          ),
         ),
       );
     }

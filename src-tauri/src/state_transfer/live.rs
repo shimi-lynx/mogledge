@@ -160,19 +160,19 @@ fn target(core: &Core, context: &Context, path: &str) -> Result<Target, Transfer
         .dir
         .clone()
         .ok_or_else(|| failure("context_changed"))?;
-    let identity = knowledge::storage_identity(&root, &dir, path)
+    let identity = crate::document_identity::key_at(core, &root, &dir, path)
         .map_err(|_| failure("target_unavailable"))?;
     let root_identity =
         knowledge::storage_root_identity(&dir).map_err(|_| failure("context_changed"))?;
     let mut grants = Vec::new();
     for (id, tab) in &workspace.tabs {
         if tab.entry == path
-            || tab
-                .session
-                .as_ref()
-                .and_then(|s| s.storage_identity.as_ref())
-                == Some(&identity)
-            || knowledge::storage_identity(&root, &dir, &tab.entry)
+            || tab.session.as_ref().and_then(|s| {
+                s.logical_storage_identity
+                    .as_ref()
+                    .or(s.storage_identity.as_ref())
+            }) == Some(&identity)
+            || crate::document_identity::key_at(core, &root, &dir, &tab.entry)
                 .ok()
                 .as_ref()
                 == Some(&identity)
@@ -422,7 +422,7 @@ pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, TransferEr
     state.transfer_connection(|connection, _| {
         let _budget = SqlBudget::new(connection,None)?;
         let transaction = LiveTransaction::begin(connection)?;
-        if !crate::storage_identity_transition::document_confirmed(&transaction, &target.root_identity, &target.identity).map_err(|_|failure("state_corrupt"))? { return Err(failure("target_identity_confirmation_required")); }
+        if !core.document_state.get().is_some_and(|store|store.uuid_admitted(&target.identity)) && !crate::storage_identity_transition::document_confirmed(&transaction, &target.root_identity, &target.identity).map_err(|_|failure("state_corrupt"))? { return Err(failure("target_identity_confirmation_required")); }
         let old = record(&transaction,&target.identity)?;
         let generation: i64 = transaction.query_row("SELECT generation FROM quota WHERE singleton=1", [], |r| r.get(0)).map_err(sql_error)?;
         let mut preview;
@@ -628,7 +628,7 @@ pub fn confirm(core: &Core, confirmation: Confirmation) -> Result<Value, Transfe
                         }
                         check_live(core,&plan)?;
                         check_saved(&transaction,&plan)?;
-                        if !crate::storage_identity_transition::document_confirmed(&transaction, &plan.root_identity, &plan.identity).map_err(|_|failure("state_corrupt"))? { return Err(failure("target_identity_confirmation_required")); }
+                        if !core.document_state.get().is_some_and(|store|store.uuid_admitted(&plan.identity)) && !crate::storage_identity_transition::document_confirmed(&transaction, &plan.root_identity, &plan.identity).map_err(|_|failure("state_corrupt"))? { return Err(failure("target_identity_confirmation_required")); }
                         transaction.execute("INSERT INTO documents VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(id) DO UPDATE SET data=excluded.data,bytes=excluded.bytes,revision=excluded.revision,root=excluded.root,path=excluded.path,generation=excluded.generation",params![plan.identity,incoming.canonical_state,incoming.bytes,revision,plan.root_identity,plan.path,generation]).map_err(sql_error)?;
                         transaction.execute("UPDATE quota SET bytes=?1,documents=?2,generation=?3 WHERE singleton=1",params![bytes,count,generation]).map_err(sql_error)?;
                         let version: i64 = transaction.query_row("PRAGMA user_version",[],|r|r.get(0)).map_err(sql_error)?;

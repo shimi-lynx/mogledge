@@ -5,6 +5,8 @@ pub mod ai_handoff;
 pub mod artifact_export;
 #[path = "../../../src-tauri/src/core.rs"]
 pub mod core;
+#[path = "../../../src-tauri/src/document_identity.rs"]
+pub mod document_identity;
 #[path = "../../../src-tauri/src/document_links.rs"]
 pub mod document_links;
 #[path = "../../../src-tauri/src/document_server/mod.rs"]
@@ -15,6 +17,10 @@ pub mod document_state;
 pub mod index;
 #[path = "../../../src-tauri/src/knowledge/mod.rs"]
 pub mod knowledge;
+#[path = "../../../src-tauri/src/managed_folders.rs"]
+pub mod managed_folders;
+#[path = "../../../src-tauri/src/profile_store.rs"]
+pub(crate) mod profile_store;
 #[path = "../../../src-tauri/src/root_recovery.rs"]
 pub mod root_recovery;
 #[path = "../../../src-tauri/src/storage_identity_transition.rs"]

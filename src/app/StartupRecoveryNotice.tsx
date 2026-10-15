@@ -55,7 +55,7 @@ export function StartupRecoveryNotice({
         <StorageIdentityAction platform={platform} />
       ) : (
         <button disabled={loading} onClick={(event) => invoke(event.currentTarget, onChoose)}>
-          {t("登録フォルダーを管理")}
+          {t("Mogledge 専用フォルダーを管理")}
         </button>
       )}
     </div>

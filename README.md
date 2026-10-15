@@ -14,7 +14,7 @@ In Mogledge 0.8.4, register a local folder, then select an HTML file. **Switch d
 - Search static text, use quick open, favorites, recent documents and saved workspaces.
 - Create, rename, move and recycle supported local files through explicit actions.
 - Enable optional tray residency, recall shortcuts and login startup in Settings.
-- Prepare an optional HTML authoring kit, or hand a selected path and request to an external AI tool as an unsent draft.
+- Register multiple dedicated folders with a complete HTML authoring kit, or hand a selected path and request to an external AI tool as an unsent draft.
 
 Read the [user guide](docs/user-guide.md), [data and backup guide](docs/data-management.md) and [known limitations](docs/known-limitations.md). Search cannot inspect live JavaScript state, and closing a document does not automatically save its inputs.
 
@@ -67,7 +67,7 @@ Self-build remains supported. The manual GitHub Actions workflow supports ordina
 
 ## Author HTML apps
 
-The optional [HTML authoring kit](docs/html-authoring-kit.md) contains a complete template, a guide and project skills. Install it only into a folder you choose and approve. Existing instructions and files are protected.
+Each [dedicated folder](docs/registered-folders.md) receives the [HTML authoring kit](docs/html-authoring-kit.md): a complete template, guide and Codex/Claude Skills. Create or register folders through Settings; existing instructions and files are protected. Static HTML UUIDs preserve saved input across renames, folder moves and replacement saves. Uncertain old data and detected UUID copies require an explicit decision.
 
 For repository-based authoring, use the [HTML skill](.agents/skills/my-knowledge-html/SKILL.md), [storage API](docs/document-storage.md) and [artifact export API](docs/html-artifact-export.md). Restore saved input before calculation or saving; failed restoration must not overwrite existing input with defaults.
 

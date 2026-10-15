@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-configure-document-identity"
+description = "Enables the configure_document_identity command without any pre-configured scope."
+commands.allow = ["configure_document_identity"]
+
+[[permission]]
+identifier = "deny-configure-document-identity"
+description = "Denies the configure_document_identity command without any pre-configured scope."
+commands.deny = ["configure_document_identity"]

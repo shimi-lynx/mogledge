@@ -167,6 +167,12 @@ fn parent_child_display_switch_keeps_registered_root_and_live_save_destination()
 
         let restarted = configured_core(&fixture.profile, 19161, persistent);
         restarted.restore().unwrap();
+        // Legacy physical-format fixtures require explicit registration now.
+        assert!(restarted.snapshot().workspace_id.is_none());
+        assert!(restarted.snapshot().startup_recovery.is_some());
+        // Continue the lower-level legacy display/storage checks with an
+        // explicitly selected fixture; production UI exposes no free root picker.
+        restarted.select(&fixture.root, false).unwrap();
         restarted.watcher.lock().unwrap().take();
         let restored = restarted.snapshot();
         assert_eq!(restored.root_path, registered.root_path);
@@ -583,6 +589,12 @@ fn changed_saved_display_identity_restores_registered_root_without_rebinding_or_
     fs::write(&settings_path, &before).unwrap();
     let restarted = configured_core(&fixture.profile, 19161, true);
     restarted.restore().unwrap();
+    // Legacy physical-format fixtures require explicit registration now.
+    assert!(restarted.snapshot().workspace_id.is_none());
+    assert!(restarted.snapshot().startup_recovery.is_some());
+    // Continue the lower-level legacy display/storage checks with an
+    // explicitly selected fixture; production UI exposes no free root picker.
+    restarted.select(&fixture.root, false).unwrap();
     restarted.watcher.lock().unwrap().take();
     let restored = restarted.snapshot();
     assert_eq!(
@@ -787,6 +799,12 @@ fn a_missing_database_after_registration_is_never_recreated_as_empty_state() {
             .set(fixture.profile.join("settings.json"))
             .unwrap();
         restarted.restore().unwrap();
+        // Legacy physical-format fixtures require explicit registration now.
+        assert!(restarted.snapshot().workspace_id.is_none());
+        assert!(restarted.snapshot().startup_recovery.is_some());
+        // Continue the lower-level legacy display/storage checks with an
+        // explicitly selected fixture; production UI exposes no free root picker.
+        restarted.select(&fixture.root, false).unwrap();
         restarted.watcher.lock().unwrap().take();
         assert_eq!(
             restarted.snapshot().storage_hold.unwrap().reason,
@@ -1065,6 +1083,12 @@ fn separate_config_preferences_allow_first_storage_and_preserve_saved_values_on_
             .is_ok());
         if restart {
             core.restore().unwrap();
+            // Legacy physical-format fixtures require explicit registration now.
+            assert!(core.snapshot().workspace_id.is_none());
+            assert!(core.snapshot().startup_recovery.is_some());
+            // Continue the lower-level legacy display/storage checks with an
+            // explicitly selected fixture; production UI exposes no free root picker.
+            core.select(&fixture.root, false).unwrap();
         } else {
             core.select(&fixture.root, true).unwrap();
         }

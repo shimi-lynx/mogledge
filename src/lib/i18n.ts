@@ -2,6 +2,7 @@ import { artifactExportMessages } from "./i18n/artifactExport";
 import { appUpdaterMessages } from "./i18n/appUpdater";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { commonMessages } from "./i18n/common";
+import { managedFolderMessages } from "./i18n/managedFolders";
 import { errorMessages } from "./i18n/errors";
 import { aiMessages } from "./i18n/ai";
 import { searchMessages } from "./i18n/search";
@@ -21,6 +22,7 @@ export const LANGUAGE_STORAGE_KEY = "my-knowledge.ui-language";
 
 export const messages: Readonly<Record<string, string>> = {
   ...commonMessages,
+  ...managedFolderMessages,
   ...appUpdaterMessages,
   ...artifactExportMessages,
   ...errorMessages,

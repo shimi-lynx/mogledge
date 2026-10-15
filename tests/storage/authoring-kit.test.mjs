@@ -102,11 +102,15 @@ test("bundled contents reproduce canonical assets/API hashes and both installed 
   });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(await Promise.all(files.map((file) => read(kit + file))), before);
+  const withoutDocumentId = (html) =>
+    html.replace(/(<meta name="mogledge-document-id" content=")[^"]+("\s*\/>)/, "$1UUID$2");
   assert.equal(
-    await read(kit + "template.html"),
-    await read("tests/fixtures/knowledge/Storage/Generated.html"),
+    withoutDocumentId(await read(kit + "template.html")),
+    withoutDocumentId(await read("tests/fixtures/knowledge/Storage/Generated.html")),
   );
+  assert.match(before[1], /content="REPLACE_WITH_NEW_UUID"/);
   for (const content of [before[0], before[2], before[3]]) {
+    assert.ok(content.includes("kitVersion=2"));
     assert.ok(content.includes(`adapterSHA256=${hash(await read(assets + "storage.js"))}`));
     assert.ok(
       content.includes(`canonicalTemplateSHA256=${hash(await read(assets + "template.html"))}`),

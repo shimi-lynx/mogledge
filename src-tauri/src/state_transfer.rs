@@ -222,14 +222,15 @@ impl Session {
             .as_ref()
             .ok_or_else(|| failure("source_unavailable_hold"))?;
         let id = root
-            .identity_at(relative)
+            .storage_identity_at(relative)
             .map_err(|_| failure("source_unavailable_hold"))?;
-        if !crate::storage_identity_transition::document_confirmed(
-            &self.offline.store.connection,
-            &root.identity,
-            &id,
-        )
-        .map_err(|_| failure("state_corrupt"))?
+        if root.logical_identity_at(relative).ok().flatten().as_deref() != Some(&id)
+            && !crate::storage_identity_transition::document_confirmed(
+                &self.offline.store.connection,
+                &root.identity,
+                &id,
+            )
+            .map_err(|_| failure("state_corrupt"))?
         {
             return Err(failure("target_identity_confirmation_required"));
         }
@@ -244,9 +245,6 @@ impl Session {
             .root
             .as_ref()
             .ok_or_else(|| failure("source_unavailable_hold"))?;
-        if root.identity != record.root {
-            return Err(failure("source_unavailable_hold"));
-        }
         let observation = root.scan();
         let (availability, path) = root.locate(&observation, id, &record.path);
         if !matches!(
@@ -255,7 +253,13 @@ impl Session {
         ) {
             return Err(failure("source_unavailable_hold"));
         }
-        path.ok_or_else(|| failure("source_unavailable_hold"))
+        let path = path.ok_or_else(|| failure("source_unavailable_hold"))?;
+        if root.identity != record.root
+            && root.logical_identity_at(&path).ok().flatten().as_deref() != Some(id)
+        {
+            return Err(failure("source_unavailable_hold"));
+        }
+        Ok(path)
     }
     fn portable(
         &self,
@@ -575,12 +579,13 @@ impl Session {
             if current != old.map(|r| r.revision) {
                 return Err(failure("state_changed"));
             }
-            if !crate::storage_identity_transition::document_confirmed(
-                &transaction,
-                &root.identity,
-                id,
-            )
-            .map_err(|_| failure("state_corrupt"))?
+            if root.logical_identity_at(path).ok().flatten().as_deref() != Some(id)
+                && !crate::storage_identity_transition::document_confirmed(
+                    &transaction,
+                    &root.identity,
+                    id,
+                )
+                .map_err(|_| failure("state_corrupt"))?
             {
                 return Err(failure("target_identity_confirmation_required"));
             }

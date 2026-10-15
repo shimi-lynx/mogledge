@@ -11,7 +11,7 @@ async function prepare(page: Page) {
       import AiHandoffDialog from '/src/app/AiHandoffDialog.tsx';
       const guide='Before creating HTML read .my-knowledge/html-authoring/GUIDE.md.';
       window.kitCalls={status:[],preview:[],install:[],cancel:[],prefs:[],ai:[]};
-      const states={};const state=context=>states[context.workspaceId] ||= {rootIdentity:context.workspaceId,enabled:false,preferenceHash:null,readOnly:false,guideAvailable:false,error:null};
+      const states={};const state=context=>states[context.workspaceId] ||= {rootIdentity:context.workspaceId,enabled:true,preferenceHash:null,readOnly:false,guideAvailable:true,error:null};
       const kitApi={
         status:async context=>{window.kitCalls.status.push(context);return {...state(context)};},
         preview:async context=>{window.kitCalls.preview.push(context);const value={planId:'plan-'+window.kitCalls.preview.length,kitVersion:1,readOnly:!!window.kitReadonly,error:window.kitReadonly?'制作キットの所有記録を読み取れません。元の内容を保持します':null,files:[{path:'.my-knowledge/html-authoring/GUIDE.md',action:'create'},{path:'.my-knowledge/html-authoring/template.html',action:'create'},{path:'.agents/skills/my-knowledge-html-authoring/SKILL.md',action:'conflict'}]};if(window.holdKitPreview)return new Promise(resolve=>{window.resolveKitPreview=()=>resolve(value);});return value;},
@@ -37,14 +37,12 @@ async function prepare(page: Page) {
   await page.getByRole("button", { name: "Setup fixture" }).click();
   await page.getByRole("button", { name: "AIによるHTML制作", exact: true }).click();
 }
-test("authoring settings preview cancel install guide preference and raw AI request use only explicit mock operations", async ({
+test("authoring settings preview cancel install and mandatory guide preserve raw AI requests", async ({
   page,
 }) => {
   await prepare(page);
   const dialog = page.getByRole("dialog", { name: "設定", exact: true });
-  const preference = dialog.getByRole("checkbox");
-  await expect(preference).not.toBeChecked();
-  await expect(preference).toBeDisabled();
+  await expect(dialog.getByRole("checkbox")).toHaveCount(0);
   await dialog.getByRole("button", { name: "配置内容を確認" }).click();
   await expect(dialog.getByRole("region", { name: "配置内容", exact: true })).toBeVisible();
   expect(await page.evaluate("window.kitCalls.install.length")).toBe(0);
@@ -54,9 +52,7 @@ test("authoring settings preview cancel install guide preference and raw AI requ
   await dialog.getByRole("button", { name: "配置内容を確認" }).click();
   await dialog.getByRole("button", { name: "確認した内容を配置" }).click();
   await expect(dialog.getByRole("status")).toContainText("2件を配置し、1件を保持しました");
-  await expect(preference).toBeEnabled();
-  await preference.check();
-  expect(await page.evaluate("window.kitCalls.prefs.at(-1).enabled")).toBe(true);
+  expect(await page.evaluate("window.kitCalls.prefs.length")).toBe(0);
   await dialog.getByRole("button", { name: "閉じる", exact: true }).click();
   await page.getByRole("button", { name: "AI fixture" }).click();
   const ai = page.getByRole("dialog", { name: "AIに渡す", exact: true });
@@ -68,15 +64,7 @@ test("authoring settings preview cancel install guide preference and raw AI requ
   await expect(input).toHaveValue(raw);
   expect(await page.evaluate("window.kitCalls.ai[0].instruction")).toBe(raw);
   await ai.getByRole("button", { name: "閉じる", exact: true }).click();
-  await page.getByRole("button", { name: "Setup fixture" }).click();
-  await dialog.getByRole("button", { name: "AIによるHTML制作", exact: true }).click();
-  await preference.uncheck();
-  await dialog.getByRole("button", { name: "閉じる", exact: true }).click();
-  await page.getByRole("button", { name: "AI fixture" }).click();
-  await expect(ai.getByText(/この作業フォルダーの設定に従い/)).toHaveCount(0);
-  await ai.getByRole("button", { name: "AIに渡す", exact: true }).click();
-  expect(await page.evaluate("window.kitCalls.ai.at(-1).instruction")).toBe("");
-  expect(await page.evaluate("window.kitCalls.ai.at(-1).preview.guideInstruction")).toBeUndefined();
+  expect(await page.evaluate("window.kitCalls.prefs.length")).toBe(0);
 });
 test("authoring settings reject stale previews and keep long fixed paths within JA EN light dark narrow layouts", async ({
   page,

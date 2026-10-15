@@ -95,6 +95,52 @@ function fixture() {
 }
 
 describe("registered root and display folder", () => {
+  it("managed folder selection flushes the session and replaces the workspace through its controller boundary", async () => {
+    const { api, controller, update } = fixture();
+    await controller.start();
+    await controller.select("child/tool.html");
+    const before = controller.getSnapshot();
+    api.selectManagedFolder = vi.fn(async () => {
+      expect(api.captureTabSession).toHaveBeenCalled();
+      update({ workspaceId: "other", viewId: "other-view", rootPath: "/other", nodes: [] });
+      return api.getTree();
+    });
+    await controller.selectManagedFolder("other", "revision-one");
+    expect(api.selectManagedFolder).toHaveBeenCalledWith("other", "revision-one");
+    expect(controller.getSnapshot().snapshot.workspaceId).toBe("other");
+    expect(controller.getSnapshot().tabs).not.toContainEqual(before.tabs[0]);
+    expect(api.chooseRoot).not.toHaveBeenCalled();
+  });
+
+  it("managed folder selection failure remains observable to its dialog without changing the current root", async () => {
+    const { api, controller } = fixture();
+    await controller.start();
+    const before = controller.getSnapshot().snapshot;
+    api.selectManagedFolder = vi.fn(async () => {
+      throw new Error("folder missing");
+    });
+    await expect(controller.selectManagedFolder("missing", "revision-one")).rejects.toThrow(
+      "folder missing",
+    );
+    expect(controller.getSnapshot().snapshot).toBe(before);
+  });
+
+  it("managed folder unregistration flushes before mutation and reads a fresh view after removal", async () => {
+    const { api, controller, update } = fixture();
+    await controller.start();
+    await controller.select("child/tool.html");
+    api.unregisterManagedFolder = vi.fn(async () => {
+      expect(api.captureTabSession).toHaveBeenCalled();
+      update({ workspaceId: null, viewId: "empty-view", rootPath: null, nodes: [] });
+      return { revision: "two", folders: [], selectedId: null };
+    });
+    const result = await controller.unregisterManagedFolder("current", "one");
+    expect(api.unregisterManagedFolder).toHaveBeenCalledWith("current", "one");
+    expect(api.beginView).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ revision: "two", folders: [], selectedId: null });
+    expect(controller.getSnapshot().snapshot.workspaceId).toBeNull();
+    expect(controller.getSnapshot().tabs).toEqual([]);
+  });
   it("ordinary folder dialog preserves the registered root, active HTML and Native grants", async () => {
     const { api, controller } = fixture();
     await controller.start();

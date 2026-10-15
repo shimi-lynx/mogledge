@@ -36,7 +36,7 @@ Nonempty-folder moves, anchored drops, reorder and trash remain rejected. Symlin
 
 ## Storage and recovery
 
-Registered-folder and displayed-folder separation preserves the current root-plus-HTML physical identity key; it does not merge existing parent/child registrations or solve external AI/editor replacement saves that change the HTML physical identity. Fresh Mac admission requires a validated empty profile, while uncertain retained input remains held with an app-frame notice. Synthetic and mocked UI checks do not establish Native Mac folder selection or restart behavior. See [registered folders](registered-folders.md).
+Dedicated folders use static HTML UUIDs to preserve saved input across roots and external replacement saves. Unknown legacy associations and detected copies remain held for an explicit decision; no real-user-data migration is performed during development. A malicious author who knows a UUID can deliberately share its data: this is a trusted-document convention, not authentication. It does not sync DBs across PCs. Synthetic Windows and mocked UI checks do not establish Native Mac behavior. See [dedicated folders](registered-folders.md).
 
 Only committed input saved through the [document storage API](document-storage.md) is persistent document state. Arbitrary JS/Canvas state, unsaved fields, browser localStorage and Native SQLite are separate. Export/save acknowledgement for every live view is unknown; timestamps and dirty flags do not prove flushing. External browser closure is not detected, so its registration can keep a saved-state management candidate on hold until app restart.
 

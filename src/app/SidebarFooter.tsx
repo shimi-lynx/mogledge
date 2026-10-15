@@ -1,3 +1,4 @@
+import type { KnowledgeController } from "../lib/controller";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "../lib/i18n";
@@ -17,7 +18,7 @@ export function SidebarFooter({
   version,
   reloadDisabled,
   onReload,
-  onRegisterRoot,
+  controller,
   fallbackFocus,
   ref,
   state,
@@ -27,7 +28,7 @@ export function SidebarFooter({
   version: string | null;
   reloadDisabled: boolean;
   onReload: () => void;
-  onRegisterRoot?: () => void;
+  controller?: KnowledgeController;
   fallbackFocus?: HTMLElement | null;
   ref?: Ref<SidebarFooterHandle>;
   state?: AppState;
@@ -98,7 +99,7 @@ export function SidebarFooter({
             state={state}
             rootContext={rootContext}
             platform={platform}
-            onRegisterRoot={onRegisterRoot}
+            controller={controller}
             initialPage={settingsOpen.page}
             managementContext={{
               workspaceId: state?.snapshot.workspaceId ?? null,

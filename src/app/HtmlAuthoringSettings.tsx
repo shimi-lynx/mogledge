@@ -115,24 +115,6 @@ export function HtmlAuthoringSettings({
       }
     }
   };
-  const enabled = async (value: boolean) => {
-    if (!context || !status || operation.current) return;
-    const request = generation.current;
-    operation.current = true;
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await api.setEnabled(context, status.preferenceHash, value);
-      if (request === generation.current) setStatus(next);
-    } catch (failure) {
-      if (request === generation.current) setError(String(failure));
-    } finally {
-      if (request === generation.current) {
-        setBusy(false);
-        operation.current = false;
-      }
-    }
-  };
   return (
     <section id="settings-html-authoring-panel" aria-labelledby="settings-html-authoring-heading">
       <h2 id="settings-html-authoring-heading">{t("AIによるHTML制作")}</h2>
@@ -142,7 +124,7 @@ export function HtmlAuthoringSettings({
         <>
           <p>
             {t(
-              "現在の作業フォルダーに、保存APIの説明とHTMLひな形、Codex・Claudeの制作Skillを任意で配置します。",
+              "専用フォルダーには、保存 API のガイド・HTML テンプレート・Codex / Claude Skills が必要です。配置内容を確認できます。",
             )}
           </p>
           <p>{t("既存のAGENTS.md・CLAUDE.mdや利用者が変更したファイルは上書きしません。")}</p>
@@ -193,22 +175,7 @@ export function HtmlAuthoringSettings({
               </button>
             </div>
           )}
-          <label className="html-authoring-enable">
-            <input
-              type="checkbox"
-              checked={status?.enabled ?? false}
-              disabled={
-                busy || !status || status.readOnly || (!status.enabled && !status.guideAvailable)
-              }
-              onChange={(event) => void enabled(event.target.checked)}
-            />
-            {t("AIに渡す依頼文に、制作ガイドを読む指示を付加")}
-          </label>
-          <p>
-            {t(
-              "初期値はオフです。利用者の依頼文を保持し、このフォルダーでのAI受け渡しだけに適用します。",
-            )}
-          </p>
+          <p>{t("AI に渡す依頼には、専用フォルダーの制作ガイドを読む指示を必ず付けます。")}</p>
           {status?.error && status.error !== preview?.error && (
             <p role="alert">{translateUiMessage(status.error, language)}</p>
           )}

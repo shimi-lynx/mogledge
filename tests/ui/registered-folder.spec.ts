@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 for (const language of ["ja", "en"] as const) {
-  test(`registered folder, displayed child, restart and outer storage hold ${language} (mock Native)`, async ({
+  test(`managed folders setup, cancellation, missing location and unregister ${language} (mock Native)`, async ({
     page,
   }) => {
     await page.addInitScript(
@@ -18,128 +18,86 @@ for (const language of ["ja", "en"] as const) {
       route.fulfill({
         contentType: "application/javascript",
         body: `
-      const calls=window.registeredFolderCalls={register:0,display:0,paths:[],storageHolds:0};
-      let snapshot={workspaceId:'registered-parent',viewId:'same-view',rootPath:'/fixture/Parent',revision:1,displayRevision:0,watchError:null,
-        storageHold:{reason:'StorageIdentityConfirmationRequired'},
-        nodes:[{name:'Child',relativePath:'Child',kind:'folder',children:[{name:'tool.html',relativePath:'Child/tool.html',kind:'html',children:[]}]},
-          {name:'parent.html',relativePath:'parent.html',kind:'html',children:[]}],
-        ...(localStorage.getItem('displayed-child')?{displayFolder:{relativePath:'Child',identity:'physical-child'}}:{})};
+      const calls=window.managedFolderCalls={freePicker:0,create:[],register:0,remove:[]};
+      let snapshot={workspaceId:'tools',viewId:'tools-view',rootPath:'/fixture/Tools',revision:1,nodes:[{name:'Child',relativePath:'Child',kind:'folder',children:[]}],watchError:null};
+      let folders={revision:'1',selectedId:'tools',folders:[
+        {id:'tools',name:'Tools',path:'/fixture/Tools',status:'ready',kitUpdate:'current',error:null},
+        {id:'moved',name:'Moved',path:'/fixture/Moved',status:'missing',kitUpdate:'current',error:null}]};
       export const aiHandoffApi={};
-      export const bridge={
-        beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},
-        chooseRoot:async()=>{calls.register++;return null;},
-        chooseDisplayFolder:async(workspace,view)=>{if(workspace!==snapshot.workspaceId||view!==snapshot.viewId)throw 'ViewChanged';calls.display++;if(window.chooseOutside)throw 'DisplayFolderOutsideRegisteredRoot';snapshot={...snapshot,displayRevision:snapshot.displayRevision+1,displayFolder:{relativePath:'Child',identity:'physical-child'}};localStorage.setItem('displayed-child','yes');return snapshot;},
-        setDisplayFolder:async(workspace,view,path,expectedDisplayRevision)=>{if(workspace!==snapshot.workspaceId||view!==snapshot.viewId)throw 'ViewChanged';if(expectedDisplayRevision!==snapshot.displayRevision)throw 'DisplayFolderChanged';calls.paths.push(path);snapshot={...snapshot,displayRevision:snapshot.displayRevision+1,displayFolder:undefined};localStorage.removeItem('displayed-child');return snapshot;},
-        getDocumentStorageHold:async()=>{calls.storageHolds++;throw Error('unexpected admitted-document probe');},
-        getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),refresh:async()=>snapshot
-      };
-      `,
+      export const bridge={beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},
+        chooseRoot:async()=>{calls.freePicker++;throw 'unexpected free picker';},
+        getManagedFolders:async()=>folders,
+        createManagedFolder:async(name,revision)=>{calls.create.push({name,revision});return null;},
+        registerManagedFolder:async()=>{calls.register++;if(calls.register===1)throw 'Setup conflict';return null;},
+        selectManagedFolder:async()=>snapshot,
+        unregisterManagedFolder:async(id,revision)=>{calls.remove.push({id,revision});folders={...folders,revision:'2',selectedId:null,folders:folders.folders.filter(f=>f.id!==id)};snapshot={...snapshot,workspaceId:null,rootPath:null,viewId:'empty-view',nodes:[]};return folders;},
+        getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),refresh:async()=>snapshot};
+    `,
       }),
     );
-    await page.setViewportSize({ width: 1000, height: 700 });
+    await page.setViewportSize({ width: 1000, height: 760 });
     await page.goto("/");
-    const root = page.locator(".workspace-button");
-    await expect(root).toHaveText("Parent");
-    await expect(page.locator(".display-folder-actions")).toHaveCount(0);
-    await root.click();
-    await expect(root).toHaveText("Child");
+    await page.locator(".workspace-button").click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("/fixture/Tools", { exact: true })).toBeVisible();
+    const moved = dialog.locator("li").filter({ hasText: "/fixture/Moved" });
     await expect(
-      page.getByText(language === "ja" ? "登録フォルダー：Parent" : "Registered folder: Parent", {
+      moved.getByRole("button", {
+        name: language === "ja" ? "このフォルダーを開く" : "Open this folder",
         exact: true,
       }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByText(language === "ja" ? "表示フォルダー" : "Displayed folder", { exact: true }),
-    ).toHaveCount(0);
-    await expect(root).toHaveAttribute("title", /\/fixture\/Parent\/Child/);
-    await expect(page.locator(".display-folder-actions")).toBeVisible();
-    await expect(page.getByRole("treeitem", { name: "tool HTML", exact: true })).toHaveAttribute(
-      "data-path",
-      "Child/tool.html",
-    );
-    await expect(page.getByRole("treeitem", { name: "parent HTML", exact: true })).toHaveCount(0);
-    expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(0);
-    await page.reload();
-    await expect(root).toHaveText("Child");
-    await expect(page.locator(".display-folder-actions")).toBeVisible();
-    await expect(root).toHaveAttribute("title", /\/fixture\/Parent\/Child/);
-    expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(0);
-    await page.screenshot({ path: test.info().outputPath(`registered-child-${language}.png`) });
-    const hide = language === "ja" ? "左メニューを閉じる" : "Hide sidebar";
-    await page.getByRole("button", { name: hide, exact: true }).click();
-    const hold = page.locator(".storage-hold-notice");
-    await expect(hold).toBeVisible();
-    await expect(hold).toContainText(language === "ja" ? "独立したバックアップ" : "independently");
+    ).toBeDisabled();
+    const name = dialog.getByRole("textbox", {
+      name: language === "ja" ? "新しいフォルダー名" : "New folder name",
+    });
+    await name.fill("New tools");
+    await dialog
+      .getByRole("button", {
+        name: language === "ja" ? "保存先を選んで新規作成" : "Choose a location and create",
+        exact: true,
+      })
+      .click();
+    await expect(name).toHaveValue("New tools");
+    const register = dialog.getByRole("button", {
+      name: language === "ja" ? "既存フォルダーを登録" : "Register an existing folder",
+      exact: true,
+    });
+    await register.click();
+    await expect(dialog.getByRole("alert")).toHaveText("Setup conflict");
+    await register.click();
+    await expect(dialog.getByRole("alert")).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.setViewportSize({ width: 320, height: 640 });
-      await page
-        .getByRole("button", {
-          name: language === "ja" ? "左メニューを開く" : "Show sidebar",
-          exact: true,
-        })
-        .click();
-      await expect(root).toBeVisible();
-      await expect(page.locator(".display-folder-actions")).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
-      await page.screenshot({
-        path: test.info().outputPath(`displayed-child-narrow-${language}-${scheme}.png`),
+      await dialog.locator(".managed-folders").evaluate((element) => {
+        element.scrollTop = 0;
       });
-      await page.getByRole("button", { name: hide, exact: true }).click();
-      await expect(hold).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
       await page.screenshot({
-        path: test.info().outputPath(`storage-hold-${language}-${scheme}.png`),
+        path: test.info().outputPath(`managed-folders-${language}-${scheme}.png`),
       });
     }
-    await page.setViewportSize({ width: 1000, height: 700 });
-    await page
-      .getByRole("button", {
-        name: language === "ja" ? "左メニューを開く" : "Show sidebar",
-        exact: true,
-      })
-      .click();
-    await page
-      .getByRole("button", {
-        name: language === "ja" ? "登録範囲をすべて表示" : "Show the entire registered folder",
-        exact: true,
-      })
-      .click();
-    await expect(root).toHaveText("Parent");
-    await expect(page.locator(".display-folder-actions")).toHaveCount(0);
-    await expect(page.getByRole("treeitem", { name: "parent HTML", exact: true })).toBeVisible();
-    await page.evaluate("window.chooseOutside=true");
-    await root.click();
-    await expect(page.getByRole("alert")).toContainText(
-      language === "ja" ? "登録範囲外" : "outside the registered folder",
-    );
-    expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(0);
-    await page
-      .locator(".workspace-feedback")
-      .getByRole("button", {
-        name: language === "ja" ? "登録フォルダーを管理" : "Manage registered folder",
-        exact: true,
-      })
-      .click();
-    const dialog = page.getByRole("dialog");
     await dialog
-      .getByRole("button", {
-        name: language === "ja" ? "登録フォルダー" : "Registered folder",
-        exact: true,
-      })
+      .getByRole("button", { name: language === "ja" ? "登録解除" : "Unregister", exact: true })
+      .first()
       .click();
-    await expect(dialog).toContainText("/fixture/Parent");
     await expect(dialog).toContainText(
-      language === "ja" ? "削除・移行・統合されません" : "does not delete, transfer or combine",
+      language === "ja"
+        ? "フォルダー、HTML、保存データはすべて残ります"
+        : "The folder, HTML files and saved data are all retained",
     );
-    await page.screenshot({ path: test.info().outputPath(`registered-settings-${language}.png`) });
     await dialog
       .getByRole("button", {
-        name: language === "ja" ? "登録フォルダーを変更" : "Change registered folder",
+        name: language === "ja" ? "この登録を解除" : "Remove this registration",
         exact: true,
       })
       .click();
-    expect(await page.evaluate("window.registeredFolderCalls.register")).toBe(1);
-    expect(await page.evaluate("window.registeredFolderCalls.storageHolds")).toBe(0);
+    await expect(dialog.getByText("/fixture/Tools", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("/fixture/Moved", { exact: true })).toBeVisible();
+    expect(await page.evaluate("window.managedFolderCalls")).toEqual({
+      freePicker: 0,
+      create: [{ name: "New tools", revision: "1" }],
+      register: 2,
+      remove: [{ id: "tools", revision: "1" }],
+    });
   });
 }

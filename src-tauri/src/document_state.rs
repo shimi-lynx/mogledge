@@ -145,6 +145,8 @@ pub struct DocumentState {
     directory: PathBuf,
     profile: PathBuf,
     connection: Mutex<Connection>,
+    // Only source-metadata admission can authorize this independent namespace.
+    uuid_admissions: Mutex<std::collections::HashSet<String>>,
     // SQLite must close before raw same-inode descriptors: a POSIX close could
     // otherwise release locks retained by the live connection.
     management_database: fs::File,
@@ -210,6 +212,186 @@ fn recovery_error(error: crate::identifier_migration::MigrationError) -> StateEr
 }
 
 impl DocumentState {
+    pub(crate) fn authorize_uuid(&self, key: &str) {
+        self.uuid_admissions.lock().unwrap().insert(key.into());
+    }
+    pub(crate) fn uuid_admitted(&self, key: &str) -> bool {
+        self.uuid_admissions
+            .lock()
+            .is_ok_and(|ids| ids.contains(key))
+    }
+    pub(crate) fn initialize_identity(
+        &self,
+        key: &str,
+        root: &str,
+        path: &str,
+    ) -> Result<(), String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        let mut connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
+        crate::storage_limits::cap_database(&connection).map_err(|_| "StorageUnavailable")?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| "StorageBusy")?;
+        let (total, count, generation): (i64, i64, i64) = tx
+            .query_row(
+                "SELECT bytes,documents,generation FROM quota WHERE singleton=1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|_| "StorageCorrupt")?;
+        if count >= MAX_DOCUMENTS
+            || total.checked_add(2).ok_or("StorageCorrupt")?
+                > crate::storage_limits::read(&tx)
+                    .map_err(|_| "StorageCorrupt")?
+                    .total_bytes
+        {
+            return Err("QuotaExceeded".into());
+        }
+        let generation = generation.checked_add(1).ok_or("StorageCorrupt")?;
+        tx.execute(
+            "INSERT INTO documents VALUES(?1,'{}',2,1,?2,?3,?4)",
+            params![key, root, path, generation],
+        )
+        .map_err(|_| "保存先を初期化できません。既存記録を保持します")?;
+        tx.execute(
+            "UPDATE quota SET bytes=?1,documents=?2,generation=?3 WHERE singleton=1",
+            params![total + 2, count + 1, generation],
+        )
+        .map_err(|_| "StorageUnavailable")?;
+        tx.commit().map_err(|_| "StorageUnavailable".into())
+    }
+    pub(crate) fn has_identity(&self, key: &str) -> Result<bool, String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        self.connection
+            .lock()
+            .map_err(|_| "StorageUnavailable")?
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM documents WHERE id=?1)",
+                [key],
+                |row| row.get(0),
+            )
+            .map_err(|_| "StorageUnavailable".into())
+    }
+    pub(crate) fn identity_rows(&self) -> Result<Vec<crate::document_identity::LegacyRow>, String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        let connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(|_| "StorageUnavailable")?;
+        let sql = if version >= 2 {
+            "SELECT id,root,path,revision,data FROM (SELECT id,root,path,revision,data,generation FROM documents WHERE data<>'{}' UNION ALL SELECT document_id,root,path,revision,data,generation FROM recovery_records WHERE status='quarantined' AND data<>'{}') ORDER BY generation DESC LIMIT 8193"
+        } else {
+            "SELECT id,root,path,revision,data FROM documents WHERE data<>'{}' ORDER BY generation DESC LIMIT 4097"
+        };
+        let mut query = connection.prepare(sql).map_err(|_| "StorageUnavailable")?;
+        let rows = query
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    raw_json::copy_sql(row, 4)?,
+                ))
+            })
+            .map_err(|_| "StorageUnavailable")?;
+        let mut result = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for row in rows {
+            let (id, root, path, revision, data) = row.map_err(|_| "StorageCorrupt")?;
+            if !seen.insert(id.clone()) {
+                continue;
+            }
+            let values = raw_json::app_map(&data).map_err(|_| "StorageCorrupt")?;
+            result.push(crate::document_identity::LegacyRow {
+                id,
+                root,
+                path,
+                revision,
+                app_count: values.len(),
+            });
+        }
+        if result.len() > 8192 {
+            return Err("StorageCorrupt".into());
+        }
+        Ok(result)
+    }
+    /// Copy a confirmed source in one quota-accounted transaction. Even an empty
+    /// target is an existing decision and is never overwritten by migration.
+    pub(crate) fn copy_identity(
+        &self,
+        source: &str,
+        revision: i64,
+        target: &str,
+        root: &str,
+        path: &str,
+    ) -> Result<(), String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        let mut connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
+        crate::storage_limits::cap_database(&connection).map_err(|_| "StorageUnavailable")?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| "StorageBusy")?;
+        if crate::state_inspection::recovery_store::is_quarantined(&tx, source)
+            .map_err(|_| "StorageCorrupt")?
+            || crate::state_inspection::recovery_store::is_quarantined(&tx, target)
+                .map_err(|_| "StorageCorrupt")?
+        {
+            return Err("Revoked".into());
+        }
+        if tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM documents WHERE id=?1)",
+                [target],
+                |r| r.get::<_, bool>(0),
+            )
+            .map_err(|_| "StorageUnavailable")?
+        {
+            return Err("保存先には既存の記録があります。上書きしません".into());
+        }
+        let (data, bytes, actual_revision): (String, i64, i64) = tx
+            .query_row(
+                "SELECT data,bytes,revision FROM documents WHERE id=?1",
+                [source],
+                |r| Ok((raw_json::copy_sql(r, 0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|_| "復旧元が見つかりません")?;
+        if revision != actual_revision
+            || bytes != data.len() as i64
+            || data.len() > crate::storage_limits::maximum_document_bytes()
+        {
+            return Err("復旧元が変更されたか破損しています".into());
+        }
+        raw_json::app_map(&data).map_err(|_| "StorageCorrupt")?;
+        let limits = crate::storage_limits::read(&tx).map_err(|_| "StorageCorrupt")?;
+        let (total, count, generation): (i64, i64, i64) = tx
+            .query_row(
+                "SELECT bytes,documents,generation FROM quota WHERE singleton=1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|_| "StorageCorrupt")?;
+        let total = total.checked_add(bytes).ok_or("StorageCorrupt")?;
+        let generation = generation.checked_add(1).ok_or("StorageCorrupt")?;
+        if total > limits.total_bytes
+            || count >= MAX_DOCUMENTS
+            || bytes > limits.document_bytes as i64
+        {
+            return Err("QuotaExceeded".into());
+        }
+        tx.execute(
+            "INSERT INTO documents VALUES(?1,?2,?3,?4,?5,?6,?7)",
+            params![target, data, bytes, revision, root, path, generation],
+        )
+        .map_err(|_| "StorageUnavailable")?;
+        tx.execute(
+            "UPDATE quota SET bytes=?1,documents=?2,generation=?3 WHERE singleton=1",
+            params![total, count + 1, generation],
+        )
+        .map_err(|_| "StorageUnavailable")?;
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        tx.commit().map_err(|_| "StorageUnavailable".into())
+    }
     pub(crate) fn register_storage_root(&self, root: &str) -> Result<bool, String> {
         self.verify_management().map_err(|_| "StorageUnavailable")?;
         let mut connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
@@ -480,6 +662,7 @@ impl DocumentState {
             directory,
             profile,
             connection: Mutex::new(connection),
+            uuid_admissions: Mutex::new(std::collections::HashSet::new()),
             management_database,
             management_directory,
             management_profile,
@@ -547,12 +730,17 @@ impl DocumentState {
         let transaction = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(database_error)?;
-        if !crate::storage_identity_transition::document_confirmed(
-            &transaction,
-            root_identity,
-            identity,
-        )
-        .map_err(recovery_error)?
+        if !self
+            .uuid_admissions
+            .lock()
+            .map_err(|_| StateError::Unavailable)?
+            .contains(identity)
+            && !crate::storage_identity_transition::document_confirmed(
+                &transaction,
+                root_identity,
+                identity,
+            )
+            .map_err(recovery_error)?
         {
             return Err(StateError::IdentityConfirmationRequired);
         }
@@ -859,6 +1047,29 @@ pub fn authorized_session(core: &Core, token: &str) -> Result<Session, StateErro
     if identity != &current {
         return Err(StateError::IdentityChanged);
     }
+    if let Some(key) = &session.logical_storage_identity {
+        // In-place metadata edits do not necessarily change the filesystem ID.
+        // Reparse bounded source so an old token cannot change namespaces.
+        let read = knowledge::read_source_budgeted(
+            &session.root,
+            &session.dir,
+            &session.entry,
+            true,
+            |_| Ok(()),
+        )
+        .map_err(|_| StateError::IdentityChanged)?;
+        if read.storage_identity.as_ref() != Some(identity) {
+            return Err(StateError::IdentityChanged);
+        }
+        match std::str::from_utf8(&read.data)
+            .ok()
+            .map(crate::document_identity::parse)
+        {
+            Some(crate::document_identity::Metadata::Uuid(uuid))
+                if crate::document_identity::storage_key(&uuid) == *key => {}
+            _ => return Err(StateError::IdentityChanged),
+        }
+    }
     Ok(session)
 }
 pub fn operate(
@@ -868,7 +1079,7 @@ pub fn operate(
 ) -> Result<StateResponse, StateError> {
     validate_request(&request)?;
     // Close/reload/root/view/move revocation and commit share this gate. Body
-    // parsing happened outside it; no document body is read for state operations.
+    // parsing happened outside it; bounded source metadata is revalidated here.
     let _gate = core.gate.lock().map_err(|_| StateError::Unavailable)?;
     let session = authorized_session(core, token)?;
     let store = core.document_state.get().ok_or(StateError::Unavailable)?;
@@ -876,7 +1087,11 @@ pub fn operate(
         &session.root,
         &knowledge::storage_root_identity(&session.dir).map_err(|_| StateError::Unavailable)?,
         &session.entry,
-        session.storage_identity.as_ref().unwrap(),
+        session
+            .logical_storage_identity
+            .as_ref()
+            .or(session.storage_identity.as_ref())
+            .unwrap(),
         request,
     )
 }
@@ -899,7 +1114,11 @@ pub fn operate_raw(
         &session.root,
         &knowledge::storage_root_identity(&session.dir).map_err(|_| StateError::Unavailable)?,
         &session.entry,
-        session.storage_identity.as_ref().unwrap(),
+        session
+            .logical_storage_identity
+            .as_ref()
+            .or(session.storage_identity.as_ref())
+            .unwrap(),
         request,
     )
 }
