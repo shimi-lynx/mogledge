@@ -62,6 +62,11 @@ vi.mock("../lib/bridge", () => {
       closeTab: vi.fn(async () => {}),
       getTree: vi.fn(),
       chooseRoot: vi.fn(),
+      getManagedFolders: vi.fn(),
+      createManagedFolder: vi.fn(),
+      registerManagedFolder: vi.fn(),
+      selectManagedFolder: vi.fn(),
+      unregisterManagedFolder: vi.fn(),
       chooseDisplayFolder: vi.fn(),
       setDisplayFolder: vi.fn(),
       refresh: vi.fn(),
@@ -119,6 +124,20 @@ beforeEach(() => {
     },
   );
   vi.mocked(bridge.getTree).mockResolvedValue(snapshot);
+  vi.mocked(bridge.getManagedFolders!).mockResolvedValue({
+    revision: "1",
+    selectedId: "layout",
+    folders: [
+      {
+        id: "layout",
+        name: "knowledge",
+        path: "/knowledge",
+        status: "ready",
+        kitUpdate: "current",
+        error: null,
+      },
+    ],
+  });
   vi.mocked(bridge.beginView).mockResolvedValue(snapshot);
   vi.mocked(bridge.openDocument).mockResolvedValue("http://127.0.0.1:9999/s/test/0.html");
   if (bridge.chooseDisplayFolder) vi.mocked(bridge.chooseDisplayFolder).mockResolvedValue(null);
@@ -129,55 +148,117 @@ beforeEach(() => {
     vi.mocked(bridge.getDocumentStorageHold).mockResolvedValue(null);
 });
 
-it("switches the displayed child without registering it or closing its document tab", async () => {
-  const fixture: Snapshot = {
+it.each(["ja", "en"] as const)(
+  "empty managed-folder registry shows ordinary onboarding in %s without recovery warnings",
+  async (language) => {
+    setLanguage(language);
+    const empty: Snapshot = {
+      ...snapshot,
+      workspaceId: null,
+      rootPath: null,
+      viewId: "empty-view",
+      nodes: [],
+    };
+    vi.mocked(bridge.beginView).mockResolvedValue(empty);
+    vi.mocked(bridge.getTree).mockResolvedValue(empty);
+    vi.mocked(bridge.getManagedFolders!).mockResolvedValue({
+      revision: "empty",
+      selectedId: null,
+      folders: [],
+    });
+    const view = render(<App />);
+    const message =
+      language === "ja"
+        ? "Mogledge専用フォルダーを作成して始めましょう"
+        : "Create a Mogledge folder to get started";
+    expect(await view.findByText(message)).toBeTruthy();
+    expect(view.container.querySelector(".workspace-feedback")).toBeNull();
+    expect(
+      view.queryByRole("button", {
+        name: language === "ja" ? "保存フォルダーを再試行" : "Retry saved folder",
+      }),
+    ).toBeNull();
+    fireEvent.click(
+      view.getByRole("button", {
+        name:
+          language === "ja" ? "専用フォルダーを作成・登録" : "Create or register a Mogledge folder",
+      }),
+    );
+    const dialog = await view.findByRole("dialog");
+    expect(
+      await within(dialog).findByRole("textbox", {
+        name: language === "ja" ? "新しいフォルダー名" : "New folder name",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByRole("button", {
+        name: language === "ja" ? "既存フォルダーを登録" : "Register an existing folder",
+      }),
+    ).toBeTruthy();
+    expect(bridge.chooseRoot).not.toHaveBeenCalled();
+  },
+);
+
+it("unregistering the last managed folder returns to ordinary onboarding without a retry warning", async () => {
+  const empty: Snapshot = {
     ...snapshot,
-    nodes: [
-      snapshot.nodes[0],
-      { name: "outside.html", relativePath: "outside.html", kind: "html", children: [] },
-    ],
+    workspaceId: null,
+    rootPath: null,
+    viewId: "empty-view",
+    nodes: [],
   };
-  vi.mocked(bridge.beginView).mockResolvedValue(fixture);
-  vi.mocked(bridge.getTree).mockResolvedValue(fixture);
-  const child: Snapshot = {
-    ...fixture,
-    displayFolder: { relativePath: "Examples", identity: "physical-child" },
+  vi.mocked(bridge.unregisterManagedFolder!).mockImplementation(async () => {
+    vi.mocked(bridge.beginView).mockResolvedValue(empty);
+    vi.mocked(bridge.getTree).mockResolvedValue(empty);
+    return { revision: "empty", selectedId: null, folders: [] };
+  });
+  const view = render(<App />);
+  await view.findByRole("tree");
+  fireEvent.click(view.container.querySelector(".workspace-button")!);
+  const dialog = await view.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "登録解除" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "この登録を解除" }));
+  await within(dialog).findByText("専用フォルダーはまだありません");
+  fireEvent.click(within(dialog).getByRole("button", { name: "閉じる" }));
+  expect(await view.findByText("Mogledge専用フォルダーを作成して始めましょう")).toBeTruthy();
+  expect(view.container.querySelector(".workspace-feedback")).toBeNull();
+  expect(view.queryByRole("button", { name: "保存フォルダーを再試行" })).toBeNull();
+});
+
+it("a genuinely missing registered folder retains its recovery reason and retry action", async () => {
+  const missing: Snapshot = {
+    ...snapshot,
+    workspaceId: null,
+    rootPath: null,
+    viewId: "missing-view",
+    nodes: [],
+    startupRecovery: { reason: "pathUnavailable", canRetry: true },
   };
-  vi.mocked(bridge.chooseDisplayFolder!).mockImplementation(async () => {
-    vi.mocked(bridge.getTree).mockResolvedValue(child);
-    return child;
-  });
-  vi.mocked(bridge.setDisplayFolder!).mockImplementation(async () => {
-    vi.mocked(bridge.getTree).mockResolvedValue(fixture);
-    return fixture;
-  });
+  vi.mocked(bridge.beginView).mockResolvedValue(missing);
+  vi.mocked(bridge.getTree).mockResolvedValue(missing);
+  const view = render(<App />);
+  expect(await view.findByRole("button", { name: "保存フォルダーを再試行" })).toBeTruthy();
+  expect(view.container.querySelector(".workspace-feedback")?.textContent).toContain(
+    "ドライブ接続",
+  );
+  expect(view.queryByText("Mogledge専用フォルダーを作成して始めましょう")).toBeNull();
+  expect(view.queryByRole("button", { name: "専用フォルダーを作成・登録" })).toBeNull();
+});
+
+it("opens managed folder settings from the root selector without a free picker or disturbing tabs", async () => {
   const view = render(<App />);
   fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
   fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
   await waitFor(() => expect(view.container.querySelector("iframe")).not.toBeNull());
   const frame = view.container.querySelector("iframe");
   fireEvent.click(view.container.querySelector(".workspace-button")!);
-  await waitFor(() =>
-    expect(view.container.querySelector(".workspace-name")?.textContent).toBe("Examples"),
-  );
-  expect(view.queryByText("登録フォルダー：knowledge")).toBeNull();
-  expect(view.queryByText("表示フォルダー")).toBeNull();
-  expect(view.container.querySelector(".workspace-button")?.getAttribute("title")).toContain(
-    "/knowledge/Examples",
-  );
-  expect(view.queryByRole("treeitem", { name: "outside HTML" })).toBeNull();
-  expect(view.getByRole("treeitem", { name: "0 HTML" }).getAttribute("data-path")).toBe(
-    "Examples/0.html",
-  );
-  expect(view.container.querySelector("iframe")).toBe(frame);
+  const dialog = await view.findByRole("dialog");
+  expect(await within(dialog).findByText("/knowledge")).toBeTruthy();
   expect(bridge.chooseRoot).not.toHaveBeenCalled();
-  expect(bridge.closeTab).not.toHaveBeenCalled();
-  fireEvent.click(view.getByRole("button", { name: "登録範囲をすべて表示" }));
-  await view.findByRole("treeitem", { name: "outside HTML" });
+  expect(bridge.chooseDisplayFolder).not.toHaveBeenCalled();
   expect(view.container.querySelector(".display-folder-actions")).toBeNull();
-  expect(bridge.setDisplayFolder).toHaveBeenCalledWith("layout", "view-layout", "", 0);
   expect(view.container.querySelector("iframe")).toBe(frame);
-  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+  expect(bridge.closeTab).not.toHaveBeenCalled();
 });
 
 it("keeps saved-data holds visible outside the HTML when the sidebar is hidden", async () => {
@@ -195,28 +276,26 @@ it("keeps saved-data holds visible outside the HTML when the sidebar is hidden",
   expect(notice.textContent).toContain("独立したバックアップ");
   expect(notice.textContent).toContain("復元・保存・削除は利用できません");
   fireEvent.click(
-    within(notice as HTMLElement).getByRole("button", { name: "登録フォルダーを管理" }),
+    within(notice as HTMLElement).getByRole("button", { name: "Mogledge 専用フォルダーを管理" }),
   );
   const dialog = await view.findByRole("dialog", { name: "設定" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダー" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "専用フォルダー" }));
   expect(within(dialog).getByText("/knowledge")).toBeTruthy();
-  expect(within(dialog).getByText(/削除・移行・統合されません/)).toBeTruthy();
+  expect(within(dialog).getByText(/ガイド・テンプレート/)).toBeTruthy();
   expect(bridge.chooseRoot).not.toHaveBeenCalled();
 });
 
-it("offers explicit registered-folder management after an outside-range selection fails", async () => {
-  vi.mocked(bridge.chooseDisplayFolder!).mockRejectedValue("DisplayFolderOutsideRegisteredRoot");
-  vi.mocked(bridge.chooseRoot).mockResolvedValue(null);
+it("keeps the managed folder list open when registration fails", async () => {
+  vi.mocked(bridge.registerManagedFolder!).mockRejectedValue("setup conflict");
   const view = render(<App />);
   await view.findByRole("tree");
   fireEvent.click(view.container.querySelector(".workspace-button")!);
-  expect((await view.findByRole("alert")).textContent).toContain("登録範囲外");
+  const dialog = await view.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "既存フォルダーを登録" }));
+  expect((await within(dialog).findByRole("alert")).textContent).toContain("setup conflict");
+  expect(view.getByRole("dialog")).toBe(dialog);
   expect(bridge.chooseRoot).not.toHaveBeenCalled();
-  fireEvent.click(view.getByRole("button", { name: "登録フォルダーを管理" }));
-  const dialog = await view.findByRole("dialog", { name: "設定" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダー" }));
-  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダーを変更" }));
-  await waitFor(() => expect(bridge.chooseRoot).toHaveBeenCalledOnce());
+  expect(bridge.chooseDisplayFolder).not.toHaveBeenCalled();
 });
 
 it("shows a document-specific storage hold even when the registered folder is confirmed", async () => {

@@ -287,7 +287,7 @@ test("native folder kind uses an empty or exact instruction draft and explains p
 });
 
 test("optional root guide counts toward the draft while preserving the raw request and unchanged OFF empty prompt", async () => {
-  const guide = "Before creating HTML read `../.my-knowledge/html-authoring/GUIDE.md`.";
+  const guide = "Before creating HTML read `../.mogledge/html-authoring/GUIDE.md`.";
   const guided = { ...preview, kind: "folder" as const, guideInstruction: guide };
   const api: AiHandoffApi = { prepare: vi.fn(async () => guided), perform: vi.fn(async () => {}) };
   setup(api);

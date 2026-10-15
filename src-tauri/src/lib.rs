@@ -2,6 +2,7 @@ pub mod ai_handoff;
 pub mod artifact_export;
 mod commands;
 pub mod core;
+pub mod document_identity;
 pub mod document_links;
 pub mod document_server;
 pub mod document_state;
@@ -10,9 +11,11 @@ pub mod html_authoring;
 pub mod identifier_migration;
 pub mod index;
 pub mod knowledge;
+pub mod managed_folders;
 mod native_chrome;
 mod navigation;
 pub mod os_actions;
+pub(crate) mod profile_store;
 mod resident;
 #[path = "resident/model.rs"]
 pub mod resident_model;
@@ -122,6 +125,13 @@ pub fn run() {
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
                 storage_transition_window::open_storage_identity_transition,
                 commands::choose_knowledge_root,
+                commands::managed::get_managed_folders,
+                commands::managed::create_managed_folder,
+                commands::managed::register_managed_folder,
+                commands::managed::select_managed_folder,
+                commands::managed::unregister_managed_folder,
+                commands::managed::get_document_identity_status,
+                commands::managed::configure_document_identity,
                 commands::choose_display_folder,
                 commands::set_display_folder,
                 commands::get_document_storage_hold,
@@ -240,7 +250,7 @@ fn open_main_window(app: &tauri::AppHandle, setup_core: Arc<Core>) -> Result<(),
             .visible(false)
             // OS taskbar previews and accessibility need a title even though
             // the app's custom/hidden title bar does not display this text.
-            .title("Mogledge")
+            .title(app.config().product_name.as_deref().unwrap_or("Mogledge"))
             .inner_size(1280.0, 820.0)
             .min_inner_size(760.0, 500.0)
             .on_new_window(|_, _| NewWindowResponse::Deny)

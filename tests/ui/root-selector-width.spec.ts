@@ -69,7 +69,8 @@ for (const language of ["ja", "en"] as const) {
         export const aiHandoffApi={};
         export const bridge={
           beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},
-          chooseDisplayFolder:async(workspace,view)=>{if(workspace!==snapshot.workspaceId||view!==snapshot.viewId)throw 'ViewChanged';calls.choose++;if(!window.nextRootPath)return null;snapshot={...snapshot,displayFolder:{relativePath:window.nextRootPath.split('/').pop(),identity:'display-folder'},displayRevision:snapshot.displayRevision+1};window.nextRootPath=null;return snapshot;},
+          getManagedFolders:async()=>{calls.choose++;return {revision:'1',selectedId:'root-width',folders:[{id:'root-width',name:'Next folder',path:'/fixture/next',status:'ready',kitUpdate:'current',error:null}]};},
+          selectManagedFolder:async()=>{if(window.nextRootPath){snapshot={...snapshot,rootPath:window.nextRootPath};window.nextRootPath=null;}return snapshot;},
           getDocumentStorageHold:async()=>{throw Error('unexpected admitted-document probe');},
           getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),
           refresh:async()=>snapshot
@@ -90,12 +91,20 @@ for (const language of ["ja", "en"] as const) {
     await expect(root).toBeEnabled();
     await expect(root).toHaveText("Short");
     await expectFullWidth(root);
-    // Left click, chevron click, Enter and Space dispatch the display-folder picker.
-    // Returning null models cancellation; no HTML dropdown is created by this control.
-    await root.click();
-    await root.locator(".workspace-chevron").click();
-    await root.press("Enter");
-    await root.press("Space");
+    // Each activation opens the same managed-folder dialog and returns focus on close.
+    for (const activate of [
+      () => root.click(),
+      () => root.locator(".workspace-chevron").click(),
+      () => root.press("Enter"),
+      () => root.press("Space"),
+    ]) {
+      await activate();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.getByText("/fixture/next")).toBeVisible();
+      await dialog
+        .getByRole("button", { name: language === "ja" ? "閉じる" : "Close", exact: true })
+        .click();
+    }
     await expect.poll(() => page.evaluate("window.rootWidthCalls.choose")).toBe(4);
     await expect(root).toHaveText("Short");
     const names = [
@@ -108,12 +117,17 @@ for (const language of ["ja", "en"] as const) {
         (window as unknown as { nextRootPath: string }).nextRootPath = "/fixture/" + name;
       }, name);
       await root.click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", {
+          name: language === "ja" ? "このフォルダーを開く" : "Open this folder",
+          exact: true,
+        })
+        .click();
       await expect(root).toHaveText(name);
       await expect(root).toHaveAttribute(
         "title",
-        (language === "ja" ? "表示フォルダーを切り替え：" : "Switch displayed folder: ") +
-          "/fixture/Short/" +
-          name,
+        language === "ja" ? "Mogledge 専用フォルダーを選択" : "Choose a Mogledge folder",
       );
       for (const colorScheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme });

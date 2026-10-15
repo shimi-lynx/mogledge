@@ -52,7 +52,7 @@ test("root recovery is a nonmodal reason with explicit retry/select and live lan
   expect(screen.getByRole("status").textContent).toContain("drive connection");
   fireEvent.click(screen.getByRole("button", { name: "Retry saved folder" }));
   expect(retry).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole("button", { name: "Select another folder" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manage Mogledge folders" }));
   expect(choose).toHaveBeenCalledOnce();
   rerender(
     <StartupRecoveryNotice

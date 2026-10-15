@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-managed-folder"
+description = "Enables the create_managed_folder command without any pre-configured scope."
+commands.allow = ["create_managed_folder"]
+
+[[permission]]
+identifier = "deny-create-managed-folder"
+description = "Denies the create_managed_folder command without any pre-configured scope."
+commands.deny = ["create_managed_folder"]

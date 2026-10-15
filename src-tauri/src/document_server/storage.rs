@@ -289,7 +289,7 @@ pub fn inject(
         "__MY_KNOWLEDGE_EXPORT_TOKEN__",
         &serde_json::to_string(&session.token).unwrap(),
     );
-    let export_adapter = include_str!("../../../.agents/skills/my-knowledge-html/assets/export.js");
+    let export_adapter = include_str!("../../../.agents/skills/mogledge-html/assets/export.js");
     let script = format!("<script>Object.defineProperty(globalThis,'__MY_KNOWLEDGE_STORAGE_V1__',{{value:Object.freeze({descriptor}),writable:false,configurable:false}});{keyboard}{links}{export}{export_adapter}</script>");
     // Preserve the leading doctype and standards mode. No source file is edited.
     let text = std::str::from_utf8(&bytes).unwrap_or_default();

@@ -30,6 +30,7 @@ type HistoryFlight = {
 import type {
   AppState,
   Bridge,
+  ManagedFolders,
   Snapshot,
   TreeNode,
   Change,
@@ -1166,6 +1167,24 @@ export class KnowledgeController {
   async registerRoot() {
     await this.workspaceAction(() => this.api.chooseRoot());
   }
+  async selectManagedFolder(id: string, expectedRevision: string) {
+    const select = this.api.selectManagedFolder;
+    if (!select) throw new Error("専用フォルダーを開けません");
+    if (!(await this.workspaceAction(() => select(id, expectedRevision))))
+      throw new Error(this.state.error ?? "専用フォルダーを開けません");
+  }
+  async unregisterManagedFolder(id: string, expectedRevision: string) {
+    const unregister = this.api.unregisterManagedFolder;
+    if (!unregister) throw new Error("専用フォルダーの登録を解除できません");
+    const result: { folders?: ManagedFolders } = {};
+    const completed = await this.workspaceAction(async () => {
+      result.folders = await unregister(id, expectedRevision);
+      return this.api.beginView();
+    });
+    if (!completed || !result.folders)
+      throw new Error(this.state.error ?? "専用フォルダーの登録を解除できません");
+    return result.folders;
+  }
   async switchDisplayFolder(relativePath: string): Promise<boolean> {
     const select = this.api.setDisplayFolder;
     if (!select) {
@@ -1245,10 +1264,10 @@ export class KnowledgeController {
   async refresh() {
     await this.workspaceAction(() => this.api.refresh());
   }
-  private async workspaceAction(action: () => Promise<Snapshot | null>) {
+  private async workspaceAction(action: () => Promise<Snapshot | null>): Promise<boolean> {
     if (!(await this.flushTabSession())) {
       this.set({ error: "タブの状態を保存できません: TabSessionSaveFailed" });
-      return;
+      return false;
     }
     this.cancelWorkspaceSelection();
     const generation = ++this.workspaceGeneration;
@@ -1257,11 +1276,13 @@ export class KnowledgeController {
     this.set({ loading: true, error: null, actionBusy: false, actionMessage: null });
     try {
       const snapshot = await action();
-      if (this.stopped || generation !== this.workspaceGeneration || !snapshot) return;
+      if (this.stopped || generation !== this.workspaceGeneration || !snapshot) return false;
       this.acceptSnapshot(snapshot);
       await this.synchronize();
+      return true;
     } catch (error) {
       if (generation === this.workspaceGeneration) this.set({ error: String(error) });
+      return false;
     } finally {
       if (generation === this.workspaceGeneration) this.set({ loading: false });
     }

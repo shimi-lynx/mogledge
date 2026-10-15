@@ -36,7 +36,18 @@ impl Fixture {
         let database = state.join("state.sqlite");
         let core = Core::new(0);
         core.settings_path.set(settings.clone()).unwrap();
-        let snapshot = core.select(&root, true).unwrap();
+        core.document_state
+            .set(DocumentState::new(state).unwrap())
+            .ok()
+            .unwrap();
+        let registered = crate::managed_folders::register(&core, &root, None, "none").unwrap();
+        let value = serde_json::to_value(&registered).unwrap();
+        let snapshot = crate::managed_folders::select(
+            &core,
+            value["folders"][0]["id"].as_str().unwrap(),
+            &registered.revision,
+        )
+        .unwrap();
         core.watcher.lock().unwrap().take();
         workspace_settings::favorite(
             &core,
@@ -185,17 +196,22 @@ fn replacement_at_same_path_requires_explicit_selection_and_keeps_old_favorites(
     );
 }
 #[test]
-fn legacy_path_only_requires_confirmation_without_silent_rebinding_or_rewrite() {
+fn legacy_path_only_shows_onboarding_without_silent_rebinding_or_rewrite() {
     let fixture = Fixture::new();
+    fs::remove_file(
+        fixture
+            .settings
+            .parent()
+            .unwrap()
+            .join("managed-folders.json"),
+    )
+    .unwrap();
     let old = serde_json::to_vec(&json!({"knowledgeRoot":fixture.root,"keep":true})).unwrap();
     fs::write(&fixture.settings, &old).unwrap();
     let core = fixture.core();
     core.restore().unwrap();
-    assert_eq!(
-        core.snapshot().startup_recovery.as_ref().unwrap().reason,
-        RecoveryReason::ConfirmationRequired
-    );
-    assert!(!core.snapshot().startup_recovery.unwrap().can_retry);
+    assert!(core.snapshot().startup_recovery.is_none());
+    assert!(core.snapshot().workspace_id.is_none());
     assert_eq!(fs::read(&fixture.settings).unwrap(), old);
     let selected = core.select(&fixture.root, true).unwrap();
     core.watcher.lock().unwrap().take();

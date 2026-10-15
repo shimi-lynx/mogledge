@@ -4,7 +4,7 @@ HTML mini apps can export generated images, tables and text through a user actio
 
 ## Author API
 
-Use the [HTML authoring skill](../.agents/skills/my-knowledge-html/SKILL.md), canonical `assets/export.js` and complete template. The generator inlines both storage and export adapters. Do not hand-copy another transport into individual HTML files. Existing HTML is not automatically rewritten: regenerate its source JSON to a new output and verify it first.
+Use the [HTML authoring skill](../.agents/skills/mogledge-html/SKILL.md), canonical `assets/export.js` and complete template. The generator inlines both storage and export adapters. Do not hand-copy another transport into individual HTML files. Existing HTML is not automatically rewritten: regenerate its source JSON to a new output and verify it first.
 
 ```js
 exportButton.addEventListener("click", () => {

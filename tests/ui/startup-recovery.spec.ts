@@ -26,7 +26,9 @@ for (const language of ["ja", "en"] as const) {
         export const aiHandoffApi={};
         export const bridge={
           beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},
-          chooseRoot:async()=>{calls.choose++;return null;},
+          chooseRoot:async()=>{throw Error("unexpected free picker");},
+          getManagedFolders:async()=>({revision:"1",selectedId:null,folders:[{id:"missing",name:"Missing folder",path:"/fixture/missing",status:"missing",kitUpdate:"current",error:null}]}),
+          registerManagedFolder:async()=>{calls.choose++;return null;},
           retrySavedRoot:async(viewId)=>{calls.retry.push(viewId);if(window.recoveryRootReturned){snapshot=selected;localStorage.setItem('recovery-fixture-restored','yes');}return snapshot;},
           getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),
           createTab:async()=>{calls.open++;throw Error('unexpected document open');},
@@ -42,7 +44,7 @@ for (const language of ["ja", "en"] as const) {
       exact: true,
     });
     const choose = page.locator(".workspace-feedback").getByRole("button", {
-      name: language === "ja" ? "登録フォルダーを管理" : "Manage registered folder",
+      name: language === "ja" ? "Mogledge 専用フォルダーを管理" : "Manage Mogledge folders",
       exact: true,
     });
     const reason = page.locator(".workspace-feedback [role=status]");
@@ -54,17 +56,17 @@ for (const language of ["ja", "en"] as const) {
     await choose.focus();
     await page.keyboard.press("Enter");
     const settings = page.getByRole("dialog");
-    await expect(settings).toContainText(
-      language === "ja"
-        ? "登録フォルダーを復元できません"
-        : "The registered folder could not be restored",
-    );
+    await expect(settings).toContainText(language === "ja" ? "見つかりません" : "Folder not found");
     expect(await page.evaluate("window.recoveryCalls.choose")).toBe(0);
     await settings
       .getByRole("button", {
-        name: language === "ja" ? "登録フォルダーを変更" : "Change registered folder",
+        name: language === "ja" ? "既存フォルダーを登録" : "Register an existing folder",
         exact: true,
       })
+      .click();
+    await expect(settings).toBeVisible();
+    await settings
+      .getByRole("button", { name: language === "ja" ? "閉じる" : "Close", exact: true })
       .click();
     await expect(retry).toBeVisible();
     expect(await page.evaluate("window.recoveryCalls.choose")).toBe(1);

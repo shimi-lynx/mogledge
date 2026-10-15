@@ -600,7 +600,33 @@ fn require_single_link(file: &File) -> io::Result<()> {
     Ok(())
 }
 
-// Only reserved settings leaves and validated application sidecars can replace.
+// Callers select only fixed profile/kit leaves or a validated current HTML leaf.
+/// Native-only conditional publication. The containing directory is retained by
+/// the caller; a regular-file read rejects links and cloud placeholders. Keep a
+/// durable backup before using this for user-authored content.
+pub(crate) fn replace_checked(
+    parent: &Dir,
+    temporary: &str,
+    source: &File,
+    destination: &str,
+    expected: Option<&str>,
+    limit: usize,
+) -> io::Result<()> {
+    let current = match read_regular(parent, destination, limit) {
+        Ok(bytes) => Some(crate::profile_store::digest(&bytes)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error),
+    };
+    if current.as_deref() != expected {
+        return Err(io::Error::other("destination changed"));
+    }
+    if expected.is_none() {
+        rename_noreplace(parent, temporary, parent, destination, source)
+    } else {
+        replace_profile_file(parent, temporary, source, destination)
+    }
+}
+
 fn replace_profile_file(
     parent: &Dir,
     temporary: &str,

@@ -1,3 +1,4 @@
+import { DocumentIdentityControls, documentIdentityHoldMessages } from "./DocumentIdentityControls";
 import { StartupRecoveryNotice } from "./StartupRecoveryNotice";
 import { StorageIdentityAction } from "./StorageIdentityAction";
 import { useT, useLanguage, translateUiMessage } from "../lib/i18n";
@@ -43,6 +44,7 @@ import {
 const StateTransferDialog = lazy(() => import("./StateTransferDialog"));
 const AiHandoffDialog = lazy(() => import("./AiHandoffDialog"));
 const folderStatusMessages: Record<string, string> = {
+  ...documentIdentityHoldMessages,
   StorageIdentityConfirmationRequired:
     "既存の保存データとの対応が未確認です。データは保持されています。独立したバックアップを取ってから確認ツールを利用してください。",
   StorageUnavailable:
@@ -50,15 +52,14 @@ const folderStatusMessages: Record<string, string> = {
   StorageCorrupt:
     "保存データの整合性を確認できません。空のデータとして扱っていません。データを保護し、独立したバックアップを確認してください。",
   DisplayFolderOutsideRegisteredRoot:
-    "登録範囲外のフォルダーです。登録先を変更する場合は、設定の「登録フォルダー」を開いてください。",
+    "このフォルダーは専用フォルダーの外にあります。専用フォルダーの一覧から選び直してください。",
   DisplayFolderIdentityChanged:
-    "同じ表示フォルダーであることを確認できません。登録範囲全体を表示しています。範囲内のフォルダーを選び直してください。",
+    "フォルダーの場所を確認できません。専用フォルダーの一覧で場所を確認してください。",
   RegisteredRootRecoveryRequired:
-    "登録フォルダーを復元できません。保存フォルダーを再試行するか、設定の「登録フォルダー」で登録先を明示的に管理してください。",
+    "専用フォルダーを開けません。一覧で場所を確認するか、移動先を登録してください。",
   RegisteredFolderIdentityChanged:
-    "登録フォルダーが別の物理フォルダーに置き換わっています。保存先は変更していません。設定の「登録フォルダー」で確認してください。",
-  DisplayFolderChanged:
-    "表示範囲が変更されました。現在の表示フォルダーから選び直してください。登録先と保存先は変更していません。",
+    "専用フォルダーが別のフォルダーに置き換わっています。一覧で場所を確認してください。",
+  DisplayFolderChanged: "フォルダーの内容が変わりました。ツリーから選び直してください。",
 };
 
 export function App() {
@@ -461,12 +462,6 @@ export function App() {
       : [],
   );
   const displayFolder = state.snapshot.displayFolder?.relativePath ?? "";
-  const displayName = rootFolderName(displayFolder) ?? rootName;
-  const displayPath = state.snapshot.rootPath
-    ? displayFolder
-      ? state.snapshot.rootPath.replace(/[\\/]+$/, "") + "/" + displayFolder
-      : state.snapshot.rootPath
-    : null;
   const rawFeedback = state.error ?? state.snapshot.watchError;
   const feedback = rawFeedback
     ? translateUiMessage(folderStatusMessages[rawFeedback] ?? rawFeedback, language)
@@ -547,30 +542,13 @@ export function App() {
             >
               <button
                 className="workspace-button"
-                onClick={() => {
-                  if (state.snapshot.startupRecovery) openRegisteredFolderSettings();
-                  else void controller.choose();
-                }}
+                onClick={openRegisteredFolderSettings}
                 disabled={state.loading || state.actionBusy}
-                title={
-                  displayPath
-                    ? t("表示フォルダーを切り替え：{path}", { path: displayPath })
-                    : t(
-                        state.snapshot.startupRecovery
-                          ? "登録フォルダーを管理"
-                          : "登録フォルダーを選択",
-                      )
-                }
+                title={t("Mogledge 専用フォルダーを選択")}
               >
                 <FolderIcon className="file-icon folder workspace-icon" />
                 <span className="workspace-name">
-                  {state.snapshot.workspaceId
-                    ? displayName
-                    : t(
-                        state.snapshot.startupRecovery
-                          ? "登録フォルダーを管理"
-                          : "登録フォルダーを選択",
-                      )}
+                  {state.snapshot.workspaceId ? rootName : t("Mogledge 専用フォルダーを選択")}
                 </span>
                 <svg
                   aria-hidden="true"
@@ -589,17 +567,6 @@ export function App() {
               </button>
             </RootAiHandoffMenu>
           </div>
-          {state.snapshot.rootPath && displayFolder && (
-            <div className="display-folder-actions">
-              <button
-                type="button"
-                disabled={state.loading || state.actionBusy}
-                onClick={() => void controller.switchDisplayFolder("")}
-              >
-                {t("登録範囲をすべて表示")}
-              </button>
-            </div>
-          )}
           <div
             id="knowledge-files"
             className="sidebar-files"
@@ -709,25 +676,22 @@ export function App() {
                 controller.mutateTree({ kind: "trash", source, revision })
               }
             />
-            {!state.snapshot.workspaceId && sidebarView === "files" && (
-              <div className="onboarding">
-                <p>{t("AIやエディタで作成したHTMLを、ひとつの場所に。")}</p>
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    if (state.snapshot.startupRecovery) openRegisteredFolderSettings();
-                    else void controller.choose();
-                  }}
-                  disabled={state.loading || state.actionBusy}
-                >
-                  {t(state.snapshot.startupRecovery ? "登録フォルダーを管理" : "フォルダーを登録")}
-                </button>
-                <p className="hint">{t("ファイルは元の場所に保存されます。")}</p>
-                {!state.snapshot.startupRecovery && (
-                  <StorageIdentityAction platform={chrome.platform} />
-                )}
-              </div>
-            )}
+            {!state.loading &&
+              !state.snapshot.workspaceId &&
+              !state.snapshot.startupRecovery &&
+              sidebarView === "files" && (
+                <div className="onboarding">
+                  <p>{t("Mogledge専用フォルダーを作成して始めましょう")}</p>
+                  <button
+                    className="primary-button"
+                    onClick={openRegisteredFolderSettings}
+                    disabled={state.loading || state.actionBusy}
+                  >
+                    {t("専用フォルダーを作成・登録")}
+                  </button>
+                  <p className="hint">{t("新しく作成するか、既存のフォルダーを登録できます。")}</p>
+                </div>
+              )}
           </div>
           {state.snapshot.startupRecovery && !state.snapshot.workspaceId && (
             <StartupRecoveryNotice
@@ -760,7 +724,7 @@ export function App() {
                 {t("再走査")}
               </button>
               <button type="button" onClick={openRegisteredFolderSettings}>
-                {t("登録フォルダーを管理")}
+                {t("Mogledge 専用フォルダーを管理")}
               </button>
             </div>
           )}
@@ -781,7 +745,7 @@ export function App() {
             platform={chrome.platform}
             reloadDisabled={!state.snapshot.workspaceId || state.loading}
             onReload={() => void controller.refresh()}
-            onRegisterRoot={() => void controller.registerRoot()}
+            controller={controller}
           />
         </aside>
         {sidebarVisible && (
@@ -812,6 +776,16 @@ export function App() {
                         folderStatusMessages[document.reason] ?? document.reason,
                         language,
                       )}
+                      {state.snapshot.workspaceId && document.reason.startsWith("Document") && (
+                        <DocumentIdentityControls
+                          key={`${state.snapshot.workspaceId}:${state.snapshot.viewId}:${document.id}:${document.reason}`}
+                          api={bridge}
+                          workspaceId={state.snapshot.workspaceId}
+                          viewId={state.snapshot.viewId}
+                          relativePath={document.path}
+                          onConfigured={() => controller.reload(document.id)}
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -824,7 +798,7 @@ export function App() {
                 )}
               </p>
               <button type="button" onClick={openRegisteredFolderSettings}>
-                {t("登録フォルダーを管理")}
+                {t("Mogledge 専用フォルダーを管理")}
               </button>
               <StorageIdentityAction platform={chrome.platform} />
             </div>

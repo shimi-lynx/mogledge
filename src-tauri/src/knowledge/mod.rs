@@ -669,6 +669,39 @@ pub fn storage_identity(root: &Path, dir: &Dir, relative: &str) -> Result<String
         .ok_or_else(|| "StorageIdentityUnavailable".into())
 }
 
+/// Root-independent object proof, used only to associate retained legacy rows.
+/// Document grants continue to use the existing root-bound physical identity.
+pub(crate) fn object_identity(root: &Path, dir: &Dir, relative: &str) -> Result<String, String> {
+    let relative_path = validate_relative(relative)?;
+    let parent = relative_path.parent().unwrap_or_else(|| Path::new(""));
+    let parent = crate::write_fs::LockedDir::open(dir, &parent.to_string_lossy())?;
+    parent.revalidate(
+        root,
+        &std::sync::Arc::new(dir.try_clone().map_err(|_| "StorageUnavailable")?),
+    )?;
+    let file = crate::write_fs::open_subtree_entry(
+        parent.dir(),
+        relative_path
+            .file_name()
+            .ok_or("StorageUnavailable")?
+            .to_str()
+            .ok_or("StorageUnavailable")?,
+        false,
+    )
+    .map_err(|_| "StorageUnavailable")?;
+    #[cfg(all(target_os = "macos", feature = "macos-persistent-storage"))]
+    let identity = persistent_identity::root(
+        persistent_identity::opened_object(&file).map_err(|_| "StorageUnavailable")?,
+    )
+    .map_err(|_| "StorageUnavailable")?;
+    #[cfg(not(all(target_os = "macos", feature = "macos-persistent-storage")))]
+    let identity = legacy_identity_hash(
+        b"mogledge-file-object-v1",
+        &[legacy_identity_parts(&file).map_err(|_| "StorageUnavailable")?],
+    );
+    Ok(identity)
+}
+
 fn source(
     root: &Path,
     dir: &Dir,

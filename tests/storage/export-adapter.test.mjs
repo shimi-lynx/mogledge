@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
-const adapterSource = await readFile(".agents/skills/my-knowledge-html/assets/export.js", "utf8");
+const adapterSource = await readFile(".agents/skills/mogledge-html/assets/export.js", "utf8");
 const bridgeSource = (await readFile("src-tauri/src/document_server/export.js", "utf8")).replace(
   "__MY_KNOWLEDGE_EXPORT_TOKEN__",
   JSON.stringify("a".repeat(64)),

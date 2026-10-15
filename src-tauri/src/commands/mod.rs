@@ -3,6 +3,7 @@ pub(crate) mod ai_handoff;
 pub(crate) mod artifact;
 pub(crate) mod html_authoring;
 pub(crate) mod links;
+pub(crate) mod managed;
 pub(crate) mod root_actions;
 pub(crate) mod search;
 pub(crate) mod workspace;

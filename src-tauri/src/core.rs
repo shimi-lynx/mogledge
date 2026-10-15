@@ -57,6 +57,7 @@ pub struct Session {
     pub dir: Arc<Dir>,
     pub entry: String,
     pub storage_identity: Option<String>,
+    pub logical_storage_identity: Option<String>,
     // Permission is fixed at grant admission. Later confirmation cannot
     // silently turn a failed restoration token into write authority.
     pub storage_hold: Option<StorageHold>,
@@ -179,8 +180,14 @@ impl Core {
         }
         self.select_locked(path, persist)
     }
-    fn select_locked(self: &Arc<Self>, path: &Path, persist: bool) -> Result<Snapshot, String> {
-        if !self.persistent_storage_identity {
+    pub(crate) fn select_locked(
+        self: &Arc<Self>,
+        path: &Path,
+        persist: bool,
+    ) -> Result<Snapshot, String> {
+        let (probe_path, probe_dir) = knowledge::open_root(path)?;
+        let managed = crate::managed_folders::marker_for_dir(&probe_path, &probe_dir)?.is_some();
+        if !managed && !self.persistent_storage_identity {
             // Preserve an acknowledged namespace even when DB initialization
             // failed. Reselecting a folder must not bypass startup's scheme hold.
             if let Some(settings) = self.settings_path.get() {
@@ -204,14 +211,19 @@ impl Core {
         started: Instant,
     ) -> Result<Snapshot, String> {
         let root_guard = knowledge::RootReferenceGuard::open(&root, &dir)?;
-        if !self.persistent_storage_identity {
+        let managed = crate::managed_folders::marker_for_dir(&root, &dir)?.is_some();
+        if !managed && !self.persistent_storage_identity {
             if let Some(store) = self.document_state.get() {
                 if store.identity_schema_version()? == 3 {
                     return Err("StorageIdentityConfirmationRequired".into());
                 }
             }
         }
-        let storage_hold = if self.persistent_storage_identity {
+        let storage_hold = if managed {
+            self.document_state.get().is_none().then(|| StorageHold {
+                reason: "StorageUnavailable".into(),
+            })
+        } else if self.persistent_storage_identity {
             let identity =
                 knowledge::storage_root_identity(&dir).map_err(|_| "StorageIdentityUnavailable")?;
             match self.document_state.get() {
@@ -616,27 +628,23 @@ impl Core {
         result
     }
     pub fn restore(self: &Arc<Self>) -> Result<(), String> {
+        // Dedicated-folder registration is the only production startup root
+        // source. Legacy root settings remain intact for explicit registration.
         let Some(path) = self.settings_path.get() else {
             return Ok(());
         };
-        // Missing settings are first launch; unreadable/corrupt settings remain
-        // fatal. Only reopening the saved root is a recoverable startup failure.
-        let Some(value) = crate::root_recovery::read_settings_value(path).map_err(|error| {
-            if error == "StorageCorrupt" {
-                "設定JSONが壊れています"
-            } else {
-                "設定を読み取れません"
+        // An absent/empty registration list is ordinary onboarding, even if
+        // retained legacy settings mention a root. Never rewrite those settings.
+        if let Some(value) =
+            crate::root_recovery::read_settings_value(path).map_err(|_| "設定を読み取れません")?
+        {
+            if value.get("knowledgeRoot").is_some() {
+                crate::root_recovery::SavedRoot::parse(&value)?;
             }
-        })?
-        else {
-            return Ok(());
-        };
-        let saved = crate::root_recovery::SavedRoot::parse(&value)?;
-        let _gate = self.gate.lock().unwrap();
-        self.restore_root_locked(saved);
-        Ok(())
+        }
+        crate::managed_folders::restore(self)
     }
-    fn restore_root_locked(self: &Arc<Self>, saved: crate::root_recovery::SavedRoot) {
+    pub(crate) fn restore_root_locked(self: &Arc<Self>, saved: crate::root_recovery::SavedRoot) {
         use crate::root_recovery::{RecoveryReason, StartupRecovery};
         let scheme_matches = saved.scheme.as_deref()
             == if self.persistent_storage_identity {
@@ -701,6 +709,9 @@ impl Core {
             .unwrap()
             .clone()
             .ok_or("WorkspaceChanged")?;
+        if !crate::managed_folders::has_selected(self)? {
+            return Err("専用フォルダーを登録してください".into());
+        }
         self.restore_root_locked(saved);
         Ok(self.snapshot())
     }
@@ -1159,7 +1170,29 @@ impl Core {
         {
             return Err("文書が置き換えられました".into());
         }
-        let storage_hold = if root_storage_hold.is_some() {
+        let managed = crate::managed_folders::marker_for_dir(&root, &dir)?.is_some();
+        let mut logical_storage_identity = None;
+        let storage_hold = if managed {
+            match storage_identity
+                .as_ref()
+                .ok_or_else(|| "StorageUnavailable".to_owned())
+                .and_then(|physical| {
+                    crate::document_identity::admit(
+                        self,
+                        &root,
+                        &dir,
+                        &relative,
+                        std::str::from_utf8(&data).unwrap(),
+                        physical,
+                    )
+                }) {
+                Ok(key) => {
+                    logical_storage_identity = Some(key);
+                    None
+                }
+                Err(reason) => Some(StorageHold { reason }),
+            }
+        } else if root_storage_hold.is_some() {
             root_storage_hold
         } else if self.persistent_storage_identity {
             let admission = match (&storage_identity, self.document_state.get()) {
@@ -1204,6 +1237,7 @@ impl Core {
             dir,
             entry: relative,
             storage_identity,
+            logical_storage_identity,
             storage_hold,
         });
         Ok(url)

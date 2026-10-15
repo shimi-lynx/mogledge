@@ -4,6 +4,27 @@ export type TreeNode = {
   kind: "folder" | "html";
   children: TreeNode[];
 };
+export type ManagedFolder = {
+  id: string;
+  name: string;
+  path: string;
+  status: "ready" | "missing" | "incomplete";
+  kitUpdate: "current" | "available" | "blocked";
+  error: string | null;
+};
+export type ManagedFolders = {
+  revision: string;
+  folders: ManagedFolder[];
+  selectedId: string | null;
+};
+export type DocumentIdentityStatus = {
+  status: "ready" | "missing" | "invalid" | "duplicate" | "legacyConflict";
+  uuid: string | null;
+  canAssign: boolean;
+  canShare: boolean;
+  legacyCandidates: { id: string; revision: number; appCount: number; path: string }[];
+};
+export type DocumentIdentityAction = "add" | "share" | "new" | "recover";
 export type StartupRecovery = {
   reason:
     | "confirmationRequired"
@@ -359,6 +380,33 @@ export interface Bridge {
   beginView(this: void): Promise<Snapshot>;
   getTree(this: void): Promise<Snapshot>;
   chooseRoot(this: void): Promise<Snapshot | null>;
+  getManagedFolders?(this: void): Promise<ManagedFolders>;
+  createManagedFolder?(
+    this: void,
+    name: string,
+    expectedRevision: string,
+  ): Promise<ManagedFolders | null>;
+  registerManagedFolder?(this: void, expectedRevision: string): Promise<ManagedFolders | null>;
+  selectManagedFolder?(this: void, id: string, expectedRevision: string): Promise<Snapshot>;
+  unregisterManagedFolder?(
+    this: void,
+    id: string,
+    expectedRevision: string,
+  ): Promise<ManagedFolders>;
+  getDocumentIdentityStatus?(
+    this: void,
+    workspaceId: string,
+    viewId: string,
+    relativePath: string,
+  ): Promise<DocumentIdentityStatus>;
+  configureDocumentIdentity?(
+    this: void,
+    workspaceId: string,
+    viewId: string,
+    relativePath: string,
+    action: DocumentIdentityAction,
+    sourceIdentity?: string,
+  ): Promise<void>;
   chooseDisplayFolder?(this: void, workspaceId: string, viewId: string): Promise<Snapshot | null>;
   setDisplayFolder?(
     this: void,

@@ -1,0 +1,65 @@
+.managed-folders p {
+  line-height: 1.6;
+}
+.managed-folders button {
+  min-height: 32px;
+  padding: 5px 10px;
+}
+.managed-folder-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.managed-folder-list > li {
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.managed-folder-path {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  opacity: 0.8;
+}
+.managed-folder-actions,
+.managed-folders form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin-block: 12px;
+}
+.managed-folders label {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+}
+.managed-folders input {
+  min-width: 0;
+  padding: 8px;
+}
+.managed-folder-badge {
+  margin-inline-start: 10px;
+  font-size: 12px;
+}
+.managed-folder-remove {
+  border-inline-start: 3px solid currentColor;
+  padding-inline-start: 12px;
+}
+.document-identity-controls {
+  display: grid;
+  gap: 8px;
+  margin-block: 8px;
+}
+.document-identity-controls label {
+  display: grid;
+  gap: 6px;
+}
+.document-identity-controls select {
+  max-width: 100%;
+}
+.document-identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

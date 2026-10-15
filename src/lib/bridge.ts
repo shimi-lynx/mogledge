@@ -19,6 +19,25 @@ export const aiHandoffApi: AiHandoffApi = {
 };
 
 export const bridge: Bridge = {
+  getManagedFolders: () => invoke("get_managed_folders"),
+  createManagedFolder: (name, expectedRevision) =>
+    invoke("create_managed_folder", { name, expectedRevision }),
+  registerManagedFolder: (expectedRevision) =>
+    invoke("register_managed_folder", { expectedRevision }),
+  selectManagedFolder: (id, expectedRevision) =>
+    invoke("select_managed_folder", { id, expectedRevision }),
+  unregisterManagedFolder: (id, expectedRevision) =>
+    invoke("unregister_managed_folder", { id, expectedRevision }),
+  getDocumentIdentityStatus: (workspaceId, viewId, relativePath) =>
+    invoke("get_document_identity_status", { workspaceId, viewId, relativePath }),
+  configureDocumentIdentity: (workspaceId, viewId, relativePath, action, sourceIdentity) =>
+    invoke("configure_document_identity", {
+      workspaceId,
+      viewId,
+      relativePath,
+      action,
+      ...(sourceIdentity === undefined ? {} : { sourceIdentity }),
+    }),
   chooseStateTransferFile: (context, kind) =>
     invoke("choose_state_transfer_file", { context, kind }),
   prepareStateTransfer: (request) => invoke("prepare_state_transfer", { request }),

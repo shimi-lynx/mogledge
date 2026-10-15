@@ -8,7 +8,7 @@ import { join, resolve, dirname } from "node:path";
 import { JSDOM } from "jsdom";
 
 const kit = "src-tauri/html-authoring-kit/";
-const assets = ".agents/skills/my-knowledge-html/assets/";
+const assets = ".agents/skills/mogledge-html/assets/";
 const files = ["guide.md", "template.html", "codex-skill.md", "claude-skill.md"];
 const hash = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 const read = (path) => readFile(path, "utf8");
@@ -102,11 +102,15 @@ test("bundled contents reproduce canonical assets/API hashes and both installed 
   });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(await Promise.all(files.map((file) => read(kit + file))), before);
+  const withoutDocumentId = (html) =>
+    html.replace(/(<meta name="mogledge-document-id" content=")[^"]+("\s*\/>)/, "$1UUID$2");
   assert.equal(
-    await read(kit + "template.html"),
-    await read("tests/fixtures/knowledge/Storage/Generated.html"),
+    withoutDocumentId(await read(kit + "template.html")),
+    withoutDocumentId(await read("tests/fixtures/knowledge/Storage/Generated.html")),
   );
+  assert.match(before[1], /content="REPLACE_WITH_NEW_UUID"/);
   for (const content of [before[0], before[2], before[3]]) {
+    assert.ok(content.includes("kitVersion=3"));
     assert.ok(content.includes(`adapterSHA256=${hash(await read(assets + "storage.js"))}`));
     assert.ok(
       content.includes(`canonicalTemplateSHA256=${hash(await read(assets + "template.html"))}`),
@@ -124,16 +128,16 @@ test("bundled contents reproduce canonical assets/API hashes and both installed 
   }
   for (const folder of [".agents", ".claude"]) {
     const skill = before[folder === ".agents" ? 2 : 3];
-    assert.match(skill, /^---\nname: my-knowledge-html-authoring\ndescription: .+\n---/);
+    assert.match(skill, /^---\nname: mogledge-html-authoring\ndescription: .+\n---/);
     for (const [target, installed] of [
       ["GUIDE.md", "guide.md"],
       ["template.html", "template.html"],
     ]) {
-      const link = `../../../.my-knowledge/html-authoring/${target}`;
+      const link = `../../../.mogledge/html-authoring/${target}`;
       assert.ok(skill.includes(link));
       assert.equal(
-        resolve(dirname(`${folder}/skills/my-knowledge-html-authoring/SKILL.md`), link),
-        resolve(`.my-knowledge/html-authoring/${target}`),
+        resolve(dirname(`${folder}/skills/mogledge-html-authoring/SKILL.md`), link),
+        resolve(`.mogledge/html-authoring/${target}`),
       );
       assert.ok(before[files.indexOf(installed)].length > 0);
     }

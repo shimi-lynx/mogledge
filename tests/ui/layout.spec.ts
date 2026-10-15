@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 
 const documentKeyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8");
 const documentExportBridge = readFileSync("src-tauri/src/document_server/export.js", "utf8");
-const documentExportAdapter = readFileSync(
-  ".agents/skills/my-knowledge-html/assets/export.js",
-  "utf8",
-);
+const documentExportAdapter = readFileSync(".agents/skills/mogledge-html/assets/export.js", "utf8");
 
 const documentLinks = readFileSync("src-tauri/src/document_server/links.js", "utf8");
 

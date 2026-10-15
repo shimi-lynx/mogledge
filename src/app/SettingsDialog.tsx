@@ -10,6 +10,9 @@ import {
 import { useT } from "../lib/i18n";
 import { ManagementSession, type ManagementContext } from "../lib/stateManagement";
 import type { StorageLimitsSession } from "../lib/storageLimits";
+import { ManagedFoldersPanel } from "./ManagedFoldersPanel";
+import { bridge } from "../lib/bridge";
+import type { KnowledgeController } from "../lib/controller";
 import { HtmlAuthoringSettings } from "./HtmlAuthoringSettings";
 import type { HtmlAuthoringApi, HtmlAuthoringContext } from "../lib/htmlAuthoring";
 import { LanguagePicker } from "./LanguagePicker";
@@ -40,7 +43,7 @@ export function SettingsDialog({
   managementSession,
   limitsSession,
   updateApi,
-  onRegisterRoot,
+  controller,
   initialPage = "language",
   platform = /Mac/i.test(navigator.platform) ? "macos" : "other",
 }: {
@@ -55,7 +58,7 @@ export function SettingsDialog({
   managementSession?: ManagementSession;
   limitsSession?: StorageLimitsSession;
   updateApi?: AppUpdaterApi;
-  onRegisterRoot?: () => void;
+  controller?: KnowledgeController;
   initialPage?: SettingsPage;
   platform?: WindowChrome["platform"];
 }) {
@@ -63,7 +66,6 @@ export function SettingsDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const category = useRef<HTMLButtonElement>(null);
   const [page, setPage] = useState<SettingsPage>(initialPage);
-  const hasRegisteredFolder = !!state?.snapshot.rootPath || !!state?.snapshot.startupRecovery;
   const [session] = useState(() => managementSession ?? new ManagementSession());
   const backdropPointer = useRef(false);
   const fallback = useRef(fallbackFocus);
@@ -175,7 +177,7 @@ export function SettingsDialog({
             aria-controls="settings-registered-folder-panel"
             onClick={() => setPage("folder")}
           >
-            {t("登録フォルダー")}
+            {t("専用フォルダー")}
           </button>
           <button
             type="button"
@@ -216,40 +218,12 @@ export function SettingsDialog({
             <LanguagePicker variant="settings" />
           </section>
         ) : page === "folder" ? (
-          <section id="settings-registered-folder-panel" aria-labelledby="settings-folder-heading">
-            <h2 id="settings-folder-heading">{t("登録フォルダー")}</h2>
-            <p className="registered-folder-path">
-              {state?.snapshot.rootPath ??
-                t(
-                  hasRegisteredFolder ? "登録フォルダーを復元できません" : "フォルダーは未登録です",
-                )}
-            </p>
-            <p>
-              {t(
-                "登録フォルダーは保存データの基準です。通常の表示切替では、このフォルダー内だけを表示し、保存先は変えません。",
-              )}
-            </p>
-            <p>
-              {t(
-                "登録先を変更しても既存の保存データは削除・移行・統合されません。新しい登録先との対応が未確認なら、保存データの利用を保留します。",
-              )}
-            </p>
-            <p>
-              {t(
-                "登録先を変更すると現在の文書タブが切り替わり、開いているHTMLの未保存入力・実行状態は保持されません。変更前に各HTMLの保存操作で入力を保存してください。保存できない入力は別に控えてください。表示フォルダーだけの切替では、開いているタブは保持されます。",
-              )}
-            </p>
-            <button
-              type="button"
-              disabled={!onRegisterRoot || state?.loading || state?.actionBusy}
-              onClick={() => {
-                onClose();
-                onRegisterRoot?.();
-              }}
-            >
-              {t(hasRegisteredFolder ? "登録フォルダーを変更" : "フォルダーを登録")}
-            </button>
-          </section>
+          <ManagedFoldersPanel
+            api={bridge}
+            controller={controller}
+            disabled={state?.loading || state?.actionBusy}
+            onSelected={onClose}
+          />
         ) : page === "resident" ? (
           <section id="settings-resident-panel" aria-label={t("常駐と呼び出し")}>
             <ResidentSettings state={state} />

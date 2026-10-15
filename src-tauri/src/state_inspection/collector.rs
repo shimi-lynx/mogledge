@@ -1,4 +1,5 @@
-//! Conservative metadata-only observations from an explicitly connected root.
+//! Conservative observations from an explicitly connected root. UUID lookup
+//! additionally reads bounded inert HTML source in a dedicated folder.
 use crate::{knowledge, write_fs::LockedDir};
 use cap_std::fs::Dir;
 use std::{
@@ -88,6 +89,33 @@ impl ConnectedRoot {
         Ok(identity)
     }
 
+    pub(crate) fn logical_identity_at(&self, relative: &str) -> Result<Option<String>, ()> {
+        if !knowledge::is_html(relative)
+            || crate::managed_folders::marker_for_dir(&self.path, &self.dir)
+                .map_err(|_| ())?
+                .is_none()
+        {
+            return Ok(None);
+        }
+        let data = knowledge::read(&self.path, &self.dir, relative).map_err(|_| ())?;
+        match crate::document_identity::parse(std::str::from_utf8(&data).map_err(|_| ())?) {
+            crate::document_identity::Metadata::Uuid(uuid) => {
+                Ok(Some(crate::document_identity::storage_key(&uuid)))
+            }
+            _ => Err(()),
+        }
+    }
+    pub(crate) fn storage_identity_at(&self, relative: &str) -> Result<String, ()> {
+        Ok(self
+            .logical_identity_at(relative)?
+            .unwrap_or(self.identity_at(relative)?))
+    }
+    fn matches_at(&self, relative: &str, id: &str) -> bool {
+        self.identity_at(relative)
+            .is_ok_and(|current| current == id)
+            || self.logical_identity_at(relative).ok().flatten().as_deref() == Some(id)
+    }
+
     pub fn scan(&self) -> Observation {
         let mut result = Observation {
             root_identity: self.identity.clone(),
@@ -149,6 +177,9 @@ impl ConnectedRoot {
                 result.complete = false;
                 continue;
             };
+            if matches!(name, ".mogledge" | ".my-knowledge" | ".agents" | ".claude") {
+                continue;
+            }
             let path = if relative.is_empty() {
                 name.to_owned()
             } else {
@@ -178,6 +209,12 @@ impl ConnectedRoot {
                             .identities
                             .entry(identity.clone())
                             .or_insert_with(|| path.clone());
+                        if let Ok(Some(logical)) = self.logical_identity_at(&path) {
+                            result
+                                .identities
+                                .entry(logical)
+                                .or_insert_with(|| path.clone());
+                        }
                         result.path_identities.insert(path, identity);
                     }
                     Err(()) => result.complete = false,
@@ -209,7 +246,7 @@ impl ConnectedRoot {
             return (Availability::Unavailable, None);
         }
         if let Some(path) = observation.identities.get(id) {
-            if self.identity_at(path).is_ok_and(|current| current == id) {
+            if self.matches_at(path, id) {
                 return (
                     if path == recorded_path {
                         Availability::SameIdentity

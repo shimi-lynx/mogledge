@@ -188,8 +188,17 @@ fn availability(
     path: &str,
 ) -> (Availability, Option<String>) {
     match (root, observation) {
-        (Some(root), Some(observation)) if root.identity == root_id && observation.complete => {
-            root.locate(observation, id, path)
+        (Some(root), Some(observation)) if observation.complete => {
+            let located = root.locate(observation, id, path);
+            if root.identity != root_id
+                && !located.1.as_ref().is_some_and(|path| {
+                    root.logical_identity_at(path).ok().flatten().as_deref() == Some(id)
+                })
+            {
+                (Availability::Unavailable, None)
+            } else {
+                located
+            }
         }
         _ => (Availability::Unavailable, None),
     }
@@ -206,9 +215,14 @@ fn in_use(core: &Core, id: &str, paths: &[&str]) -> bool {
                 .as_ref()
                 .and_then(|session| session.storage_identity.as_deref())
                 == Some(id)
+            || tab
+                .session
+                .as_ref()
+                .and_then(|session| session.logical_storage_identity.as_deref())
+                == Some(id)
             || match (&state.root, &state.dir) {
                 (Some(root), Some(dir)) => {
-                    knowledge::storage_identity(root, dir, &tab.entry)
+                    crate::document_identity::key_at(core, root, dir, &tab.entry)
                         .ok()
                         .as_deref()
                         == Some(id)
@@ -441,7 +455,7 @@ pub fn prepare(core: &Core, request: PrepareRequest) -> Result<Value, Inspection
             for id in &candidate_ids {
                 budget.check()?;
                 let record=management::read_record(&transaction,id,request.operation==Operation::Restore)?;
-                if report.database_schema_version==3 && !crate::storage_identity_transition::document_confirmed(&transaction,&record.root,&record.id).map_err(backend_error)? {return Err(fail("storage_identity_confirmation_required"));}
+                if report.database_schema_version==3 && !root.as_ref().is_some_and(|root|root.logical_identity_at(&record.path).ok().flatten().as_deref()==Some(&record.id)) && !crate::storage_identity_transition::document_confirmed(&transaction,&record.root,&record.id).map_err(backend_error)? {return Err(fail("storage_identity_confirmation_required"));}
                 let path=target(core,root.as_ref(),observation.as_ref(),&record)?;
                 let count=recovery_store::validated_app_count(&record.data,record.bytes).map_err(backend_error)?;
                 if request.operation==Operation::Restore {
@@ -574,7 +588,7 @@ pub fn confirm(core: &Core, confirmation: Confirmation) -> Result<Value, Inspect
                 }
                 recovery_store::validate_metadata(&transaction).map_err(backend_error)?;
                 for selection in &plan.selections {
-                    if root.as_ref().and_then(|r|r.identity_at(&selection.path).ok()).as_deref()!=Some(&selection.record.id)||in_use(core,&selection.record.id,&[&selection.record.path,&selection.path]) {return Err(fail("source_unavailable_hold"));}
+                    if root.as_ref().and_then(|r|r.storage_identity_at(&selection.path).ok()).as_deref()!=Some(&selection.record.id)||in_use(core,&selection.record.id,&[&selection.record.path,&selection.path]) {return Err(fail("source_unavailable_hold"));}
                 }
                 let mut receipt=json!({"operationId":confirmation.plan_id,"operation":plan.operation.name(),"documentCount":entries.len(),"logicalBytes":plan.selections.iter().map(|s|s.record.bytes).sum::<i64>(),"appCount":plan.selections.iter().map(|s|s.app_count).sum::<usize>(),"entries":entries,"recoverable":true,"permanentDeletion":false});
                 if entries.len()==1 {

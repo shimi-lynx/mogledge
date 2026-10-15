@@ -24,8 +24,8 @@ const preview: HtmlAuthoringPreview = {
   readOnly: false,
   error: null,
   files: [
-    { path: ".my-knowledge/html-authoring/GUIDE.md", action: "create" },
-    { path: ".agents/skills/my-knowledge-html-authoring/SKILL.md", action: "conflict" },
+    { path: ".mogledge/html-authoring/GUIDE.md", action: "create" },
+    { path: ".agents/skills/mogledge-html-authoring/SKILL.md", action: "conflict" },
   ],
 };
 function api(): HtmlAuthoringApi {
@@ -60,7 +60,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   setLanguage("ja");
 });
-test("current-root setup requires preview and confirmation, skips conflict and keeps preferences off until explicitly enabled", async () => {
+test("current-root setup requires preview and confirmation, skips conflict and never offers to disable required guide instructions", async () => {
   const bridge = api();
   vi.mocked(bridge.status)
     .mockResolvedValueOnce(status)
@@ -71,8 +71,7 @@ test("current-root setup requires preview and confirmation, skips conflict and k
       false,
     ),
   );
-  expect(screen.getByRole<HTMLInputElement>("checkbox").disabled).toBe(true);
-  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(false);
+  expect(screen.queryByRole("checkbox")).toBeNull();
   expect(bridge.install).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "配置内容を確認" }));
   await screen.findByRole("region", { name: "配置内容" });
@@ -87,14 +86,7 @@ test("current-root setup requires preview and confirmation, skips conflict and k
   fireEvent.click(screen.getByRole("button", { name: "確認した内容を配置" }));
   await screen.findByText("1件を配置し、1件を保持しました");
   expect(bridge.install).toHaveBeenCalledExactlyOnceWith(context, "plan");
-  const checkbox = screen.getByRole<HTMLInputElement>("checkbox");
-  await waitFor(() => expect(checkbox.disabled).toBe(false));
-  fireEvent.click(checkbox);
-  await waitFor(() => expect(checkbox.checked).toBe(true));
-  expect(bridge.setEnabled).toHaveBeenLastCalledWith(context, null, true);
-  fireEvent.click(checkbox);
-  await waitFor(() => expect(checkbox.checked).toBe(false));
-  expect(bridge.setEnabled).toHaveBeenLastCalledWith(context, "saved", false);
+  expect(bridge.setEnabled).not.toHaveBeenCalled();
   await act(() => setLanguage("en"));
   expect(screen.getByText("Installed 1 files and kept 1 files")).toBeTruthy();
 });
@@ -130,7 +122,7 @@ test("a late preview is canceled after root changes or unmount and never becomes
   expect(bridge.cancel).toHaveBeenCalledWith(next, "later");
   expect(bridge.install).not.toHaveBeenCalled();
 });
-test("readonly ownership cannot install, profile failures retain the preference and English projection preserves paths", async () => {
+test("readonly ownership cannot install and English projection preserves paths", async () => {
   const bridge = api();
   bridge.status = vi.fn(async () => ({
     ...status,
@@ -143,14 +135,13 @@ test("readonly ownership cannot install, profile failures retain the preference 
     readOnly: true,
     error: "制作キットの所有記録を読み取れません。元の内容を保持します",
   }));
-  bridge.setEnabled = vi.fn(async () => {
-    throw new Error("保存できません");
-  });
   render(<HtmlAuthoringSettings context={context} api={bridge} />);
-  await waitFor(() => expect(screen.getByRole<HTMLInputElement>("checkbox").disabled).toBe(false));
-  fireEvent.click(screen.getByRole("checkbox"));
-  await screen.findByText(/保存できません/);
-  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(true);
+  await waitFor(() =>
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "配置内容を確認" }).disabled).toBe(
+      false,
+    ),
+  );
+  expect(screen.queryByRole("checkbox")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "配置内容を確認" }));
   await screen.findByRole("region", { name: "配置内容" });
   expect(
@@ -161,7 +152,7 @@ test("readonly ownership cannot install, profile failures retain the preference 
   expect(screen.getByText(/Could not read the authoring kit ownership record/)).toBeTruthy();
   expect(bridge.install).not.toHaveBeenCalled();
 });
-test("settings adds an optional two-column authoring page and no root leaves an empty state without Native reads", async () => {
+test("settings adds a two-column authoring page and no root leaves an empty state without Native reads", async () => {
   const bridge = api();
   const view = render(
     <SettingsDialog returnFocus={null} onClose={vi.fn()} rootContext={null} kitApi={bridge} />,
