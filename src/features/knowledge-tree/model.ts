@@ -1,5 +1,14 @@
 import type { TreeNode } from "../../lib/types";
 export type Row = { node: TreeNode; depth: number };
+export function displayedNodes(nodes: TreeNode[], folder: string): TreeNode[] {
+  if (!folder) return nodes;
+  for (const node of nodes) {
+    if (node.kind !== "folder") continue;
+    if (node.relativePath === folder) return node.children;
+    if (folder.startsWith(node.relativePath + "/")) return displayedNodes(node.children, folder);
+  }
+  return [];
+}
 export function htmlNameParts(name: string): { basename: string; extension: string } {
   const extension = name.match(/\.html?$/i)?.[0] ?? "";
   return { basename: extension ? name.slice(0, -extension.length) : name, extension };

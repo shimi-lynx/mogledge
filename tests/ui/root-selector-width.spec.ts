@@ -65,11 +65,12 @@ for (const language of ["ja", "en"] as const) {
         contentType: "application/javascript",
         body: `
         const calls=window.rootWidthCalls={choose:0,actions:[]};
-        let snapshot={workspaceId:'root-width',viewId:'root-width-view',rootPath:'/fixture/Short',revision:1,nodes:[],watchError:null};
+        let snapshot={workspaceId:'root-width',viewId:'root-width-view',rootPath:'/fixture/Short',revision:1,displayRevision:0,nodes:[],watchError:null};
         export const aiHandoffApi={};
         export const bridge={
           beginView:async()=>snapshot,getTree:async()=>snapshot,listen:async()=>()=>{},
-          chooseRoot:async()=>{calls.choose++;if(!window.nextRootPath)return null;snapshot={...snapshot,rootPath:window.nextRootPath,revision:snapshot.revision+1};window.nextRootPath=null;return snapshot;},
+          chooseDisplayFolder:async(workspace,view)=>{if(workspace!==snapshot.workspaceId||view!==snapshot.viewId)throw 'ViewChanged';calls.choose++;if(!window.nextRootPath)return null;snapshot={...snapshot,displayFolder:{relativePath:window.nextRootPath.split('/').pop(),identity:'display-folder'},displayRevision:snapshot.displayRevision+1};window.nextRootPath=null;return snapshot;},
+          getDocumentStorageHold:async()=>{throw Error('unexpected admitted-document probe');},
           getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),
           refresh:async()=>snapshot
         };
@@ -89,7 +90,7 @@ for (const language of ["ja", "en"] as const) {
     await expect(root).toBeEnabled();
     await expect(root).toHaveText("Short");
     await expectFullWidth(root);
-    // Left click, chevron click, Enter and Space retain the OS-picker dispatch.
+    // Left click, chevron click, Enter and Space dispatch the display-folder picker.
     // Returning null models cancellation; no HTML dropdown is created by this control.
     await root.click();
     await root.locator(".workspace-chevron").click();
@@ -108,7 +109,12 @@ for (const language of ["ja", "en"] as const) {
       }, name);
       await root.click();
       await expect(root).toHaveText(name);
-      await expect(root).toHaveAttribute("title", "/fixture/" + name);
+      await expect(root).toHaveAttribute(
+        "title",
+        (language === "ja" ? "表示フォルダーを切り替え：" : "Switch displayed folder: ") +
+          "/fixture/Short/" +
+          name,
+      );
       for (const colorScheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme });
         for (const key of ["Home", "End"] as const) {

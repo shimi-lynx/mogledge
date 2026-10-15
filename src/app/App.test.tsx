@@ -53,6 +53,7 @@ vi.mock("../lib/bridge", () => {
     },
     bridge: {
       getDocumentStateRecovery: vi.fn(),
+      getDocumentStorageHold: vi.fn(),
       recoverDocumentState: vi.fn(async () => {}),
       mutateTree: vi.fn(),
       performFileAction: vi.fn(async () => {}),
@@ -61,6 +62,8 @@ vi.mock("../lib/bridge", () => {
       closeTab: vi.fn(async () => {}),
       getTree: vi.fn(),
       chooseRoot: vi.fn(),
+      chooseDisplayFolder: vi.fn(),
+      setDisplayFolder: vi.fn(),
       refresh: vi.fn(),
       openDocument: vi.fn(),
       listen: vi.fn(async () => () => {}),
@@ -118,8 +121,136 @@ beforeEach(() => {
   vi.mocked(bridge.getTree).mockResolvedValue(snapshot);
   vi.mocked(bridge.beginView).mockResolvedValue(snapshot);
   vi.mocked(bridge.openDocument).mockResolvedValue("http://127.0.0.1:9999/s/test/0.html");
+  if (bridge.chooseDisplayFolder) vi.mocked(bridge.chooseDisplayFolder).mockResolvedValue(null);
+  if (bridge.setDisplayFolder) vi.mocked(bridge.setDisplayFolder).mockResolvedValue(snapshot);
   if (bridge.getDocumentStateRecovery)
     vi.mocked(bridge.getDocumentStateRecovery).mockResolvedValue(null);
+  if (bridge.getDocumentStorageHold)
+    vi.mocked(bridge.getDocumentStorageHold).mockResolvedValue(null);
+});
+
+it("switches the displayed child without registering it or closing its document tab", async () => {
+  const fixture: Snapshot = {
+    ...snapshot,
+    nodes: [
+      snapshot.nodes[0],
+      { name: "outside.html", relativePath: "outside.html", kind: "html", children: [] },
+    ],
+  };
+  vi.mocked(bridge.beginView).mockResolvedValue(fixture);
+  vi.mocked(bridge.getTree).mockResolvedValue(fixture);
+  const child: Snapshot = {
+    ...fixture,
+    displayFolder: { relativePath: "Examples", identity: "physical-child" },
+  };
+  vi.mocked(bridge.chooseDisplayFolder!).mockImplementation(async () => {
+    vi.mocked(bridge.getTree).mockResolvedValue(child);
+    return child;
+  });
+  vi.mocked(bridge.setDisplayFolder!).mockImplementation(async () => {
+    vi.mocked(bridge.getTree).mockResolvedValue(fixture);
+    return fixture;
+  });
+  const view = render(<App />);
+  fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+  fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+  await waitFor(() => expect(view.container.querySelector("iframe")).not.toBeNull());
+  const frame = view.container.querySelector("iframe");
+  fireEvent.click(view.container.querySelector(".workspace-button")!);
+  await waitFor(() =>
+    expect(view.container.querySelector(".workspace-name")?.textContent).toBe("Examples"),
+  );
+  expect(view.getByText("登録フォルダー：knowledge")).toBeTruthy();
+  expect(view.queryByRole("treeitem", { name: "outside HTML" })).toBeNull();
+  expect(view.getByRole("treeitem", { name: "0 HTML" }).getAttribute("data-path")).toBe(
+    "Examples/0.html",
+  );
+  expect(view.container.querySelector("iframe")).toBe(frame);
+  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+  expect(bridge.closeTab).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole("button", { name: "登録範囲をすべて表示" }));
+  await view.findByRole("treeitem", { name: "outside HTML" });
+  expect(bridge.setDisplayFolder).toHaveBeenCalledWith("layout", "view-layout", "", 0);
+  expect(view.container.querySelector("iframe")).toBe(frame);
+  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+});
+
+it("keeps saved-data holds visible outside the HTML when the sidebar is hidden", async () => {
+  vi.mocked(bridge.beginView).mockResolvedValue({
+    ...snapshot,
+    storageHold: { reason: "StorageIdentityConfirmationRequired" },
+  });
+  const view = render(<App />);
+  await view.findByRole("tree");
+  fireEvent.click(view.getByRole("button", { name: "左メニューを閉じる" }));
+  const notice = view
+    .getByText("保存データの利用を保留しています")
+    .closest(".storage-hold-notice")!;
+  expect(notice.closest("[hidden], iframe")).toBeNull();
+  expect(notice.textContent).toContain("独立したバックアップ");
+  expect(notice.textContent).toContain("復元・保存・削除は利用できません");
+  fireEvent.click(
+    within(notice as HTMLElement).getByRole("button", { name: "登録フォルダーを管理" }),
+  );
+  const dialog = await view.findByRole("dialog", { name: "設定" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダー" }));
+  expect(within(dialog).getByText("/knowledge")).toBeTruthy();
+  expect(within(dialog).getByText(/削除・移行・統合されません/)).toBeTruthy();
+  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+});
+
+it("offers explicit registered-folder management after an outside-range selection fails", async () => {
+  vi.mocked(bridge.chooseDisplayFolder!).mockRejectedValue("DisplayFolderOutsideRegisteredRoot");
+  vi.mocked(bridge.chooseRoot).mockResolvedValue(null);
+  const view = render(<App />);
+  await view.findByRole("tree");
+  fireEvent.click(view.container.querySelector(".workspace-button")!);
+  expect((await view.findByRole("alert")).textContent).toContain("登録範囲外");
+  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole("button", { name: "登録フォルダーを管理" }));
+  const dialog = await view.findByRole("dialog", { name: "設定" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダー" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "登録フォルダーを変更" }));
+  await waitFor(() => expect(bridge.chooseRoot).toHaveBeenCalledOnce());
+});
+
+it("shows a document-specific storage hold even when the registered folder is confirmed", async () => {
+  vi.mocked(bridge.getDocumentStorageHold!).mockResolvedValue({
+    reason: "StorageIdentityConfirmationRequired",
+  });
+  const view = render(<App />);
+  fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+  fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+  await view.findByText("保存データの利用を保留しています");
+  expect(view.container.querySelector("iframe")).not.toBeNull();
+  expect(view.container.querySelector(".storage-hold-notice")?.textContent).toContain(
+    "データは保持されています",
+  );
+  expect(bridge.chooseRoot).not.toHaveBeenCalled();
+});
+
+it("keeps an inactive visible pane's hold notice scoped to that document when the active pane is healthy", async () => {
+  vi.mocked(bridge.getDocumentStorageHold!)
+    .mockResolvedValueOnce({ reason: "StorageIdentityConfirmationRequired" })
+    .mockResolvedValue(null);
+  const view = render(<App />);
+  fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+  fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+  await view.findByText("保存データの利用を保留しています");
+  fireEvent.contextMenu(view.getByRole("treeitem", { name: "1 HTML" }));
+  fireEvent.click(view.getByRole("menuitem", { name: "右の列で開く" }));
+  await waitFor(() =>
+    expect(view.container.querySelectorAll(".document-pane:not([hidden]) iframe")).toHaveLength(2),
+  );
+  await waitFor(() =>
+    expect(view.getByRole("tab", { name: "1.html" }).getAttribute("aria-selected")).toBe("true"),
+  );
+  await waitFor(() => expect(bridge.getDocumentStorageHold).toHaveBeenCalledTimes(2));
+  const notice = view.container.querySelector(".storage-hold-notice");
+  expect(notice).not.toBeNull();
+  expect(notice?.textContent).toContain("Examples/0.html");
+  expect(notice?.textContent).not.toContain("Examples/1.html");
+  expect(notice?.textContent).toContain("保留対象の文書");
 });
 
 it.each([
@@ -609,7 +740,8 @@ it("switches a compact search view while retaining the tree, query and document 
   expect(view.queryByRole("tree")).toBeNull();
   expect(view.container.querySelector("details")?.hasAttribute("open")).toBe(false);
   fireEvent.change(input, { target: { value: "日本語" } });
-  fireEvent.click(await view.findByRole("button", { name: /検索文書/ }));
+  // Allow the debounced search to settle alongside this large tree fixture.
+  fireEvent.click(await view.findByRole("button", { name: /検索文書/ }, { timeout: 5_000 }));
   expect(view.container.querySelector("iframe")).toBe(frame);
   expect(bridge.openDocument).toHaveBeenCalledTimes(1);
   fireEvent.click(view.getByRole("button", { name: /ファイル/ }));

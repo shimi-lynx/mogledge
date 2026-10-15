@@ -1,6 +1,6 @@
 # Data management
 
-Mogledge keeps HTML and assets in the selected knowledge folder, and committed document input in a separate SQLite database. An HTML document must use the [document storage API](document-storage.md) to restore its saved input. Arbitrary JavaScript state, Canvas contents and unflushed input are not automatic backups.
+Mogledge keeps HTML and assets in the registered knowledge folder, and committed document input in a separate SQLite database. [Changing the displayed folder](registered-folders.md) preserves that registered save basis and open tabs. An HTML document must use the [document storage API](document-storage.md) to restore its saved input. Arbitrary JavaScript state, Canvas contents and unflushed input are not automatic backups.
 
 Use the running app's settings and document menus for ordinary management. The advanced CLIs below operate on explicitly selected local directories; they do not discover profiles or connect to a running app. Read [known limitations](known-limitations.md) before relying on an operation that has not been verified on your OS.
 

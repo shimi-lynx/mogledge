@@ -447,7 +447,7 @@ describe("workspace sets and lazy tab lifecycle", () => {
       const restoring = controller.restoreWorkspaceSet("set");
       if (action === "root") {
         fixture.update({ workspaceId: "other", viewId: "other-view" });
-        await controller.choose();
+        await controller.registerRoot();
       } else if (action === "revision") {
         fixture.emit({
           workspaceId: "root",

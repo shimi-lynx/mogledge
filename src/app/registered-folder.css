@@ -1,0 +1,50 @@
+.registered-folder-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 4px 10px 8px;
+  font-size: 11px;
+  color: var(--surface-muted);
+  border-bottom: 1px solid var(--surface-border);
+}
+.registered-folder-summary > span:first-child {
+  flex-basis: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.registered-folder-summary button {
+  font: inherit;
+  padding: 3px 6px;
+}
+.registered-folder-path {
+  overflow-wrap: anywhere;
+}
+.registered-folder-menu-label {
+  max-width: 280px;
+  padding: 5px 10px;
+  overflow-wrap: anywhere;
+  color: var(--surface-muted);
+  font-size: 11px;
+}
+.storage-hold-notice {
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--surface-text);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.storage-hold-notice p {
+  margin: 5px 0;
+}
+.storage-hold-notice button {
+  font: inherit;
+  margin: 3px 6px 3px 0;
+  padding: 5px 8px;
+}

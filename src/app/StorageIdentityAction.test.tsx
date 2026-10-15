@@ -28,6 +28,11 @@ test("Mac entry is inert until clicked and a cancelled handoff can be retried", 
   render(<StorageIdentityAction platform="macos" />);
   expect(ipc.invoke).not.toHaveBeenCalled();
   expect(screen.getByText(/independent backup/)).toBeTruthy();
+  expect(screen.getByText(/relationship to existing Mac saved data is unconfirmed/)).toBeTruthy();
+  expect(
+    screen.getByText(/new profile has been successfully verified to have no saved data/),
+  ).toBeTruthy();
+  expect(screen.getByText(/separate copy of unsaved input/)).toBeTruthy();
   const button = screen.getByRole("button", { name: "Open saved-data confirmation tool" });
   fireEvent.click(button);
   await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));

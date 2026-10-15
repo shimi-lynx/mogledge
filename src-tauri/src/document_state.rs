@@ -210,15 +210,48 @@ fn recovery_error(error: crate::identifier_migration::MigrationError) -> StateEr
 }
 
 impl DocumentState {
+    pub(crate) fn register_storage_root(&self, root: &str) -> Result<bool, String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        let mut connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|error| database_error(error).code())?;
+        let confirmed = crate::storage_identity_transition::register_empty_root(&transaction, root)
+            .map_err(|error| recovery_error(error).code())?;
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        transaction
+            .commit()
+            .map_err(|error| database_error(error).code())?;
+        Ok(confirmed)
+    }
+
+    pub(crate) fn admit_document_storage(
+        &self,
+        root: &str,
+        document: &str,
+        relative: &str,
+    ) -> Result<bool, String> {
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        let mut connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|error| database_error(error).code())?;
+        let confirmed = crate::storage_identity_transition::admit_fresh_document(
+            &transaction,
+            root,
+            document,
+            relative,
+        )
+        .map_err(|error| recovery_error(error).code())?;
+        self.verify_management().map_err(|_| "StorageUnavailable")?;
+        transaction
+            .commit()
+            .map_err(|error| database_error(error).code())?;
+        Ok(confirmed)
+    }
     pub(crate) fn identity_schema_version(&self) -> Result<i64, String> {
         let connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
         crate::storage_identity_transition::version(&connection)
-            .map_err(|_| "StorageUnavailable".into())
-    }
-    pub(crate) fn identity_root_confirmed(&self, root: &str) -> Result<bool, String> {
-        self.verify_management().map_err(|_| "StorageUnavailable")?;
-        let connection = self.connection.lock().map_err(|_| "StorageUnavailable")?;
-        crate::storage_identity_transition::root_confirmed(&connection, root)
             .map_err(|_| "StorageUnavailable".into())
     }
     pub(crate) fn profile_directory(&self) -> &std::path::Path {
@@ -323,6 +356,17 @@ impl DocumentState {
     // Startup supplies the actual local profile, including migrated bundle
     // layouts. The DB's immediate parent is not necessarily the profile root.
     pub(crate) fn new_in_profile(directory: PathBuf, profile: PathBuf) -> Result<Self, StateError> {
+        let settings_path = profile.join("settings.json");
+        Self::new_in_profile_with_settings(directory, profile, settings_path)
+    }
+
+    // Config and local data may live in different directories. Missing state
+    // must be checked against the settings startup actually restores.
+    pub fn new_in_profile_with_settings(
+        directory: PathBuf,
+        profile: PathBuf,
+        settings_path: PathBuf,
+    ) -> Result<Self, StateError> {
         verify_directory(&directory)?;
         verify_directory(&profile)?;
         if !directory.starts_with(&profile) || directory == profile {
@@ -350,6 +394,22 @@ impl DocumentState {
         ) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                // A previously registered profile with a missing DB is loss or
+                // uncertainty, not first launch. Never create an empty stand-in
+                // that could later authorize default-value restoration.
+                let mut settings_paths = vec![settings_path, profile.join("settings.json")];
+                settings_paths.dedup();
+                for settings_path in settings_paths {
+                    let settings = crate::root_recovery::read_settings_value(&settings_path)
+                        .map_err(|_| StateError::Unavailable)?;
+                    if settings.is_some_and(|value| {
+                        value.get("knowledgeRoot").is_some()
+                            || value.get("knowledgeRootIdentity").is_some()
+                            || value.get("knowledgeRootIdentityScheme").is_some()
+                    }) {
+                        return Err(StateError::Unavailable);
+                    }
+                }
                 crate::write_fs::create_database_guard(&management_directory)
                     .map_err(|_| StateError::Unavailable)?
             }
@@ -661,6 +721,9 @@ pub fn recovery(
         if state.snapshot.view_id != view {
             return Err("ViewChanged".into());
         }
+        if let Some(hold) = &state.snapshot.storage_hold {
+            return Err(hold.reason.clone());
+        }
         if !knowledge::contains(&state.snapshot.nodes, relative) {
             return Err("HTMLが見つかりません".into());
         }
@@ -777,6 +840,16 @@ pub fn recovery(
 }
 pub fn authorized_session(core: &Core, token: &str) -> Result<Session, StateError> {
     let session = core.session_for_token(token).ok_or(StateError::Revoked)?;
+    if let Some(hold) = &session.storage_hold {
+        return Err(match hold.reason.as_str() {
+            "StorageUnavailable" => StateError::Unavailable,
+            "StorageCorrupt" => StateError::Corrupt,
+            "StorageBusy" => StateError::Conflict,
+            "CapacityExceeded" => StateError::CapacityExceeded,
+            "ResourceUnavailable" => StateError::ResourceUnavailable,
+            _ => StateError::IdentityConfirmationRequired,
+        });
+    }
     let identity = session
         .storage_identity
         .as_ref()

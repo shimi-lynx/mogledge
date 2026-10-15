@@ -38,6 +38,8 @@ Document storage validates the current grant and physical identity, then commits
 
 Configuration and saved roots use physical identity, not pathname alone. Existing profiles are selected through the [startup migration gate](identifier-migration.md). Management/transfer is explicit, with [backup and recovery contracts](data-management.md).
 
+The registered root remains the filesystem and persistence boundary. Display-folder selection is a separately validated root-relative physical reference; it does not replace workspace/view IDs, tab grants, storage keys or root-specific preferences. Snapshot nodes stay registered-root-relative while the tree filters the displayed scope. Held storage authority is captured when a document grant is issued and cannot be revived by later confirmation. See [registered folders](registered-folders.md).
+
 ## Filesystem and server boundaries
 
 Read and write operations revalidate root/parent/file identity and reject unsupported links, reparse paths and cloud recalls. Writes are local-only, handle-based and non-overwriting. Published files are not deleted just because a later reporting/cleanup step failed. Tree order persistence is separate from a completed filesystem move.

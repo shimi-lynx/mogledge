@@ -122,6 +122,9 @@ pub fn run() {
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
                 storage_transition_window::open_storage_identity_transition,
                 commands::choose_knowledge_root,
+                commands::choose_display_folder,
+                commands::set_display_folder,
+                commands::get_document_storage_hold,
                 commands::get_knowledge_tree,
                 commands::get_asset_usage,
                 commands::artifact::save_html_artifact,

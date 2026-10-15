@@ -30,6 +30,7 @@ for (const language of ["ja", "en"] as const) {
           retrySavedRoot:async(viewId)=>{calls.retry.push(viewId);if(window.recoveryRootReturned){snapshot=selected;localStorage.setItem('recovery-fixture-restored','yes');}return snapshot;},
           getWorkspaceLists:async()=>({favorites:[],folderFavorites:[],recent:[],error:null,readOnly:false}),
           createTab:async()=>{calls.open++;throw Error('unexpected document open');},
+          getDocumentStorageHold:async()=>{throw Error('unexpected admitted-document probe');},
           refresh:async()=>snapshot
         };
       `,
@@ -40,8 +41,8 @@ for (const language of ["ja", "en"] as const) {
       name: language === "ja" ? "保存フォルダーを再試行" : "Retry saved folder",
       exact: true,
     });
-    const choose = page.getByRole("button", {
-      name: language === "ja" ? "フォルダーを選び直す" : "Select another folder",
+    const choose = page.locator(".workspace-feedback").getByRole("button", {
+      name: language === "ja" ? "登録フォルダーを管理" : "Manage registered folder",
       exact: true,
     });
     const reason = page.locator(".workspace-feedback [role=status]");
@@ -52,6 +53,19 @@ for (const language of ["ja", "en"] as const) {
     expect(await page.evaluate("window.recoveryCalls")).toEqual({ retry: [], choose: 0, open: 0 });
     await choose.focus();
     await page.keyboard.press("Enter");
+    const settings = page.getByRole("dialog");
+    await expect(settings).toContainText(
+      language === "ja"
+        ? "登録フォルダーを復元できません"
+        : "The registered folder could not be restored",
+    );
+    expect(await page.evaluate("window.recoveryCalls.choose")).toBe(0);
+    await settings
+      .getByRole("button", {
+        name: language === "ja" ? "登録フォルダーを変更" : "Change registered folder",
+        exact: true,
+      })
+      .click();
     await expect(retry).toBeVisible();
     expect(await page.evaluate("window.recoveryCalls.choose")).toBe(1);
     await retry.focus();
