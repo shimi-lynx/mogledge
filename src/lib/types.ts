@@ -48,6 +48,8 @@ export type Snapshot = {
   storageHold?: { reason: string };
   revision: number;
   nodes: TreeNode[];
+  // Native snapshots pair completeness with nodes, independently of watcher/order warnings.
+  treeComplete?: boolean;
   watchError: string | null;
   scanDurationMs?: number;
   viewId: string;

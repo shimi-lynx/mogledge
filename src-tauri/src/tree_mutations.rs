@@ -640,14 +640,14 @@ fn perform_with_trash(
         warning = Some(error);
     }
     let scan_started = Instant::now();
-    let mut nodes = if !rescan_needed {
-        snapshot.nodes.clone()
+    let (mut nodes, tree_complete) = if !rescan_needed {
+        (snapshot.nodes.clone(), snapshot.tree_complete)
     } else {
         match knowledge::scan(&root) {
-            Ok(nodes) => nodes,
+            Ok(nodes) => (nodes, true),
             Err(error) => {
                 warning = Some(format!("操作後の{error}。再走査してください"));
-                Vec::new()
+                (Vec::new(), false)
             }
         }
     };
@@ -666,6 +666,7 @@ fn perform_with_trash(
             }
         }
         state.snapshot.nodes = nodes;
+        state.snapshot.tree_complete = tree_complete;
         state.snapshot.scan_duration_ms = scan_duration_ms;
         state.snapshot.revision += 1;
         state.snapshot.path_moves.extend(moves.iter().cloned());
@@ -1047,6 +1048,23 @@ fn remove_cloud_node(
 mod tests {
     use super::*;
     use std::{fs, path::PathBuf};
+    #[test]
+    fn tree_completeness_tracks_mutation_rescans_and_is_retained_without_scan() {
+        let (_tmp, core, snapshot, _root) = fixture();
+        core.workspace.lock().unwrap().snapshot.tree_complete = false;
+        let reordered = run(&core, &snapshot, reorder("b.html", "a.html", false)).unwrap();
+        assert!(!reordered.snapshot.tree_complete);
+        let created = run(
+            &core,
+            &reordered.snapshot,
+            Mutation::CreateFolder {
+                parent: String::new(),
+                name: "New".into(),
+            },
+        )
+        .unwrap();
+        assert!(created.snapshot.tree_complete);
+    }
     fn fixture() -> (tempfile::TempDir, Arc<Core>, Snapshot, PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().join("knowledge");

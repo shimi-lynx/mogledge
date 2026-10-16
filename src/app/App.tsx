@@ -578,7 +578,9 @@ export function App() {
               displayFolder={displayFolder}
               workspaceId={state.snapshot.workspaceId}
               treeReady={
-                !state.loading && !state.snapshot.startupRecovery && !state.snapshot.watchError
+                !state.loading &&
+                !state.snapshot.startupRecovery &&
+                (state.snapshot.treeComplete ?? !state.snapshot.watchError)
               }
               viewId={state.snapshot.viewId}
               selected={state.selectedPath}

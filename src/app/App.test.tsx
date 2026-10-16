@@ -162,39 +162,70 @@ it("restores the registered root's expanded tree after restarting the app view",
   );
 });
 
-it("preserves expansion through a failed empty scan and prunes only after healthy recovery", async () => {
-  const key = TREE_EXPANSION_KEY + snapshot.rootPath;
-  const saved = JSON.stringify({ version: 1, paths: ["Examples"] });
-  localStorage.setItem(key, saved);
-  const view = render(<App />);
-  const expanded = () =>
-    view.getByRole("treeitem", { name: "Examples" }).getAttribute("aria-expanded");
-  await waitFor(() => expect(expanded()).toBe("true"));
-  const listener = vi.mocked(bridge.listen).mock.calls[0][0];
-  const scan = async (revision: number, nodes: Snapshot["nodes"], watchError: string | null) => {
-    vi.mocked(bridge.getTree).mockResolvedValue({ ...snapshot, revision, nodes, watchError });
-    await act(async () =>
-      listener({
-        workspaceId: snapshot.workspaceId!,
+it.each([null, "ScanUnavailable"])(
+  "preserves expansion through an incomplete scan with %s and healthy recovery",
+  async (scanError) => {
+    const key = TREE_EXPANSION_KEY + snapshot.rootPath;
+    const saved = JSON.stringify({ version: 1, paths: ["Examples"] });
+    localStorage.setItem(key, saved);
+    const view = render(<App />);
+    const expanded = () =>
+      view.getByRole("treeitem", { name: "Examples" }).getAttribute("aria-expanded");
+    await waitFor(() => expect(expanded()).toBe("true"));
+    const listener = vi.mocked(bridge.listen).mock.calls[0][0];
+    const scan = async (
+      revision: number,
+      nodes: Snapshot["nodes"],
+      watchError: string | null,
+      treeComplete = true,
+    ) => {
+      vi.mocked(bridge.getTree).mockResolvedValue({
+        ...snapshot,
         revision,
-        changedPaths: [],
-        structureChanged: true,
+        nodes,
         watchError,
-      }),
-    );
-  };
+        treeComplete,
+      });
+      await act(async () =>
+        listener({
+          workspaceId: snapshot.workspaceId!,
+          revision,
+          changedPaths: [],
+          structureChanged: true,
+          watchError,
+        }),
+      );
+    };
 
-  await scan(2, [], "ScanUnavailable");
-  await waitFor(() => expect(view.queryByRole("treeitem", { name: "Examples" })).toBeNull());
-  window.dispatchEvent(new Event("beforeunload"));
-  expect(localStorage.getItem(key)).toBe(saved);
+    await scan(2, [], scanError, false);
+    await waitFor(() => expect(view.queryByRole("treeitem", { name: "Examples" })).toBeNull());
+    window.dispatchEvent(new Event("beforeunload"));
+    expect(localStorage.getItem(key)).toBe(saved);
 
-  await scan(3, snapshot.nodes, null);
-  await waitFor(() => expect(expanded()).toBe("true"));
-  await scan(4, [], null);
-  window.dispatchEvent(new Event("beforeunload"));
-  expect(JSON.parse(localStorage.getItem(key)!).paths).toEqual([]);
-});
+    await scan(3, snapshot.nodes, null);
+    await waitFor(() => expect(expanded()).toBe("true"));
+    await scan(4, [], null);
+    window.dispatchEvent(new Event("beforeunload"));
+    expect(JSON.parse(localStorage.getItem(key)!).paths).toEqual([]);
+  },
+);
+
+it.each(["WatcherUnavailable", "OrderUnavailable"])(
+  "prunes a complete empty scan despite %s",
+  async (watchError) => {
+    const key = TREE_EXPANSION_KEY + snapshot.rootPath;
+    localStorage.setItem(key, JSON.stringify({ version: 1, paths: ["Examples"] }));
+    const complete = { ...snapshot, nodes: [], watchError, treeComplete: true };
+    vi.mocked(bridge.beginView).mockResolvedValue(complete);
+    vi.mocked(bridge.getTree).mockResolvedValue(complete);
+    const view = render(<App />);
+    await view.findByRole("tree");
+    await waitFor(() => {
+      window.dispatchEvent(new Event("beforeunload"));
+      expect(JSON.parse(localStorage.getItem(key)!).paths).toEqual([]);
+    });
+  },
+);
 
 it.each(["ja", "en"] as const)(
   "empty managed-folder registry shows ordinary onboarding in %s without recovery warnings",
