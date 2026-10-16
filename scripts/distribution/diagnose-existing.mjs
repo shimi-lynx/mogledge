@@ -7,12 +7,12 @@ import { requireHostedRunner } from "./native-probe.mjs";
 
 const platform = process.argv[2];
 requireHostedRunner(process.env, platform);
-const source = "69c207b383c4289fa9045af647dcef3020cd37cb";
+const source = "9808a5eaa2cb90ba5f757ac59a1c1d662161430d";
 const pins = {
   "windows-x64": [
-    12045837509,
-    27772163,
-    "3b4a0e3bb6f13d7dd083a298b6cd76b75b4ce54d6716ccaea0eab12020b09c04",
+    12047537683,
+    27789182,
+    "8b56a854443123c505da1c1c8a9144bf200d73f5a3031ea746cbc08f8e534df6",
   ],
   "macos-arm64": [
     12045787238,
@@ -27,7 +27,7 @@ const api = (route) =>
   JSON.parse(
     execFileSync("gh", ["api", `repos/shimi-lynx/mogledge/${route}`], { encoding: "utf8" }),
   );
-const run = api("actions/runs/38899311198");
+const run = api("actions/runs/38904737219");
 const artifact = api(`actions/artifacts/${id}`);
 if (
   run.head_sha !== source ||
@@ -39,7 +39,7 @@ if (
   artifact.expired ||
   artifact.size_in_bytes !== size ||
   artifact.digest !== `sha256:${digest}` ||
-  artifact.workflow_run.id !== 38899311198 ||
+  artifact.workflow_run.id !== 38904737219 ||
   artifact.workflow_run.head_sha !== source
 )
   throw new Error("Existing artifact provenance changed");

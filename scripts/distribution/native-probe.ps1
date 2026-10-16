@@ -13,7 +13,7 @@ trap {
   Write-Output ('MOGLEDGE_PROBE_ERROR=' + (@{ stage = $stage; kind = $kind; errorId = $identifier } | ConvertTo-Json -Compress))
   exit 1
 }
-$binarySource = if ($env:PROBE_EXISTING_SOURCE_SHA -ceq '69c207b383c4289fa9045af647dcef3020cd37cb') { $env:PROBE_EXISTING_SOURCE_SHA } else { $env:GITHUB_SHA }
+$binarySource = if ($env:PROBE_EXISTING_SOURCE_SHA -ceq '9808a5eaa2cb90ba5f757ac59a1c1d662161430d') { $env:PROBE_EXISTING_SOURCE_SHA } else { $env:GITHUB_SHA }
 # Refuse before reading a profile or registry. This is not a local test helper.
 if ($env:GITHUB_ACTIONS -cne 'true' -or $env:CI -cne 'true' -or
     $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
@@ -309,6 +309,16 @@ try {
   $checks.Add('unsupported-legacy-startup-command-stops-before-replacement')
   $stage = 'same-location-update'
   Write-OwnedRun 'My Knowledge' ('"' + $oldExecutable + '"')
+  $updatePreconditions = @{
+    oldDirectoryMatches = (Read-RegistryValue "$productBase\My Knowledge" '') -ceq $installed
+    oldPublisherMatches = (Read-RegistryValue "$uninstallBase\My Knowledge" 'Publisher') -ceq $publisher
+    oldBinaryNameMatches = (Read-RegistryValue "$uninstallBase\My Knowledge" 'MainBinaryName') -ceq 'my-knowledge.exe'
+    oldUninstallerMatches = (Read-RegistryValue "$uninstallBase\My Knowledge" 'UninstallString') -ceq ('"' + (Join-Path $installed 'uninstall.exe') + '"')
+    oldUninstallerExists = Test-Path -LiteralPath (Join-Path $installed 'uninstall.exe') -PathType Leaf
+    oldRunMatches = (Read-RegistryValue $runKey 'My Knowledge') -ceq ('"' + $oldExecutable + '"')
+    newRunAbsent = $null -eq (Read-RegistryValue $runKey 'Mogledge')
+    newDirectoryAbsent = $null -eq (Read-RegistryValue "$productBase\Mogledge" '')
+  }
   Invoke-OwnedInstaller $installer @('/S', '/UPDATE', "/D=$installed")
   Assert-CurrentInstall $installed
   Assert-NoRegistry 'My Knowledge'
@@ -376,6 +386,8 @@ try {
   $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
   @{ status = 'failed'; failedStage = $stage; failureReason = $reason; errorId = $identifier;
     failureKind = $_.Exception.GetType().Name; installerExitCode = $script:installerExitCode;
+    updatePreconditions = $updatePreconditions;
+    updateOutcome = @{ oldExecutablePresent = Test-Path -LiteralPath $oldExecutable -PathType Leaf; newExecutablePresent = Test-Path -LiteralPath (Join-Path $installed 'mogledge.exe') -PathType Leaf; uninstallerPresent = Test-Path -LiteralPath (Join-Path $installed 'uninstall.exe') -PathType Leaf };
     checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Error "Disposable Windows Native probe failed at $stage; remaining checks are unverified"
   exit 1

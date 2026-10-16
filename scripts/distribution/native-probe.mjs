@@ -387,7 +387,7 @@ async function main(platform) {
   requireCandidate(manifest, config, platform, source, process.env);
   if (
     process.env.PROBE_EXISTING_SOURCE_SHA &&
-    process.env.PROBE_EXISTING_SOURCE_SHA !== "69c207b383c4289fa9045af647dcef3020cd37cb"
+    process.env.PROBE_EXISTING_SOURCE_SHA !== "9808a5eaa2cb90ba5f757ac59a1c1d662161430d"
   )
     throw new Error("Only the fixed original candidate may be diagnosed");
   await hash(path.join(output, manifest.updateArchive), manifest.updateArchiveSha256);
@@ -476,6 +476,15 @@ async function main(platform) {
         if (/^[A-Za-z]+$/.test(failed.failureKind ?? "")) report.failureKind = failed.failureKind;
         if (Number.isInteger(failed.installerExitCode))
           report.installerExitCode = failed.installerExitCode;
+        for (const field of ["updatePreconditions", "updateOutcome"]) {
+          if (
+            failed[field] &&
+            Object.entries(failed[field]).every(
+              ([key, value]) => /^[A-Za-z]+$/.test(key) && typeof value === "boolean",
+            )
+          )
+            report[field] = failed[field];
+        }
         if (
           Array.isArray(failed.checks) &&
           failed.checks.every((check) => /^[a-z0-9-]+$/.test(check))

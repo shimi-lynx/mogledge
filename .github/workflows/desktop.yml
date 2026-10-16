@@ -127,7 +127,7 @@ jobs:
     timeout-minutes: 15
     env:
       EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
-      PROBE_EXISTING_SOURCE_SHA: 69c207b383c4289fa9045af647dcef3020cd37cb
+      PROBE_EXISTING_SOURCE_SHA: 9808a5eaa2cb90ba5f757ac59a1c1d662161430d
       EXPECTED_VERSION: "0.10.0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
