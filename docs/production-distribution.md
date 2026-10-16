@@ -1,8 +1,8 @@
 # Mogledge production distribution
 
-This page preserves source-bound historical distribution receipts. Current unreleased source changes product identity and profile behavior; follow the [new identity contract](identifier-migration.md) and its unrun Native update checks before preparing another distribution. Earlier artifact names, identifiers, signatures and hashes below describe the binaries actually verified and are not renamed retroactively.
+This page preserves source-bound historical distribution receipts. Mogledge 0.10.0 changes product identity and profile behavior; follow the [new identity contract](identifier-migration.md) and its remaining device checks when updating. Earlier artifact names, identifiers, signatures and hashes below describe the binaries actually verified and are not renamed retroactively.
 
-The current public release is [Mogledge 0.9.1](https://github.com/shimi-lynx/mogledge/releases/tag/v0.9.1). See the [actual 0.9.1 publication and minimum verification](#actual-091-publication-and-minimum-verification) for its binary source, signing/publication runs and public-byte evidence. Earlier plans and records below are retained for traceability.
+The current public release is [Mogledge 0.10.0](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.0). See the [actual 0.10.0 publication and minimum verification](#actual-0100-publication-and-minimum-verification) for its binary source, signing/publication runs and public-byte evidence. Earlier plans and records below are retained for traceability.
 
 Windows x64 NSIS, Intel Mac and Apple Silicon Mac distribution use one reviewed source. The product stays 0.8.2, the identifier remains `com.shimilynx.myknowledge`, and the existing NSIS installation identity/template is retained. Installed Windows and Mac 0.8.1 are preserved for the owner's signed in-app update check after publication. Candidate inspection does not execute installers or applications, access Mac devices, publish a Release or delegate human approval.
 
@@ -282,3 +282,25 @@ Signing pins only these reviewed candidates and the existing protected-main gate
 The reviewed verification artifact is `12049280732`, 134227572 bytes, SHA-256 `570d1ae53d348411b358a4f6646356544e6db2b263990a8e4ae4c5e86368c3e0`, name `production-verified-0.10.0-38907799970-1`, expiring `2026-10-19T13:27:06Z`. The successful same-source/same-artifact signature verification is reused; publication independently revalidates the complete artifact, receipt, feed and signatures before writing.
 
 Only these verified-output pins enable publication. Binary source remains `9808a5eaa2cb90ba5f757ac59a1c1d662161430d`; candidate pins, public key/feed, protected-main gate, previous releases and workflow files are unchanged. This policy/evidence-only change requires no product bump, rebuild or re-signing. Public Release/tag/asset/latest readback remains pending at activation. Full existing-device updater, login-session, permission and physical Cmd+F acceptance remains separate in #48/#55/#60.
+
+## Actual 0.10.0 publication and minimum verification
+
+[Mogledge 0.10.0](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.0), Release ID `414996558`, is public and latest with 12 uploaded assets. Its tag points to fixed binary source `9808a5eaa2cb90ba5f757ac59a1c1d662161430d`, including the Mac document-local Cmd+F correction. [Publication run 38908212148](https://github.com/shimi-lynx/mogledge/actions/runs/38908212148), attempt 1, passed preparation/publication from tooling main `9aa09e57ba5c9bda8392790be7cf3d916ba25988` after [PR #64](https://github.com/shimi-lynx/mogledge/pull/64). The earlier candidate and signing records bind the actual compiled source; later policy/documentation commits do not change these binaries.
+
+The workflow independently revalidated the artifact, receipt, all three updater signatures and feed before publishing, then anonymously downloaded the latest feed and updater payloads and compared their actual bytes. Subsequent readback confirmed Release/tag/latest identity, all 12 asset digests and HTTP 200 anonymous download links, receipt/checksum consistency and the unchanged 0.9.1/0.9.0 release asset identities. Anonymous latest-feed SHA-256: `49bd28a6c1b12f0a949d682819d8ca4e39573a1dad2f544bbcdb839c1f621d56`.
+
+| Platform    | Published updater payload SHA-256                                  |
+| ----------- | ------------------------------------------------------------------ |
+| windows-x64 | `555c96be79552c02c0c7b912ff79d745c0acb603c75989c41af6f3085812bcc4` |
+| macos-x64   | `dc0a8ae789b8f73e966708c02563da234c46ec310ea98bad6d67b3476d4f20ec` |
+| macos-arm64 | `11ea92717179457ee796b6f0ee5b4747c6a76eedb0b0607f1616870b129c01f9` |
+
+Initial installation downloads:
+
+- [Mogledge_0.10.0_windows-x64_unsigned_updater_9808a5eaa2cb.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.0/Mogledge_0.10.0_windows-x64_unsigned_updater_9808a5eaa2cb.zip)
+- [Mogledge_0.10.0_macos-x64_adhoc_updater_9808a5eaa2cb.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.0/Mogledge_0.10.0_macos-x64_adhoc_updater_9808a5eaa2cb.zip)
+- [Mogledge_0.10.0_macos-arm64_adhoc_updater_9808a5eaa2cb.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.0/Mogledge_0.10.0_macos-arm64_adhoc_updater_9808a5eaa2cb.zip)
+
+Windows users may use the [0.10.0 NSIS installer](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.0/Mogledge_0.10.0_windows-x64_unsigned_updater_9808a5eaa2cb-setup.exe). Both Windows EXE/installer PE versions are 0.10.0; both Mac bundle versions are 0.10.0. Windows remains without Authenticode; Mac bundles are ad-hoc signed without Developer ID/notarization. Updater signatures authenticate the reviewed payloads, not OS trust or device acceptance.
+
+The public verification receipt retains its pre-publication fields (`published: false`, `nativeUpdateTested: false`); actual public state and the separately bounded hosted-runner checks are recorded here and above. Existing local installations, settings and documents were not changed. Actual existing-device updater UI/signature handoff, login-session/permission behavior and physical Mac Cmd+F/accessibility remain in #48/#55/#60. Disable old Mac login startup before updating; enable new startup afterward. Pages work is outside this application release.
