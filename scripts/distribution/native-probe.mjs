@@ -146,7 +146,11 @@ async function downloadLegacy(platform, fixture) {
       signal: AbortSignal.timeout(60_000),
     },
   );
-  if (!response.ok) throw new Error("Pinned legacy asset download failed");
+  if (!response.ok) {
+    const error = new Error("Pinned legacy asset download failed");
+    error.code = `LegacyHTTP${response.status}`;
+    throw error;
+  }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (digest(bytes) !== asset.sha256) throw new Error("Pinned legacy asset hash mismatch");
   const destination = path.join(fixture, asset.name);
@@ -200,7 +204,7 @@ async function requireBundleLinksContained(app) {
 function macProcess(pid) {
   try {
     return {
-      executable: command("/bin/ps", ["-p", String(pid), "-o", "comm="]),
+      executable: command("/bin/ps", ["-ww", "-p", String(pid), "-o", "comm="]),
       started: command("/bin/ps", ["-p", String(pid), "-o", "lstart="]),
     };
   } catch {
@@ -209,13 +213,13 @@ function macProcess(pid) {
 }
 
 function hasMacWindow(pid) {
-  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap($.CGWindowListCopyWindowInfo(1,0));
+  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1,0)));
     JSON.stringify(windows.some(w=>w.kCGWindowOwnerPID===${pid} && w.kCGWindowLayer===0 &&
       w.kCGWindowBounds.Width>=400 && w.kCGWindowBounds.Height>=250));`;
   return command("/usr/bin/osascript", ["-l", "JavaScript", "-e", script]) === "true";
 }
 
-async function macProbe(platform, manifest, output, fixture, legacy, checks) {
+async function macProbe(platform, manifest, output, fixture, legacy, checks, report) {
   const library = path.join(os.homedir(), "Library");
   const bases = ["Application Support", "WebKit", "Caches"];
   for (const directory of [
@@ -286,25 +290,29 @@ async function macProbe(platform, manifest, output, fixture, legacy, checks) {
   const executable = verifyMacBundle(app, manifest.version, CURRENT_ID, "mogledge", architecture);
   await hash(executable, manifest.executableSha256);
   checks.push("verified-old-bundle-replacement-at-same-owned-location");
+  report.failedStage = "mac-profile-before-launch";
   for (const base of bases)
     if (await exists(path.join(library, base, CURRENT_ID)))
       throw new Error("Current profile existed before owned candidate launch");
   const child = spawn(executable, [], { stdio: "ignore" });
   let launchError = false;
-  child.once("error", () => {
+  child.once("error", (error) => {
     launchError = true;
+    if (/^[A-Z0-9_]+$/.test(error.code ?? "")) report.launchErrorCode = error.code;
   });
   // Capture identity before cleanup. PID alone must never authorize a signal.
   let identity;
   let probeFailure;
   let cleanupFailure;
   try {
+    report.failedStage = "mac-process-identity";
     for (let attempt = 0; attempt < 20 && !identity && !launchError; attempt++) {
       identity = child.pid ? macProcess(child.pid) : null;
       if (!identity) await pause();
     }
     if (!identity || identity.executable !== executable)
       throw new Error("Owned Mac candidate process not observed");
+    report.failedStage = "mac-window-and-profile";
     let ready = false;
     for (let attempt = 0; attempt < 90; attempt++) {
       const current = macProcess(child.pid);
@@ -324,6 +332,7 @@ async function macProbe(platform, manifest, output, fixture, legacy, checks) {
     if (!ready)
       throw new Error("Native Mac main window and initialized current profile were not observed");
     checks.push("ordinary-candidate-native-window-and-current-profile");
+    report.failedStage = "mac-old-data-and-registration";
     if ((await treeSnapshot(oldProfiles)) !== oldSnapshot)
       throw new Error("Legacy synthetic profile changed");
     for (const base of bases)
@@ -338,6 +347,9 @@ async function macProbe(platform, manifest, output, fixture, legacy, checks) {
     checks.push("exact-old-launchagent-fixture-unchanged-no-current-registration");
   } catch (error) {
     probeFailure = error;
+    report.processExitCode = child.exitCode;
+    if (String(error.message).startsWith("Command failed: /usr/bin/osascript"))
+      report.failureKind = "window-observation-command";
   } finally {
     try {
       const current = child.pid ? macProcess(child.pid) : null;
@@ -401,8 +413,10 @@ async function main(platform) {
     ],
   };
   try {
+    report.failedStage = "legacy-download";
     const legacy = await downloadLegacy(platform, fixture);
     if (platform === "windows-x64") {
+      report.failedStage = "windows-helper-preflight";
       try {
         command(
           "pwsh",
@@ -423,11 +437,35 @@ async function main(platform) {
           ],
           12 * 60_000,
         );
-      } catch {
-        const failed = JSON.parse(
-          await readFile(path.join(fixture, "windows-result.json"), "utf8"),
-        );
+      } catch (error) {
+        const marker = String(error.stdout ?? "")
+          .split(/\r?\n/)
+          .find((line) => line.startsWith("MOGLEDGE_PROBE_ERROR="));
+        if (marker) {
+          const detail = JSON.parse(marker.slice("MOGLEDGE_PROBE_ERROR=".length));
+          if (/^[a-z-]+$/.test(detail.stage)) report.failedStage = detail.stage;
+          if (/^[A-Za-z0-9_.:,]+$/.test(detail.errorId)) report.errorId = detail.errorId;
+          if (/^[A-Za-z]+$/.test(detail.kind)) report.failureKind = detail.kind;
+        }
+        const reasons = [
+          ["Disposable matching approved", "hosted-source-guard"],
+          ["exclusive ordinary runner temporary fixture", "fixture-guard"],
+          ["Only the current candidate output", "candidate-output-guard"],
+          ["Candidate manifest/configuration mismatch", "candidate-manifest-guard"],
+          ["Candidate or pinned legacy installer hash mismatch", "installer-hash-guard"],
+        ];
+        const reason = reasons.find(([message]) => String(error.stderr ?? "").includes(message));
+        if (reason) report.failedStage = reason[1];
+        const failed = (await exists(path.join(fixture, "windows-result.json")))
+          ? JSON.parse(await readFile(path.join(fixture, "windows-result.json"), "utf8"))
+          : {};
         if (/^[a-z-]+$/.test(failed.failedStage ?? "")) report.failedStage = failed.failedStage;
+        if (/^[a-z-]+$/.test(failed.failureReason ?? ""))
+          report.failureReason = failed.failureReason;
+        if (/^[A-Za-z0-9_.:,]+$/.test(failed.errorId ?? "")) report.errorId = failed.errorId;
+        if (/^[A-Za-z]+$/.test(failed.failureKind ?? "")) report.failureKind = failed.failureKind;
+        if (Number.isInteger(failed.installerExitCode))
+          report.installerExitCode = failed.installerExitCode;
         if (
           Array.isArray(failed.checks) &&
           failed.checks.every((check) => /^[a-z0-9-]+$/.test(check))
@@ -439,9 +477,12 @@ async function main(platform) {
       if (windows.status !== "passed" || !Array.isArray(windows.checks))
         throw new Error("Native Windows report did not pass");
       checks.push(...windows.checks);
-    } else await macProbe(platform, manifest, output, fixture, legacy, checks);
+    } else await macProbe(platform, manifest, output, fixture, legacy, checks, report);
+    delete report.failedStage;
     report.status = "passed";
-  } catch {
+  } catch (error) {
+    const code = error.code ?? error.cause?.code;
+    if (/^[A-Za-z0-9_-]+$/.test(code ?? "")) report.failureKind = code;
     throw new Error(`Native ${platform} probe failed; uncompleted checks remain unverified`);
   } finally {
     await writeFile(

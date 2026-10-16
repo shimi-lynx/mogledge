@@ -6,6 +6,13 @@ param(
   [Parameter(Mandatory = $true)][string]$ExpectedVersion
 )
 $ErrorActionPreference = 'Stop'
+$stage = 'hosted-source-guard'
+trap {
+  $kind = $_.Exception.GetType().Name
+  $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
+  Write-Output ('MOGLEDGE_PROBE_ERROR=' + (@{ stage = $stage; kind = $kind; errorId = $identifier } | ConvertTo-Json -Compress))
+  exit 1
+}
 # Refuse before reading a profile or registry. This is not a local test helper.
 if ($env:GITHUB_ACTIONS -cne 'true' -or $env:CI -cne 'true' -or
     $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
@@ -17,6 +24,7 @@ if ($env:GITHUB_ACTIONS -cne 'true' -or $env:CI -cne 'true' -or
     $ExpectedVersion -cnotmatch '^0\.\d+\.\d+$' -or $ExpectedVersion -ceq '0.9.1') {
   throw 'Disposable matching approved GitHub-hosted Windows runner required'
 }
+$stage = 'fixture-guard'
 $temporary = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
 $fixture = [IO.Path]::GetFullPath($FixtureRoot)
 $expectedFixture = Join-Path $temporary "mogledge-native-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)-windows-x64"
@@ -24,10 +32,14 @@ if ($fixture -cne $expectedFixture -or -not (Test-Path -LiteralPath $fixture -Pa
     ((Get-Item -LiteralPath $fixture).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
   throw 'An exclusive ordinary runner temporary fixture is required'
 }
+$stage = 'candidate-output-guard'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-if ([IO.Path]::GetFullPath($OutputDirectory) -cne (Join-Path $repo '.tools/distribution/output')) {
+if (-not [StringComparer]::OrdinalIgnoreCase.Equals(
+    [IO.Path]::GetFullPath($OutputDirectory),
+    [IO.Path]::GetFullPath((Join-Path $repo '.tools/distribution/output')))) {
   throw 'Only the current candidate output is accepted'
 }
+$stage = 'candidate-manifest-guard'
 $manifest = Get-Content -LiteralPath (Join-Path $OutputDirectory 'manifest.json') -Raw | ConvertFrom-Json
 $config = Get-Content -LiteralPath (Join-Path $repo 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
 if ($manifest.sourceSha -cne $ExpectedSource -or $manifest.version -cne $ExpectedVersion -or
@@ -40,12 +52,14 @@ if ($manifest.sourceSha -cne $ExpectedSource -or $manifest.version -cne $Expecte
     $manifest.updateArchiveSha256 -cnotmatch '^[a-f0-9]{64}$') {
   throw 'Candidate manifest/configuration mismatch'
 }
+$stage = 'installer-hash-guard'
 $installer = Join-Path $OutputDirectory $manifest.updateArchive
 if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $manifest.updateArchiveSha256 -or
     [IO.Path]::GetFullPath($LegacyInstaller) -cne (Join-Path $fixture 'Mogledge_0.9.1_windows-x64_unsigned_updater_b07f0bab242a-setup.exe') -or
     (Get-FileHash -LiteralPath $LegacyInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne '64e5cce0274d16655ab6f1f263b84739b35fed4ca1e655b006ab78d93c8815ba') {
   throw 'Candidate or pinned legacy installer hash mismatch'
 }
+$stage = 'environment-profile-paths'
 $oldId = 'com.shimilynx.myknowledge'
 $newId = 'com.shimilynx.mogledge'
 $uninstallBase = 'Software\Microsoft\Windows\CurrentVersion\Uninstall'
@@ -56,10 +70,17 @@ if ($env:APPDATA -ine [Environment]::GetFolderPath('ApplicationData') -or
     $env:LOCALAPPDATA -ine [Environment]::GetFolderPath('LocalApplicationData')) {
   throw 'Redirected environment profile roots are not accepted'
 }
+$profileParentIndex = 0
+$hiddenProfileParent = $false
 foreach ($directory in @($env:USERPROFILE, (Join-Path $env:USERPROFILE 'AppData'), $env:APPDATA, $env:LOCALAPPDATA)) {
-  if ((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+  $stage = 'profile-parent-' + @('user', 'appdata', 'roaming', 'local')[$profileParentIndex]
+  # Hidden OS profile directories still require the same alias checks.
+  $metadata = Get-Item -LiteralPath $directory -Force
+  $hiddenProfileParent = $hiddenProfileParent -or (($metadata.Attributes -band [IO.FileAttributes]::Hidden) -ne 0)
+  if ($metadata.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw 'Profile parent must not be an alias'
   }
+  $profileParentIndex++
 }
 $programs = [Environment]::GetFolderPath('Programs')
 $desktop = [Environment]::GetFolderPath('DesktopDirectory')
@@ -70,6 +91,7 @@ foreach ($base in @($env:APPDATA, $env:LOCALAPPDATA)) {
   foreach ($id in @('com.shimilynx.aiwiki', $oldId, $newId)) { $profiles += Join-Path $base $id }
 }
 $checks = [Collections.Generic.List[string]]::new()
+if ($hiddenProfileParent) { $checks.Add('hidden-profile-parent-metadata-read') }
 $stage = 'preflight'
 $ownedProcess = $null
 $ownedStarted = $null
@@ -93,18 +115,38 @@ function Write-OwnedRun([string]$Name, [string]$Value) {
     finally { $key.Dispose() }
   } finally { $base.Dispose() }
 }
-function Assert-NoRegistry([string]$Identity) {
+function Assert-NoRegistry([string]$Identity, [bool]$IncludeInstallPreference = $true) {
   foreach ($hive in @([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryHive]::LocalMachine)) {
     foreach ($view in @([Microsoft.Win32.RegistryView]::Registry64, [Microsoft.Win32.RegistryView]::Registry32)) {
       $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($hive, $view)
       try {
-        foreach ($subkey in @("$uninstallBase\$Identity", "$productBase\$Identity")) {
+        $subkeys = @("$uninstallBase\$Identity")
+        if ($IncludeInstallPreference) { $subkeys += "$productBase\$Identity" }
+        foreach ($subkey in $subkeys) {
           $key = $base.OpenSubKey($subkey)
           if ($key) { $key.Dispose(); throw 'Preexisting formal product registration; probe refused' }
         }
       } finally { $base.Dispose() }
     }
   }
+}
+function Reset-OwnedFreshInstallPreference([string]$Directory) {
+  # Normal NSIS uninstall intentionally retains this preference unless app-data
+  # deletion is requested. Reset only our exact synthetic installation between
+  # independent fixtures; never request deletion of an application profile.
+  $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryView]::Registry64)
+  try {
+    $key = $base.OpenSubKey("$productBase\Mogledge")
+    if (-not $key) { throw 'Owned install preference is absent' }
+    try {
+      if ($key.GetValue('') -cne $Directory -or $key.SubKeyCount -ne 0 -or
+          @($key.GetValueNames() | Where-Object { $_ -cnotin @('', 'Installer Language') }).Count -ne 0 -or
+          ($null -ne $key.GetValue('Installer Language') -and $key.GetValue('Installer Language') -cnotin @('1033', '1041'))) {
+        throw 'Owned install preference identity mismatch'
+      }
+    } finally { $key.Dispose() }
+    $base.DeleteSubKey("$productBase\Mogledge")
+  } finally { $base.Dispose() }
 }
 function Assert-Executable([string]$File) {
   $item = Get-Item -LiteralPath $File
@@ -115,11 +157,13 @@ function Assert-Executable([string]$File) {
   }
 }
 function Invoke-OwnedInstaller([string]$File, [string[]]$Arguments, [bool]$ExpectSuccess = $true) {
+  $script:installerExitCode = $null
   $identity = Get-Item -LiteralPath $File
   $process = Start-Process -FilePath $identity.FullName -ArgumentList $Arguments -PassThru -WindowStyle Hidden
   $started = $process.StartTime.ToUniversalTime()
   try {
     if (-not $process.WaitForExit(120000)) { throw 'Owned installer exceeded its bounded timeout' }
+    $script:installerExitCode = $process.ExitCode
     if (($ExpectSuccess -and $process.ExitCode -ne 0) -or (-not $ExpectSuccess -and $process.ExitCode -eq 0)) {
       throw 'Unexpected owned installer result'
     }
@@ -199,8 +243,10 @@ try {
   $checks.Add('fresh-nsis-install-executable-registry-shortcut-appid')
   $stage = 'owned-fresh-uninstall'
   Invoke-OwnedInstaller (Join-Path $fresh 'uninstall.exe') @('/S', "_?=$fresh")
-  Assert-NoRegistry 'Mogledge'
+  Assert-NoRegistry 'Mogledge' $false
   if (Test-Path -LiteralPath (Join-Path $fresh 'mogledge.exe')) { throw 'Owned fresh uninstall left its executable' }
+  Reset-OwnedFreshInstallPreference $fresh
+  Assert-NoRegistry 'Mogledge'
   $checks.Add('owned-fresh-uninstall')
   $stage = 'pinned-old-install'
   $installed = Join-Path $fixture 'fixed-install'
@@ -302,12 +348,34 @@ try {
   }
   $checks.Add('ordinary-candidate-native-window-current-profile-no-legacy-copy')
   $stage = 'owned-normal-exit'
-  if (-not $ownedProcess.CloseMainWindow() -or -not $ownedProcess.WaitForExit(15000)) { throw 'Owned candidate did not exit normally' }
+  # The native window/database can precede the renderer's session-flush listener.
+  # Retry only normal close within the same 15-second bound, preserving failed
+  # save behavior and the exact owned process identity on every request.
+  for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    $ownedProcess.Refresh()
+    if ($ownedProcess.HasExited) { break }
+    if ($ownedProcess.Path -cne $ownedExecutable -or $ownedProcess.StartTime.ToUniversalTime() -ne $ownedStarted) { throw 'Owned close identity changed' }
+    if (-not $ownedProcess.CloseMainWindow()) { throw 'Owned normal close request was refused' }
+    if ($ownedProcess.WaitForExit(5000)) { break }
+  }
+  if (-not $ownedProcess.HasExited) { throw 'Owned candidate did not exit normally' }
   $checks.Add('owned-normal-window-close')
   @{ status = 'passed'; checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Output 'Disposable Windows Native probe passed'
 } catch {
-  @{ status = 'failed'; failedStage = $stage; checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
+  $reason = switch ($_.Exception.Message) {
+    'Owned installer exceeded its bounded timeout' { 'installer-timeout' }
+    'Unexpected owned installer result' { 'installer-exit' }
+    'Preexisting formal product registration; probe refused' { 'product-registration-present' }
+    'Owned fresh uninstall left its executable' { 'uninstall-executable-present' }
+    'Owned normal close request was refused' { 'window-close-refused' }
+    'Owned candidate did not exit normally' { 'window-close-timeout' }
+    default { 'command-failure' }
+  }
+  $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
+  @{ status = 'failed'; failedStage = $stage; failureReason = $reason; errorId = $identifier;
+    failureKind = $_.Exception.GetType().Name; installerExitCode = $script:installerExitCode;
+    checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Error "Disposable Windows Native probe failed at $stage; remaining checks are unverified"
   exit 1
 } finally {
