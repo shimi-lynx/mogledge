@@ -103,9 +103,6 @@ jobs:
           cache: npm
       - name: Install pinned Rust validation components
         run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
       - run: npm ci
       - run: npm run check
       - run: npm test
