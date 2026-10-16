@@ -673,8 +673,9 @@ pub fn storage_identity(root: &Path, dir: &Dir, relative: &str) -> Result<String
 /// Document grants continue to use the existing root-bound physical identity.
 pub(crate) fn object_identity(root: &Path, dir: &Dir, relative: &str) -> Result<String, String> {
     let relative_path = validate_relative(relative)?;
-    let parent = relative_path.parent().unwrap_or_else(|| Path::new(""));
-    let parent = crate::write_fs::LockedDir::open(dir, &parent.to_string_lossy())?;
+    // LockedDir takes canonical API paths, not Windows PathBuf separators.
+    let parent_relative = relative.rsplit_once('/').map_or("", |(parent, _)| parent);
+    let parent = crate::write_fs::LockedDir::open(dir, parent_relative)?;
     parent.revalidate(
         root,
         &std::sync::Arc::new(dir.try_clone().map_err(|_| "StorageUnavailable")?),

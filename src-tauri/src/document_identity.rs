@@ -175,22 +175,6 @@ fn catalog(core: &Core) -> Result<(Catalog, Option<String>), String> {
     }
     Ok((value, hash))
 }
-#[derive(Clone)]
-pub(crate) struct LegacyRow {
-    pub id: String,
-    pub root: String,
-    pub path: String,
-    pub revision: i64,
-    pub app_count: usize,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Candidate {
-    id: String,
-    revision: i64,
-    app_count: usize,
-    path: String,
-}
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
@@ -198,30 +182,6 @@ pub struct Status {
     uuid: Option<String>,
     can_assign: bool,
     can_share: bool,
-    legacy_candidates: Vec<Candidate>,
-}
-fn candidates(
-    core: &Core,
-    root: &str,
-    path: &str,
-    value: &Catalog,
-) -> Result<Vec<LegacyRow>, String> {
-    let keys: std::collections::HashSet<_> = value
-        .bindings
-        .iter()
-        .map(|b| storage_key(&b.uuid))
-        .collect();
-    let mut rows: Vec<_> = core
-        .document_state
-        .get()
-        .ok_or("StorageUnavailable")?
-        .identity_rows()?
-        .into_iter()
-        .filter(|row| !keys.contains(&row.id) && !value.resolved_legacy.contains(&row.id))
-        .collect();
-    // Locations rank the review list but never authorize data inheritance.
-    rows.sort_by_key(|row| (row.root != root || row.path != path, row.path != path));
-    Ok(rows)
 }
 fn duplicate(core: &Core, value: &Catalog, uuid: &str, object: &str) -> Result<bool, String> {
     if value
@@ -231,14 +191,19 @@ fn duplicate(core: &Core, value: &Catalog, uuid: &str, object: &str) -> Result<b
     {
         return Ok(false);
     }
-    let registered = crate::managed_folders::registered_paths(core)?;
-    let mut conflict = false;
-    let mut shared_lineage = false;
-    for binding in value
+    let mut others = value
         .bindings
         .iter()
         .filter(|b| b.uuid == uuid && b.object != object)
-    {
+        .peekable();
+    // Root verification is needed only when another object claims this UUID.
+    if others.peek().is_none() {
+        return Ok(false);
+    }
+    let registered = crate::managed_folders::registered_paths(core)?;
+    let mut conflict = false;
+    let mut shared_lineage = false;
+    for binding in others {
         if !registered.contains(&binding.root) {
             conflict = true;
             continue;
@@ -262,43 +227,6 @@ fn duplicate(core: &Core, value: &Catalog, uuid: &str, object: &str) -> Result<b
     }
     Ok(conflict && !shared_lineage)
 }
-pub(crate) fn capture_legacy(core: &Core, root: &Path, dir: &Arc<Dir>) -> Result<(), String> {
-    let Some(store) = core.document_state.get() else {
-        return Err("StorageUnavailable".into());
-    };
-    let root_id = knowledge::storage_root_identity(dir).map_err(|_| "StorageUnavailable")?;
-    let (mut value, digest) = catalog(core)?;
-    let mut changed = false;
-    for row in store
-        .identity_rows()?
-        .into_iter()
-        .filter(|row| row.root == root_id)
-    {
-        if knowledge::storage_identity(root, dir, &row.path)
-            .ok()
-            .as_deref()
-            == Some(&row.id)
-        {
-            let object = knowledge::object_identity(root, dir, &row.path)?;
-            if !value
-                .legacy
-                .iter()
-                .any(|p| p.object == object && p.source == row.id)
-            {
-                value.legacy.push(LegacyProof {
-                    object,
-                    source: row.id,
-                });
-                changed = true;
-            }
-        }
-    }
-    if changed {
-        profile_store::write(profile(core)?, CATALOG, digest.as_deref(), &value)?;
-    }
-    Ok(())
-}
-
 /// Called inside Core::gate with source and physical identity from admission.
 pub(crate) fn admit(
     core: &Core,
@@ -318,29 +246,13 @@ pub(crate) fn admit(
     if duplicate(core, &value, &uuid, &object)? {
         return Err("DocumentIdentityDuplicate".into());
     }
-    let root_id = knowledge::storage_root_identity(dir).map_err(|_| "StorageUnavailable")?;
     let store = core.document_state.get().ok_or("StorageUnavailable")?;
+    // Validate the active management files without reading unrelated saved JSON.
+    // Legacy physical records are retained but never inherited during opening.
+    store
+        .verify_management()
+        .map_err(|_| "StorageUnavailable")?;
     let key = storage_key(&uuid);
-    if !store.has_identity(&key)? {
-        let proven: std::collections::HashSet<_> = value
-            .legacy
-            .iter()
-            .filter(|p| p.object == object)
-            .map(|p| p.source.clone())
-            .chain(std::iter::once(physical.into()))
-            .collect();
-        let rows = store.identity_rows()?;
-        let exact: Vec<_> = rows.iter().filter(|r| proven.contains(&r.id)).collect();
-        if exact.len() > 1 {
-            return Err("DocumentLegacyConflict".into());
-        }
-        if let Some(row) = exact.first() {
-            store.copy_identity(&row.id, row.revision, &key, &root_id, path)?;
-            value.resolved_legacy.push(row.id.clone());
-        } else if !candidates(core, &root_id, path, &value)?.is_empty() {
-            return Err("DocumentLegacyConflict".into());
-        }
-    }
     if let Some(binding) = value
         .bindings
         .iter_mut()
@@ -435,46 +347,11 @@ fn current(
 }
 pub fn status(core: &Core, workspace: &str, view: &str, path: &str) -> Result<Status, String> {
     let _gate = core.gate.lock().unwrap();
-    let (root, dir, data, physical) = current(core, workspace, view, path)?;
-    let metadata = parse(std::str::from_utf8(&data).map_err(|_| "UTF-8で保存してください")?);
+    let (root, dir, data, _) = current(core, workspace, view, path)?;
+    let metadata = parse(std::str::from_utf8(&data).map_err(|_| "StorageUnavailable")?);
     let (value, _) = catalog(core)?;
-    let root_id = knowledge::storage_root_identity(&dir).map_err(|_| "StorageUnavailable")?;
-    let legacy_candidates: Vec<_> = candidates(core, &root_id, path, &value)?
-        .into_iter()
-        .map(|row| Candidate {
-            id: format!("{}:{}", row.id, row.revision),
-            revision: row.revision,
-            app_count: row.app_count,
-            path: row.path,
-        })
-        .collect();
     let (status, uuid, can_assign, can_share) = match metadata {
-        Metadata::Missing => {
-            let object = knowledge::object_identity(&root, &dir, path)?;
-            let proven = core
-                .document_state
-                .get()
-                .ok_or("StorageUnavailable")?
-                .identity_rows()?
-                .iter()
-                .any(|row| {
-                    row.id == physical
-                        || value
-                            .legacy
-                            .iter()
-                            .any(|p| p.object == object && p.source == row.id)
-                });
-            (
-                if !proven && !legacy_candidates.is_empty() {
-                    "legacyConflict"
-                } else {
-                    "missing"
-                },
-                None,
-                true,
-                false,
-            )
-        }
+        Metadata::Missing => ("missing", None, true, false),
         Metadata::Invalid => ("invalid", None, false, false),
         Metadata::Uuid(uuid) => {
             let duplicated = duplicate(
@@ -483,22 +360,10 @@ pub fn status(core: &Core, workspace: &str, view: &str, path: &str) -> Result<St
                 &uuid,
                 &knowledge::object_identity(&root, &dir, path)?,
             )?;
-            let has_state = core
-                .document_state
-                .get()
-                .ok_or("StorageUnavailable")?
-                .has_identity(&storage_key(&uuid))?;
-            let legacy_conflict = !has_state && !legacy_candidates.is_empty();
             (
-                if duplicated {
-                    "duplicate"
-                } else if legacy_conflict {
-                    "legacyConflict"
-                } else {
-                    "ready"
-                },
+                if duplicated { "duplicate" } else { "ready" },
                 Some(uuid),
-                duplicated || legacy_conflict,
+                duplicated,
                 duplicated,
             )
         }
@@ -508,10 +373,8 @@ pub fn status(core: &Core, workspace: &str, view: &str, path: &str) -> Result<St
         uuid,
         can_assign,
         can_share,
-        legacy_candidates,
     })
 }
-
 fn edited_source(source: &str, uuid: &str, replace: bool) -> Result<String, String> {
     let tag = format!("<meta name=\"{META}\" content=\"{uuid}\">");
     if !replace {
@@ -572,7 +435,6 @@ pub fn configure(
     view: &str,
     path: &str,
     action: &str,
-    source_identity: Option<&str>,
 ) -> Result<(), String> {
     let _gate = core.gate.lock().unwrap();
     let (root, dir, data, physical) = current(core, workspace, view, path)?;
@@ -582,62 +444,24 @@ pub fn configure(
     let (mut value, digest) = catalog(core)?;
     let root_id = knowledge::storage_root_identity(&dir).map_err(|_| "StorageUnavailable")?;
     let store = core.document_state.get().ok_or("StorageUnavailable")?;
+    store
+        .verify_management()
+        .map_err(|_| "StorageUnavailable")?;
     let uuid = match (&metadata, action) {
-        (Metadata::Missing, "add" | "recover" | "new") => new_uuid(),
+        (Metadata::Missing, "add" | "new") => new_uuid(),
         (Metadata::Uuid(uuid), "share") if duplicate(core, &value, uuid, &object)? => uuid.clone(),
-        (Metadata::Uuid(uuid), "new")
-            if duplicate(core, &value, uuid, &object)?
-                || (!store.has_identity(&storage_key(uuid))?
-                    && !candidates(core, &root_id, path, &value)?.is_empty()) =>
-        {
-            new_uuid()
-        }
-        (Metadata::Uuid(uuid), "recover") => uuid.clone(),
-        _ => return Err("文書の状態が変更されたか、この操作は利用できません".into()),
+        (Metadata::Uuid(uuid), "new") if duplicate(core, &value, uuid, &object)? => new_uuid(),
+        _ => return Err("この操作は利用できません。文書IDを再確認してください".into()),
     };
     let key = storage_key(&uuid);
-    if action == "recover" {
-        let token = source_identity.ok_or("復旧する記録を選択してください")?;
-        let row = candidates(core, &root_id, path, &value)?
-            .into_iter()
-            .find(|r| format!("{}:{}", r.id, r.revision) == token)
-            .ok_or("復旧候補が変更されました。確認し直してください")?;
-        store.copy_identity(&row.id, row.revision, &key, &root_id, path)?;
-        value.resolved_legacy.push(row.id);
-    } else if action == "add" {
-        let proofs: std::collections::HashSet<_> = value
-            .legacy
-            .iter()
-            .filter(|p| p.object == object)
-            .map(|p| p.source.clone())
-            .chain(std::iter::once(physical.clone()))
-            .collect();
-        let rows: Vec<_> = store
-            .identity_rows()?
-            .into_iter()
-            .filter(|r| proofs.contains(&r.id))
-            .collect();
-        if rows.len() > 1
-            || (rows.is_empty() && !candidates(core, &root_id, path, &value)?.is_empty())
-        {
-            return Err("旧保存データがあります。復旧する記録を明示的に選択してください".into());
-        }
-        if let Some(row) = rows.first() {
-            store.copy_identity(&row.id, row.revision, &key, &root_id, path)?;
-            value.resolved_legacy.push(row.id.clone());
-        }
-    }
     if action == "new" {
         store.initialize_identity(&key, &root_id, path)?;
     }
-    if action == "add" || action == "new" || (action == "recover" && metadata == Metadata::Missing)
-    {
+    if action == "add" || action == "new" {
         let output = edited_source(source, &uuid, matches!(metadata, Metadata::Uuid(_)))?;
         let relative = knowledge::validate_relative(path)?;
-        let parent = write_fs::LockedDir::open(
-            &dir,
-            &relative.parent().unwrap_or(Path::new("")).to_string_lossy(),
-        )?;
+        let parent_relative = path.rsplit_once('/').map_or("", |(parent, _)| parent);
+        let parent = write_fs::LockedDir::open(&dir, parent_relative)?;
         let leaf = relative
             .file_name()
             .unwrap()
@@ -795,6 +619,103 @@ mod tests {
         }
     }
     #[test]
+    fn duplicate_opens_registered_roots_only_for_another_object_with_the_same_uuid() {
+        let core = Core::new(19271);
+        // No profile is configured: a registry read would fail. Unrelated UUIDs
+        // and this object's existing binding do not require that I/O.
+        let mut value = Catalog::default();
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings.push(Binding {
+            uuid: new_uuid(),
+            object: "other-object".into(),
+            physical: "synthetic".into(),
+            root: std::env::temp_dir(),
+            path: "synthetic.html".into(),
+            shared: false,
+        });
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings[0].uuid = ID.into();
+        value.bindings[0].object = "current-object".into();
+        assert!(!duplicate(&core, &value, ID, "current-object").unwrap());
+        value.bindings[0].object = "other-object".into();
+        assert!(duplicate(&core, &value, ID, "current-object").is_err());
+    }
+    #[test]
+    #[cfg(windows)]
+    fn nested_windows_object_proof_and_uuid_admission() {
+        let f = Fixture::new();
+        let root = f.folder("synthetic-documents");
+        std::fs::create_dir_all(root.join("資料/二階層")).unwrap();
+        let paths = [
+            "direct.html",
+            "資料/control.html",
+            "資料/二階層/calculator.html",
+        ];
+        for path in paths {
+            std::fs::write(root.join(path), html(&new_uuid())).unwrap();
+        }
+        f.register(&root);
+        let (root, dir) = knowledge::open_root(&root).unwrap();
+        let _gate = f.core.gate.lock().unwrap();
+        for path in paths {
+            knowledge::object_identity(&root, &dir, path).unwrap();
+            let physical = knowledge::storage_identity(&root, &dir, path).unwrap();
+            let source = std::fs::read_to_string(root.join(path)).unwrap();
+            admit(&f.core, &root, &dir, path, &source, &physical).unwrap();
+        }
+    }
+    #[test]
+    fn nested_metadata_add_retains_original_html_backup_and_allows_storage() {
+        let f = Fixture::new();
+        let root = f.folder("synthetic-documents");
+        let relative = "資料/二階層/tool.html";
+        std::fs::create_dir_all(root.join(relative).parent().unwrap()).unwrap();
+        let original =
+            "<!doctype html><html><head><title>人工文書</title></head><body><input></body></html>";
+        std::fs::write(root.join(relative), original).unwrap();
+        f.register(&root);
+        let snapshot = f.select(&root);
+        configure(
+            &f.core,
+            snapshot.workspace_id.as_deref().unwrap(),
+            &snapshot.view_id,
+            relative,
+            "add",
+        )
+        .unwrap();
+        let edited = std::fs::read_to_string(root.join(relative)).unwrap();
+        assert!(matches!(parse(&edited), Metadata::Uuid(_)));
+        let token = f.open(&snapshot, relative);
+        f.write(&token);
+        assert_eq!(f.read(&token).unwrap(), json!({"name":"retained"}));
+        let backups: Vec<_> = std::fs::read_dir(f.profile.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".html"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(backups[0].path()).unwrap(),
+            original
+        );
+    }
+    #[test]
+    #[cfg(windows)]
+    fn external_backslashes_and_escape_paths_stay_rejected() {
+        let root = tempfile::tempdir().unwrap();
+        let (path, dir) = knowledge::open_root(root.path()).unwrap();
+        for relative in [
+            "資料\\二階層\\tool.html",
+            "../tool.html",
+            "/tool.html",
+            "C:/tool.html",
+            "資料/.hidden/tool.html",
+        ] {
+            assert!(knowledge::validate_relative(relative).is_err());
+            assert!(knowledge::object_identity(&path, &dir, relative).is_err());
+        }
+    }
+    #[test]
     fn uuid_parser_ignores_inert_content_and_rejects_bad_or_multiple_ids() {
         let inert = format!(
             "<!--{}--><script>const x='{}'</script><template>{}</template>",
@@ -819,93 +740,123 @@ mod tests {
         assert_eq!(parse(&html(custom)), Metadata::Uuid(custom.into()));
     }
     #[test]
-    fn uncertain_legacy_records_require_recovery_or_explicit_new_without_path_inheritance() {
-        let f = Fixture::new();
-        let root = f.folder("docs");
-        std::fs::write(
-            root.join("uncertain.html"),
-            "<!doctype html><head></head><input>",
-        )
-        .unwrap();
-        std::fs::write(root.join("fresh.html"), html(ID)).unwrap();
-        let database =
-            rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
+    fn selection_and_uuid_status_never_read_retained_rows_regardless_of_count_or_payload() {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+        for (count, payload_bytes) in [(0, 0), (1, 64), (128, 64 * 1024)] {
+            let f = Fixture::new();
+            let root = f.folder("docs");
+            std::fs::write(root.join("fresh.html"), html(ID)).unwrap();
+            let (canonical, dir) = knowledge::open_root(&root).unwrap();
+            let physical = knowledge::storage_identity(&canonical, &dir, "fresh.html").unwrap();
+            let root_id = knowledge::storage_root_identity(&dir).unwrap();
+            let object = knowledge::object_identity(&canonical, &dir, "fresh.html").unwrap();
+            let mut value = Catalog {
+                version: 1,
+                ..Catalog::default()
+            };
+            value.legacy.push(LegacyProof {
+                object,
+                source: physical.clone(),
+            });
+            profile_store::write(profile(&f.core).unwrap(), CATALOG, None, &value).unwrap();
+            let mut database =
+                rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
+                    .unwrap();
+            let tx = database.transaction().unwrap();
+            let payload =
+                json!({"app":{"name":"old retained","padding":"x".repeat(payload_bytes)}})
+                    .to_string();
+            for n in 0..count {
+                tx.execute(
+                    "INSERT INTO documents VALUES(?1,?2,?3,4,?4,'fresh.html',?5)",
+                    rusqlite::params![
+                        if n == 0 {
+                            physical.clone()
+                        } else {
+                            format!("{n:064x}")
+                        },
+                        payload,
+                        payload.len() as i64,
+                        root_id,
+                        (n + 1) as i64
+                    ],
+                )
                 .unwrap();
-        let old = "e".repeat(64);
-        let data = "{\"app\":{\"name\":\"old uncertain\"}}";
-        database
-            .execute(
-                "INSERT INTO documents VALUES(?1,?2,?3,4,?4,'unrelated-old-name.html',1)",
-                rusqlite::params![old, data, data.len() as i64, "d".repeat(64)],
+            }
+            tx.execute(
+                "UPDATE quota SET bytes=?1,documents=?2,generation=?2",
+                rusqlite::params![(payload.len() * count) as i64, count as i64],
             )
             .unwrap();
-        database
-            .execute(
-                "UPDATE quota SET bytes=?1,documents=1,generation=1",
-                [data.len() as i64],
-            )
-            .unwrap();
-        drop(database);
-        f.register(&root);
-        let snapshot = f.select(&root);
-        let ws = snapshot.workspace_id.as_deref().unwrap();
-        let current = status(&f.core, ws, &snapshot.view_id, "uncertain.html").unwrap();
-        assert_eq!(current.status, "legacyConflict");
-        assert!(current.uuid.is_none());
-        assert_eq!(current.legacy_candidates.len(), 1);
-        assert!(configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "add",
-            None
-        )
-        .is_err());
-        configure(&f.core, ws, &snapshot.view_id, "fresh.html", "new", None).unwrap();
-        let fresh = f.open(&snapshot, "fresh.html");
-        assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
-        assert!(configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "recover",
-            Some(&format!("{old}:3"))
-        )
-        .is_err());
-        configure(
-            &f.core,
-            ws,
-            &snapshot.view_id,
-            "uncertain.html",
-            "recover",
-            Some(&current.legacy_candidates[0].id),
-        )
-        .unwrap();
-        let recovered = f.open(&snapshot, "uncertain.html");
-        assert_eq!(f.read(&recovered).unwrap(), json!({"name":"old uncertain"}));
-        assert!(f
-            .core
-            .document_state
-            .get()
-            .unwrap()
-            .has_identity(&old)
-            .unwrap());
-        let key = f
-            .core
-            .session_for_token(&fresh)
-            .unwrap()
-            .logical_storage_identity
-            .unwrap();
-        assert!(f
-            .core
-            .document_state
-            .get()
-            .unwrap()
-            .copy_identity(&old, 4, &key, "f", "fresh.html")
-            .is_err());
-        assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
+            tx.commit().unwrap();
+            let store = f.core.document_state.get().unwrap();
+            // Denying reads proves selection/status/open do no saved-row query;
+            // this remains deterministic even for many large retained payloads.
+            store
+                .management_connection(|connection, _, _, _| {
+                    connection
+                        .authorizer(Some(|context: AuthContext<'_>| match context.action {
+                            AuthAction::Read {
+                                table_name: "documents" | "recovery_records",
+                                ..
+                            } => Authorization::Deny,
+                            _ => Authorization::Allow,
+                        }))
+                        .unwrap();
+                    Ok(())
+                })
+                .unwrap();
+            f.register(&root);
+            let snapshot = f.select(&root);
+            let ws = snapshot.workspace_id.as_deref().unwrap();
+            assert_eq!(
+                status(&f.core, ws, &snapshot.view_id, "fresh.html")
+                    .unwrap()
+                    .status,
+                "ready"
+            );
+            let token = f.open(&snapshot, "fresh.html");
+            let session = f.core.session_for_token(&token).unwrap();
+            assert!(session.storage_hold.is_none());
+            assert_eq!(
+                session.logical_storage_identity.as_deref(),
+                Some(storage_key(ID).as_str())
+            );
+            store
+                .management_connection(|connection, _, _, _| {
+                    connection
+                        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)
+                        .unwrap();
+                    Ok(())
+                })
+                .unwrap();
+            assert!(f.read(&token).unwrap().is_null());
+            f.write(&token);
+            let reloaded = f.open(&snapshot, "fresh.html");
+            assert_eq!(f.read(&reloaded).unwrap(), json!({"name":"retained"}));
+            assert_eq!(
+                std::fs::read_to_string(root.join("fresh.html")).unwrap(),
+                html(ID)
+            );
+            let retained: (i64, i64) = database
+                .query_row(
+                    "SELECT COUNT(*),COALESCE(SUM(length(data)),0) FROM documents WHERE id<>?1",
+                    [storage_key(ID)],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(retained, (count as i64, (payload.len() * count) as i64));
+            if count > 0 {
+                let old: (String, i64) = database
+                    .query_row(
+                        "SELECT data,revision FROM documents WHERE id=?1",
+                        [physical],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .unwrap();
+                assert_eq!(old, (payload, 4));
+            }
+        }
     }
     #[cfg(windows)]
     #[test]
@@ -927,8 +878,7 @@ mod tests {
             snapshot.workspace_id.as_deref().unwrap(),
             &snapshot.view_id,
             "a.html",
-            "add",
-            None
+            "add"
         )
         .is_err());
         drop(lock);
@@ -1036,7 +986,7 @@ mod tests {
                 .status,
             "duplicate"
         );
-        configure(&f.core, ws, &snapshot.view_id, "b.html", "share", None).unwrap();
+        configure(&f.core, ws, &snapshot.view_id, "b.html", "share").unwrap();
         assert!(f.read(&b).is_err());
         let shared = f.open(&snapshot, "b.html");
         assert_eq!(f.read(&shared).unwrap(), json!({"name":"retained"}));
@@ -1044,7 +994,7 @@ mod tests {
         assert!(f.read(&a).is_ok());
         std::fs::write(root.join("c.html"), html(ID)).unwrap();
         f.core.apply_change(ws, vec!["c.html".into()], true, None);
-        configure(&f.core, ws, &snapshot.view_id, "c.html", "new", None).unwrap();
+        configure(&f.core, ws, &snapshot.view_id, "c.html", "new").unwrap();
         let fresh = f.open(&snapshot, "c.html");
         assert_eq!(f.read(&fresh).unwrap(), serde_json::Value::Null);
         std::fs::write(root.join("b.html"), html(&new_uuid())).unwrap();
@@ -1052,21 +1002,19 @@ mod tests {
         assert_eq!(f.read(&a).unwrap(), json!({"name":"retained"}));
     }
     #[test]
-    fn explicit_add_migrates_proven_legacy_data_and_retains_original_row_and_html_backup() {
+    fn explicit_id_addition_preserves_old_rows_without_inheritance_and_backs_up_html() {
         let f = Fixture::new();
-        let one = f.folder("one");
-        let two = f.folder("two");
+        let root = f.folder("docs");
         let original =
-            "<!doctype html><html><head><title>旧文書</title></head><body><input></body></html>";
-        std::fs::write(one.join("legacy.html"), original).unwrap();
-        let (canonical, dir) = knowledge::open_root(&one).unwrap();
+            "<!doctype html><html><head><title>旧形式</title></head><body><input></body></html>";
+        std::fs::write(root.join("legacy.html"), original).unwrap();
+        let (canonical, dir) = knowledge::open_root(&root).unwrap();
         let old = knowledge::storage_identity(&canonical, &dir, "legacy.html").unwrap();
         let root_id = knowledge::storage_root_identity(&dir).unwrap();
-        drop(dir);
         let database =
             rusqlite::Connection::open(f.profile.path().join("document-state/state.sqlite"))
                 .unwrap();
-        let data = "{\"app\":{\"name\":\"retained\"}}";
+        let data = "{\"app\":{\"name\":\"old retained\"}}";
         database
             .execute(
                 "INSERT INTO documents VALUES(?1,?2,?3,1,?4,'legacy.html',1)",
@@ -1079,28 +1027,32 @@ mod tests {
                 [data.len() as i64],
             )
             .unwrap();
-        drop(database);
-        f.register(&one);
-        f.register(&two);
-        std::fs::rename(one.join("legacy.html"), two.join("legacy.html")).unwrap();
-        let snapshot = f.select(&two);
+        f.register(&root);
+        let snapshot = f.select(&root);
         let ws = snapshot.workspace_id.as_deref().unwrap();
-        let denied = f.open(&snapshot, "legacy.html");
-        assert!(f.read(&denied).is_err());
-        configure(&f.core, ws, &snapshot.view_id, "legacy.html", "add", None).unwrap();
+        assert_eq!(
+            status(&f.core, ws, &snapshot.view_id, "legacy.html")
+                .unwrap()
+                .status,
+            "missing"
+        );
+        configure(&f.core, ws, &snapshot.view_id, "legacy.html", "add").unwrap();
         let token = f.open(&snapshot, "legacy.html");
+        assert!(f.read(&token).unwrap().is_null());
+        f.write(&token);
         assert_eq!(f.read(&token).unwrap(), json!({"name":"retained"}));
-        assert!(f
-            .core
-            .document_state
-            .get()
-            .unwrap()
-            .has_identity(&old)
-            .unwrap());
+        let retained: (String, i64) = database
+            .query_row(
+                "SELECT data,revision FROM documents WHERE id=?1",
+                [old],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(retained, (data.into(), 1));
         let backups: Vec<_> = std::fs::read_dir(f.profile.path())
             .unwrap()
             .filter_map(Result::ok)
-            .filter(|e| e.file_name().to_string_lossy().ends_with(".html"))
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".html"))
             .collect();
         assert_eq!(backups.len(), 1);
         assert_eq!(

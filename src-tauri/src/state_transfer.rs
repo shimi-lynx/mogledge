@@ -133,8 +133,9 @@ enum Action {
         input_hash: String,
         relative_path: String,
         target_identity: String,
+        target_physical_identity: String,
         target_revision: i64,
-        backup: Option<files::Location>,
+        backup: Option<Box<files::Location>>,
     },
 }
 struct Session {
@@ -356,6 +357,13 @@ impl Session {
                 backup_path,
             } => {
                 self.target(&relative_path, Some(&target_identity))?;
+                let target_physical_identity = self
+                    .offline
+                    .root
+                    .as_ref()
+                    .ok_or_else(|| failure("source_unavailable_hold"))?
+                    .identity_at(&relative_path)
+                    .map_err(|_| failure("target_identity_changed"))?;
                 let input = files::Location::open(&file_path, &self.profile)?;
                 let (bytes, input_identity) = input.read(&mut self.input_files)?;
                 let transfer = format::parse(&bytes).map_err(format_error)?;
@@ -371,7 +379,7 @@ impl Session {
                         &self.profile,
                     )?;
                     location.absent()?;
-                    (Some(location), schemas(&previous.file.apps))
+                    (Some(Box::new(location)), schemas(&previous.file.apps))
                 } else {
                     if backup_path.is_some() {
                         return Err(failure("backup_not_needed"));
@@ -396,6 +404,7 @@ impl Session {
                         ),
                         relative_path,
                         target_identity,
+                        target_physical_identity,
                         target_revision: revision,
                         backup,
                     },
@@ -475,6 +484,7 @@ impl Session {
                 input_hash,
                 relative_path,
                 target_identity,
+                target_physical_identity,
                 target_revision,
                 backup,
             } => {
@@ -488,6 +498,16 @@ impl Session {
                 }
                 let incoming = format::parse(&bytes).map_err(format_error)?;
                 self.target(relative_path, Some(target_identity))?;
+                if self
+                    .offline
+                    .root
+                    .as_ref()
+                    .and_then(|root| root.identity_at(relative_path).ok())
+                    .as_deref()
+                    != Some(target_physical_identity)
+                {
+                    return Err(failure("target_identity_changed"));
+                }
                 let old = self.record(target_identity)?;
                 if old.as_ref().map_or(0, |r| r.revision) != *target_revision {
                     return Err(failure("state_changed"));
@@ -517,6 +537,7 @@ impl Session {
                 let result = self.apply_import(
                     &pending,
                     target_identity,
+                    target_physical_identity,
                     relative_path,
                     old.as_ref(),
                     &incoming,
@@ -543,6 +564,7 @@ impl Session {
         &mut self,
         pending: &Pending,
         id: &str,
+        physical: &str,
         path: &str,
         old: Option<&StateRecord>,
         incoming: &format::ValidatedTransfer,
@@ -596,7 +618,11 @@ impl Session {
                     params![bytes, count, generation],
                 )
                 .map_err(sql_error)?;
-            if root.identity_at(path).ok().as_deref() != Some(id) {
+            // UUID selects the DB namespace; physical proof binds this plan to
+            // the file previewed by the user, even after a same-UUID replacement.
+            if root.storage_identity_at(path).ok().as_deref() != Some(id)
+                || root.identity_at(path).ok().as_deref() != Some(physical)
+            {
                 return Err(failure("target_identity_changed"));
             }
             let version: i64 = transaction

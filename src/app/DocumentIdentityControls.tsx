@@ -8,8 +8,6 @@ export const documentIdentityHoldMessages: Readonly<Record<string, string>> = {
   DocumentIdentityInvalid: "文書 ID が不正または複数あります。HTML の文書 ID を修正してください。",
   DocumentIdentityDuplicate:
     "同じ文書 ID の HTML があります。保存データを共有するか、別の文書として扱うか選んでください。",
-  DocumentLegacyConflict:
-    "旧保存データとの対応を確定できません。引き継ぐデータを選ぶか、新しい ID で別の文書として開始してください。",
 };
 
 export function DocumentIdentityControls({
@@ -28,7 +26,6 @@ export function DocumentIdentityControls({
   const t = useT();
   const language = useLanguage();
   const [status, setStatus] = useState<DocumentIdentityStatus | null>(null);
-  const [sourceIdentity, setSourceIdentity] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const pending = useRef(false);
@@ -56,13 +53,7 @@ export function DocumentIdentityControls({
   const configure = (action: DocumentIdentityAction) =>
     void run(async () => {
       if (!api.configureDocumentIdentity) throw new Error("文書 ID を設定できません");
-      await api.configureDocumentIdentity(
-        workspaceId,
-        viewId,
-        relativePath,
-        action,
-        action === "recover" ? sourceIdentity : undefined,
-      );
+      await api.configureDocumentIdentity(workspaceId, viewId, relativePath, action);
       if (!mounted.current) return;
       setStatus(null);
       await onConfigured();
@@ -77,7 +68,6 @@ export function DocumentIdentityControls({
             const next = await api.getDocumentIdentityStatus!(workspaceId, viewId, relativePath);
             if (mounted.current) {
               setStatus(next);
-              setSourceIdentity("");
             }
           })
         }
@@ -100,7 +90,6 @@ export function DocumentIdentityControls({
                       missing: "DocumentIdentityMissing",
                       invalid: "DocumentIdentityInvalid",
                       duplicate: "DocumentIdentityDuplicate",
-                      legacyConflict: "DocumentLegacyConflict",
                     }[status.status]
                   ]!,
             )}
@@ -112,51 +101,20 @@ export function DocumentIdentityControls({
               )}
             </p>
           )}
-          {status.status === "legacyConflict" && (
-            <label>
-              {t("引き継ぐ保存データ")}
-              <select
-                disabled={busy}
-                value={sourceIdentity}
-                onChange={(event) => setSourceIdentity(event.target.value)}
-              >
-                <option value="">{t("候補を選択してください")}</option>
-                {status.legacyCandidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.path} / {candidate.id} /{" "}
-                    {t("版 {revision}・{count} 件", {
-                      revision: candidate.revision,
-                      count: candidate.appCount,
-                    })}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <div className="document-identity-actions">
             {status.status === "missing" && status.canAssign && (
               <button type="button" disabled={busy} onClick={() => configure("add")}>
                 {t("HTML に文書 ID を追加")}
               </button>
             )}
-            {(status.status === "duplicate" || status.status === "legacyConflict") &&
-              status.canAssign && (
-                <button type="button" disabled={busy} onClick={() => configure("new")}>
-                  {t("新しい ID で別の文書にする")}
-                </button>
-              )}
+            {status.status === "duplicate" && status.canAssign && (
+              <button type="button" disabled={busy} onClick={() => configure("new")}>
+                {t("新しい ID で別の文書にする")}
+              </button>
+            )}
             {status.status === "duplicate" && status.canShare && (
               <button type="button" disabled={busy} onClick={() => configure("share")}>
                 {t("同じ ID の保存データを共有")}
-              </button>
-            )}
-            {status.status === "legacyConflict" && (
-              <button
-                type="button"
-                disabled={busy || !sourceIdentity}
-                onClick={() => configure("recover")}
-              >
-                {t("選んだ保存データを引き継ぐ")}
               </button>
             )}
             {status.status === "ready" && (

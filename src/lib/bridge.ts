@@ -30,13 +30,12 @@ export const bridge: Bridge = {
     invoke("unregister_managed_folder", { id, expectedRevision }),
   getDocumentIdentityStatus: (workspaceId, viewId, relativePath) =>
     invoke("get_document_identity_status", { workspaceId, viewId, relativePath }),
-  configureDocumentIdentity: (workspaceId, viewId, relativePath, action, sourceIdentity) =>
+  configureDocumentIdentity: (workspaceId, viewId, relativePath, action) =>
     invoke("configure_document_identity", {
       workspaceId,
       viewId,
       relativePath,
       action,
-      ...(sourceIdentity === undefined ? {} : { sourceIdentity }),
     }),
   chooseStateTransferFile: (context, kind) =>
     invoke("choose_state_transfer_file", { context, kind }),

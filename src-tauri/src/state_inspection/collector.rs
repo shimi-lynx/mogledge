@@ -75,7 +75,7 @@ impl ConnectedRoot {
     /// all ordinary ancestors. Cloud/reparse uncertainty is an unavailable result.
     pub fn identity_at(&self, relative: &str) -> Result<String, ()> {
         let relative_path = knowledge::validate_relative(relative).map_err(|_| ())?;
-        let parent = relative_path.parent().and_then(|p| p.to_str()).ok_or(())?;
+        let parent = relative.rsplit_once('/').map_or("", |(parent, _)| parent);
         let guard = LockedDir::open(&self.dir, parent).map_err(|_| ())?;
         let leaf = relative_path
             .file_name()

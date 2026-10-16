@@ -56,18 +56,12 @@ export const managedFolderMessages: Readonly<Record<string, string>> = {
     "The document ID is invalid or occurs more than once. Correct the ID in the HTML.",
   "同じ文書 ID の HTML があります。保存データを共有するか、別の文書として扱うか選んでください。":
     "Another HTML file has the same document ID. Choose whether to share saved data or treat this as a separate document.",
-  "旧保存データとの対応を確定できません。引き継ぐデータを選ぶか、新しい ID で別の文書として開始してください。":
-    "The association with legacy saved data could not be confirmed. Choose data to recover or use a new ID to start a separate document.",
   "文書 ID を確認できました。再読み込みで保存データの利用を再開します。":
     "The document ID is ready. Reload the document to resume using saved data.",
   "以下の操作は HTML を書き換えます。新しい ID は別の保存データを使い、共有は同じ ID の保存データを使います。":
     "These actions modify the HTML. A new ID uses separate saved data; sharing uses the data belonging to the same ID.",
-  引き継ぐ保存データ: "Saved data to recover",
-  候補を選択してください: "Choose a record",
-  "版 {revision}・{count} 件": "Revision {revision}, {count} apps",
   "HTML に文書 ID を追加": "Add a document ID to HTML",
   "新しい ID で別の文書にする": "Use a new ID for a separate document",
   "同じ ID の保存データを共有": "Share saved data with the same ID",
-  選んだ保存データを引き継ぐ: "Recover the selected saved data",
   文書を再読み込み: "Reload document",
 };

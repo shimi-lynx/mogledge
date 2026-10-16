@@ -126,6 +126,188 @@ fn private(value: &Value, fixture: &Fixture) {
     }
 }
 
+fn prepared_uuid_import(relative: &str) -> (Fixture, Session, Value, String, PathBuf) {
+    let mut f = Fixture::new();
+    f.source = json!({"app":{"schemaVersion":1,"data":{"amount":13.5,"mode":"square","enabled":true,"selections":["alpha","beta"],"checks":[true,false],"nested":{"bonus":-2,"note":"人工入力"}}},"aux":{"schemaVersion":2,"data":{"values":[1,3,5],"optional":null}}}).to_string();
+    let connection =
+        rusqlite::Connection::open(f.profile.join("document-state/state.sqlite")).unwrap();
+    connection
+        .execute(
+            "UPDATE documents SET data=?1,bytes=?2,revision=77,generation=77 WHERE id=?3",
+            params![f.source, f.source.len() as i64, f.source_id],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE quota SET bytes=?1,generation=77",
+            [(f.source.len() + f.target.len()) as i64],
+        )
+        .unwrap();
+    drop(connection);
+    let mut legacy = f.session();
+    let input = f.export(&mut legacy);
+    drop(legacy);
+    let uuid = "33c45d90-a60e-40d1-bd71-3c6efaf11770";
+    fs::create_dir_all(f.root.join(relative).parent().unwrap()).unwrap();
+    fs::write(
+        f.root.join(relative),
+        format!("<!doctype html><meta name=\"mogledge-document-id\" content=\"{uuid}\"><input>"),
+    )
+    .unwrap();
+    let (root, dir) = knowledge::open_root(&f.root).unwrap();
+    crate::html_authoring::install_managed_marker(root, dir, &json!({"version":1,"kind":"mogledge-managed-folder","id":"1746e10a-3842-420c-af0b-f1cce908a26b"})).unwrap();
+    let mut session = f.session();
+    let target = session.target(relative, None).unwrap();
+    assert_eq!(target, crate::document_identity::storage_key(uuid));
+    assert_ne!(
+        target,
+        session
+            .offline
+            .root
+            .as_ref()
+            .unwrap()
+            .identity_at(relative)
+            .unwrap()
+    );
+    let preview = session
+        .prepare(Command::PrepareImport {
+            file_path: input.clone(),
+            relative_path: relative.into(),
+            target_identity: target.clone(),
+            snapshot_id: session.snapshot().unwrap().snapshot_id,
+            backup_path: None,
+        })
+        .unwrap();
+    assert_eq!(preview["replacesExisting"], false);
+    (f, session, preview, target, input)
+}
+
+#[test]
+fn uuid_import_preserves_complete_input_and_original_rows_after_restart() {
+    for relative in ["target.html", "資料/二階層/tool.html"] {
+        let (f, mut session, preview, target, input) = prepared_uuid_import(relative);
+        let original_html = fs::read(f.root.join(relative)).unwrap();
+        let id = preview["planId"].as_str().unwrap();
+        let receipt = session.confirm(id, id, None).unwrap();
+        assert_eq!(receipt["revision"], 1);
+        assert_eq!(data(&session, &target), (f.source.clone(), 1));
+        assert_eq!(data(&session, &f.source_id), (f.source.clone(), 77));
+        assert_eq!(data(&session, &f.target_id), (f.target.clone(), 7));
+        let verified = session
+            .execute(Command::VerifyImport {
+                file_path: input,
+                relative_path: relative.into(),
+                target_identity: target.clone(),
+            })
+            .unwrap()
+            .unwrap();
+        assert_eq!(verified["matches"], true);
+        drop(session);
+        let restarted = f.session();
+        assert_eq!(restarted.target(relative, None).unwrap(), target);
+        assert_eq!(data(&restarted, &target), (f.source.clone(), 1));
+        assert_eq!(fs::read(f.root.join(relative)).unwrap(), original_html);
+    }
+}
+
+#[test]
+fn uuid_import_rejects_changed_uuid_and_same_uuid_physical_replacement() {
+    let relative = "資料/二階層/tool.html";
+    for replace_file in [false, true] {
+        let (f, mut session, preview, target, _) = prepared_uuid_import(relative);
+        let before = session.offline.store.database_snapshot();
+        let old_physical = session
+            .offline
+            .root
+            .as_ref()
+            .unwrap()
+            .identity_at(relative)
+            .unwrap();
+        let source = fs::read_to_string(f.root.join(relative)).unwrap();
+        if replace_file {
+            fs::rename(f.root.join(relative), f.root.join("retained-target.html")).unwrap();
+            fs::write(f.root.join(relative), source).unwrap();
+            assert_eq!(session.target(relative, None).unwrap(), target);
+            assert_ne!(
+                session
+                    .offline
+                    .root
+                    .as_ref()
+                    .unwrap()
+                    .identity_at(relative)
+                    .unwrap(),
+                old_physical
+            );
+        } else {
+            fs::write(
+                f.root.join(relative),
+                source.replace(
+                    "33c45d90-a60e-40d1-bd71-3c6efaf11770",
+                    "72edf850-cf44-4e79-bbfe-10292145f05b",
+                ),
+            )
+            .unwrap();
+            assert_eq!(
+                session
+                    .offline
+                    .root
+                    .as_ref()
+                    .unwrap()
+                    .identity_at(relative)
+                    .unwrap(),
+                old_physical
+            );
+        }
+        let id = preview["planId"].as_str().unwrap();
+        assert_eq!(
+            session.confirm(id, id, None).unwrap_err().code,
+            "target_identity_changed"
+        );
+        assert_eq!(session.offline.store.database_snapshot(), before);
+        assert!(session.record(&target).unwrap().is_none());
+        assert_eq!(data(&session, &f.source_id), (f.source.clone(), 77));
+        assert_eq!(data(&session, &f.target_id), (f.target.clone(), 7));
+    }
+}
+
+#[test]
+fn uuid_import_final_physical_recheck_rolls_back_unchanged_namespace() {
+    let relative = "資料/二階層/tool.html";
+    let (f, mut session, preview, target, input) = prepared_uuid_import(relative);
+    let before = session.offline.store.database_snapshot();
+    let id = preview["planId"].as_str().unwrap();
+    let pending = session.plans.remove(id).unwrap();
+    let physical = match &pending.action {
+        Action::Import {
+            target_physical_identity,
+            ..
+        } => target_physical_identity.clone(),
+        _ => unreachable!(),
+    };
+    let source = fs::read(f.root.join(relative)).unwrap();
+    fs::rename(f.root.join(relative), f.root.join("retained-target.html")).unwrap();
+    fs::write(f.root.join(relative), source).unwrap();
+    assert_eq!(session.target(relative, None).unwrap(), target);
+    let incoming = format::parse(&fs::read(input).unwrap()).unwrap();
+    session
+        .offline
+        .store
+        .connection
+        .execute_batch("PRAGMA query_only=OFF;")
+        .unwrap();
+    let result = session.apply_import(&pending, &target, &physical, relative, None, &incoming);
+    session
+        .offline
+        .store
+        .connection
+        .execute_batch("PRAGMA query_only=ON;")
+        .unwrap();
+    assert_eq!(result.unwrap_err().code, "target_identity_changed");
+    assert_eq!(session.offline.store.database_snapshot(), before);
+    assert!(session.record(&target).unwrap().is_none());
+    assert_eq!(data(&session, &f.source_id), (f.source.clone(), 77));
+}
+
 #[test]
 fn configured_document_limit_is_used_by_cli_import_and_restart_validation() {
     let f = Fixture::new();
@@ -578,7 +760,14 @@ fn interruption_and_expired_publish_leave_state_and_destination_unchanged() {
         )
         .unwrap();
     assert!(s
-        .apply_import(&pending, &f.target_id, "target.html", Some(&old), &incoming)
+        .apply_import(
+            &pending,
+            &f.target_id,
+            &f.target_id,
+            "target.html",
+            Some(&old),
+            &incoming
+        )
         .is_err());
     assert!(s.offline.store.connection.is_autocommit());
     s.offline
@@ -653,9 +842,16 @@ fn interrupted_import_begin_preserves_state_and_allows_next_command() {
             )
             .unwrap();
         assert_eq!(
-            s.apply_import(&pending, &f.target_id, "target.html", Some(&old), &incoming)
-                .unwrap_err()
-                .code,
+            s.apply_import(
+                &pending,
+                &f.target_id,
+                &f.target_id,
+                "target.html",
+                Some(&old),
+                &incoming
+            )
+            .unwrap_err()
+            .code,
             "operation_interrupted"
         );
         let connection = &s.offline.store.connection;
