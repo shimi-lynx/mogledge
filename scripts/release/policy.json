@@ -79,15 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.10.1",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38924844884,
+    "verification_tooling_sha": "3f35406980f82d47ae536557fe7321c4dde9bc8f",
+    "artifact_id": 12056167290,
+    "artifact_size": 149256456,
+    "artifact_sha256": "32161c082465a0abc3a651c8a410587b5099c29a40c8e7c37288673b6da6c037",
+    "artifact_name": "production-verified-0.10.1-38924844884-1",
+    "expires_at": "2026-10-19T15:33:56Z",
     "notes": "Fix folder action widths, show Mac document-find counts and visible highlights, and defer document-ID guidance until a Native storage operation is attempted. Clarify dedicated folders and local AI authoring guides. Existing storage protection and the Mogledge identifier/profile are unchanged. When updating from the old My Knowledge identity, preserve old profiles and disable old Mac login startup before replacing the app; explicitly enable it afterward if wanted. Windows is not Authenticode-signed; macOS uses ad-hoc signing without Developer ID or notarization. Physical Mac find/accessibility and existing-device updater UI/login/permission QA remain separately tracked."
   }
 }
