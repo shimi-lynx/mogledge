@@ -71,10 +71,17 @@ if ($env:APPDATA -ine [Environment]::GetFolderPath('ApplicationData') -or
     $env:LOCALAPPDATA -ine [Environment]::GetFolderPath('LocalApplicationData')) {
   throw 'Redirected environment profile roots are not accepted'
 }
+$profileParentIndex = 0
+$hiddenProfileParent = $false
 foreach ($directory in @($env:USERPROFILE, (Join-Path $env:USERPROFILE 'AppData'), $env:APPDATA, $env:LOCALAPPDATA)) {
-  if ((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+  $stage = 'profile-parent-' + @('user', 'appdata', 'roaming', 'local')[$profileParentIndex]
+  # Hidden OS profile directories still require the same alias checks.
+  $metadata = Get-Item -LiteralPath $directory -Force
+  $hiddenProfileParent = $hiddenProfileParent -or (($metadata.Attributes -band [IO.FileAttributes]::Hidden) -ne 0)
+  if ($metadata.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw 'Profile parent must not be an alias'
   }
+  $profileParentIndex++
 }
 $programs = [Environment]::GetFolderPath('Programs')
 $desktop = [Environment]::GetFolderPath('DesktopDirectory')
@@ -85,6 +92,7 @@ foreach ($base in @($env:APPDATA, $env:LOCALAPPDATA)) {
   foreach ($id in @('com.shimilynx.aiwiki', $oldId, $newId)) { $profiles += Join-Path $base $id }
 }
 $checks = [Collections.Generic.List[string]]::new()
+if ($hiddenProfileParent) { $checks.Add('hidden-profile-parent-metadata-read') }
 $stage = 'preflight'
 $ownedProcess = $null
 $ownedStarted = $null

@@ -213,7 +213,7 @@ function macProcess(pid) {
 }
 
 function hasMacWindow(pid) {
-  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap($.CGWindowListCopyWindowInfo(1,0));
+  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1,0)));
     JSON.stringify(windows.some(w=>w.kCGWindowOwnerPID===${pid} && w.kCGWindowLayer===0 &&
       w.kCGWindowBounds.Width>=400 && w.kCGWindowBounds.Height>=250));`;
   return command("/usr/bin/osascript", ["-l", "JavaScript", "-e", script]) === "true";
