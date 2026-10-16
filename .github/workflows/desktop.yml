@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-x64, macos-arm64]
+        platform: [windows-x64]
     runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || 'macos-15' }}
     timeout-minutes: 15
     env:

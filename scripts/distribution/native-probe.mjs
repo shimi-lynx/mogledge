@@ -470,6 +470,12 @@ async function main(platform) {
           ? JSON.parse(await readFile(path.join(fixture, "windows-result.json"), "utf8"))
           : {};
         if (/^[a-z-]+$/.test(failed.failedStage ?? "")) report.failedStage = failed.failedStage;
+        if (/^[a-z-]+$/.test(failed.failureReason ?? ""))
+          report.failureReason = failed.failureReason;
+        if (/^[A-Za-z0-9_.:,]+$/.test(failed.errorId ?? "")) report.errorId = failed.errorId;
+        if (/^[A-Za-z]+$/.test(failed.failureKind ?? "")) report.failureKind = failed.failureKind;
+        if (Number.isInteger(failed.installerExitCode))
+          report.installerExitCode = failed.installerExitCode;
         if (
           Array.isArray(failed.checks) &&
           failed.checks.every((check) => /^[a-z0-9-]+$/.test(check))

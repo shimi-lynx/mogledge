@@ -138,11 +138,13 @@ function Assert-Executable([string]$File) {
   }
 }
 function Invoke-OwnedInstaller([string]$File, [string[]]$Arguments, [bool]$ExpectSuccess = $true) {
+  $script:installerExitCode = $null
   $identity = Get-Item -LiteralPath $File
   $process = Start-Process -FilePath $identity.FullName -ArgumentList $Arguments -PassThru -WindowStyle Hidden
   $started = $process.StartTime.ToUniversalTime()
   try {
     if (-not $process.WaitForExit(120000)) { throw 'Owned installer exceeded its bounded timeout' }
+    $script:installerExitCode = $process.ExitCode
     if (($ExpectSuccess -and $process.ExitCode -ne 0) -or (-not $ExpectSuccess -and $process.ExitCode -eq 0)) {
       throw 'Unexpected owned installer result'
     }
@@ -330,7 +332,17 @@ try {
   @{ status = 'passed'; checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Output 'Disposable Windows Native probe passed'
 } catch {
-  @{ status = 'failed'; failedStage = $stage; checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
+  $reason = switch ($_.Exception.Message) {
+    'Owned installer exceeded its bounded timeout' { 'installer-timeout' }
+    'Unexpected owned installer result' { 'installer-exit' }
+    'Preexisting formal product registration; probe refused' { 'product-registration-present' }
+    'Owned fresh uninstall left its executable' { 'uninstall-executable-present' }
+    default { 'command-failure' }
+  }
+  $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
+  @{ status = 'failed'; failedStage = $stage; failureReason = $reason; errorId = $identifier;
+    failureKind = $_.Exception.GetType().Name; installerExitCode = $script:installerExitCode;
+    checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Error "Disposable Windows Native probe failed at $stage; remaining checks are unverified"
   exit 1
 } finally {
