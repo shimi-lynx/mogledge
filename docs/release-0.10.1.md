@@ -35,3 +35,11 @@ The Windows executable and NSIS both report FileVersion and ProductVersion `0.10
 These are bounded disposable-runner packaging checks. Existing-device updater UI/signature handoff, login-session, physical keys, accessibility and OS permission acceptance remain separate. No local installed app/profile was accessed by candidate inspection.
 
 Signing pins only these reviewed candidates and the existing protected-main gate. Publication remains disabled until separately verified signature-output pins are reviewed. This policy/evidence activation does not change the fixed binary source. Historical 0.10.0 and earlier release records remain unchanged.
+
+## Verified 0.10.1 signing and publication activation
+
+[Signing run 38924844884](https://github.com/shimi-lynx/mogledge/actions/runs/38924844884), attempt 1, passed preparation, protected signing and separate Secrets-free public-key verification from main `3f35406980f82d47ae536557fe7321c4dde9bc8f`. All three updater signatures and signed product version 0.10.1 passed. No key/password was retrieved or displayed.
+
+The reviewed verification artifact is `12056167290`, 149256456 bytes, SHA-256 `32161c082465a0abc3a651c8a410587b5099c29a40c8e7c37288673b6da6c037`, name `production-verified-0.10.1-38924844884-1`, expiring `2026-10-19T15:33:56Z`. The successful same-source/same-artifact signature verification is reused; publication independently revalidates the complete artifact, receipt, feed and signatures before writing.
+
+Only these verified-output pins enable publication. Binary source remains `19f8d035d19838d04574f6a8081a4374b77bdc1c`; candidate pins, public key/feed, protected-main gate, previous releases and workflow files are unchanged. This policy/evidence-only change requires no product bump, rebuild or re-signing. Public Release/tag/asset/latest readback remains pending at activation. Existing-device updater, login-session, permission and physical-key acceptance remains separate.
