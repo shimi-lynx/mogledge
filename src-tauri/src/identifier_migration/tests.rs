@@ -11,7 +11,7 @@ use tempfile::TempDir;
 #[test]
 fn current_profile_never_inspects_or_imports_legacy_siblings_and_holds_its_lease() {
     let temp = TempDir::new().unwrap();
-    let base = temp.path();
+    let base = temp.path().canonicalize().unwrap();
     // Non-directory old identifiers would fail legacy probing; the current-only path ignores them.
     for identifier in [LEGACY_IDENTIFIER, LEGACY_PRODUCT_IDENTIFIER] {
         fs::write(base.join(identifier), b"untouched old profile sentinel").unwrap();
@@ -40,8 +40,9 @@ fn current_profile_never_inspects_or_imports_legacy_siblings_and_holds_its_lease
 #[test]
 fn current_profile_reopens_its_own_settings_without_replacing_them() {
     let temp = TempDir::new().unwrap();
-    let config = temp.path().join("config").join(CURRENT_IDENTIFIER);
-    let local = temp.path().join("local").join(CURRENT_IDENTIFIER);
+    let base = temp.path().canonicalize().unwrap();
+    let config = base.join("config").join(CURRENT_IDENTIFIER);
+    let local = base.join("local").join(CURRENT_IDENTIFIER);
     fs::create_dir_all(&config).unwrap();
     let settings = b"{\"knowledgeRoot\":null}";
     fs::write(config.join("settings.json"), settings).unwrap();
@@ -56,7 +57,7 @@ fn current_profile_reopens_its_own_settings_without_replacing_them() {
 #[test]
 fn current_profile_rejects_unverified_settings_and_copied_migration_bundles() {
     let temp = TempDir::new().unwrap();
-    let current = temp.path().join(CURRENT_IDENTIFIER);
+    let current = temp.path().canonicalize().unwrap().join(CURRENT_IDENTIFIER);
     fs::create_dir(&current).unwrap();
     fs::write(current.join("settings.json"), b"{").unwrap();
     assert!(matches!(
@@ -295,7 +296,8 @@ struct Fixture {
 }
 impl Fixture {
     fn new(shared_base: bool) -> Self {
-        let temp = tempfile::tempdir().unwrap();
+        // Native guards reject symlink ancestors, including macOS's /var alias.
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let config = temp.path().join("roaming");
         let local = if shared_base {
             config.clone()
