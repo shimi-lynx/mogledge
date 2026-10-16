@@ -38,6 +38,10 @@ Ctrl+W on Windows or Cmd+W on macOS closes the current tab in the active column 
 
 With focus inside an HTML document on macOS, press **Cmd+F** to open its local find bar. Type a phrase, use **Enter** / **Shift+Enter** or the arrow buttons for the next / previous match with wrap, and press **Escape** to close it and return focus. Search is case-insensitive and uses rendered text in that frame; it is not Canvas/image OCR or a search of saved-input records. The English/Japanese labels follow the WebView language. Unhandled Cmd+F also works from an HTML input; authored key cancellation, IME composition and an open HTML modal retain priority.
 
+The bar shows the current match and total, including zero matches. Matches are highlighted, with a distinct current match, while focus stays in the search input. Closing or clearing search removes its highlights without changing authored text or selection. Hidden content, form-control values, shadow trees and nested documents are outside the search. Text changes and resizing refresh results after a short coalescing delay; next/previous uses the current results.
+
+Large documents may show an explicitly limited result count. Each scan stops at 5,000 DOM nodes, 200,000 UTF-16 text units, 1,000 matches, depth 128 or a cooperative 40 ms deadline. Changes are coalesced for 250 ms. The deadline is checked between browser calls and cannot interrupt an individual layout or text operation; these bounds do not guarantee a fixed response time.
+
 Windows retains its existing WebView2 **Ctrl+F** behavior. This current-document find is separate from **Cmd+Shift+F / Ctrl+Shift+F**, which opens indexed full-text document search below. Mac WKWebView/device acceptance remains explicitly unverified in [known limitations](known-limitations.md#existing-reported-problems).
 
 ## Find documents and save workspaces
