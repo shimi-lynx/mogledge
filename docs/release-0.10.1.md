@@ -10,6 +10,12 @@ This patch combines three fixes with the dedicated-folder and local AI authoring
 
 Targeted regressions cover the folder row geometry and labels, document-find counts/highlights/navigation/cleanup/bounds/resize, and storage-adapter signaling plus authenticated iframe message handling. Independent source reviews found no remaining blockers after the find scan and resize followups. The broader tree-actions fixture fails at its missing-root label on both baseline and changed code; this pre-existing fixture failure is not reported as passed.
 
+- `npm run check` passed without warnings, lint or type errors after the final test-helper corrections.
+- App, document-ready bridge and display-folder controller tests: 64 passed. Storage adapter and operation-notice tests: 20 passed.
+- All 13 find cases are covered by passing targeted runs; 22 existing document-keyboard cases passed. The two final type/focus helper cases passed again with typed lint denying warnings. Folder geometry passed four English/Japanese width cases and the existing label suite passed two cases.
+- `cargo fmt` passed for the app and backend harness. The release-profile backend test `served_descriptor_preserves_sandbox_and_original_document` passed (one selected, 17 filtered out); backend harness `cargo clippy --release --locked --all-targets --jobs 1 -- -D warnings` passed. The existing release dependency cache was reused with one Cargo job; no full Rust suite or new local app build was run.
+- `node --test scripts/distribution/native-probe.test.mjs`: 9 passed. Linux Python `unittest` for `scripts/release/test_release.py`: 22 passed after updating both valid-version fixtures and rejected old/future versions. Changed documentation formatting, local links and diff checks passed.
+
 Browser and mock results do not establish physical Mac Cmd+F, IME, accessibility or WKWebView behavior. Existing-device updater UI, login launch and OS permissions remain distinct from candidate metadata, signatures and bounded synthetic installed-update checks. These device followups remain tracked in #48, #55, #60 and #66. No ordinary user app, settings, HTML or saved input is replaced during release preparation.
 
 For users transitioning from the older My Knowledge identity, preserve the [0.10.0 identity and login-startup precautions](release-0.10.0.md). Windows binaries are not Authenticode-signed. Mac binaries use ad-hoc signing without Developer ID or notarization; updater cryptographic signatures are a separate verification layer.
