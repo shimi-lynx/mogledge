@@ -79,8 +79,8 @@
     );
   }
   // WebView2 supplies Ctrl+F, but the Mac host has no native document-find UI.
-  // Keep this fallback inside the focused HTML: no query, DOM or selection crosses
-  // the sandbox, and window.find searches the current frame without rewriting it.
+  // Keep queries, ranges and painting inside the focused frame. Highlight ranges
+  // without wrapping authored text nodes or relying on an unfocused selection.
   let documentFind;
   function openDocumentFind() {
     if (!document.body) return;
@@ -95,18 +95,16 @@
           previous: "前の一致",
           next: "次の一致",
           close: "検索を閉じる",
-          found: "一致しました",
-          missing: "一致なし",
-          unavailable: "検索を利用できません",
+          found: (current, total) => `${total} 件中 ${current} 件目`,
+          missing: "0 件（一致なし）",
         }
       : {
           find: "Find in this HTML",
           previous: "Previous match",
           next: "Next match",
           close: "Close find",
-          found: "Match found",
-          missing: "No match",
-          unavailable: "Find unavailable",
+          found: (current, total) => `${current} of ${total} matches`,
+          missing: "0 matches (No match)",
         };
     const returnFocus = document.activeElement;
     const selection = window.getSelection();
@@ -117,7 +115,8 @@
       start.selectNodeContents(document.body);
       start.collapse(true);
     }
-    let match = start;
+    let matches = [];
+    let current = -1;
     let previousQuery = "";
     const host = document.createElement("mogledge-document-find");
     host.style.cssText =
@@ -131,53 +130,249 @@
     const input = root.querySelector("input");
     const status = root.querySelector("output");
     const [previous, next, close] = root.querySelectorAll("button");
+    // Custom highlights follow reflow and remain visible while the input owns
+    // focus. Older WKWebViews use non-interactive viewport rectangles instead.
+    const highlightName = `mogledge-find-${token}`;
+    const currentName = `${highlightName}-current`;
+    const customHighlights = typeof Highlight === "function" && CSS.highlights;
+    const highlightStyle = document.createElement("style");
+    highlightStyle.textContent = `::highlight(${highlightName}){background:#ffe066;color:#111}::highlight(${currentName}){background:#ff9632;color:#111}`;
+    if (customHighlights) document.documentElement.append(highlightStyle);
+    const paintHost = document.createElement("mogledge-find-highlights");
+    paintHost.style.cssText =
+      "all:initial;position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:block;overflow:hidden";
+    const paintRoot = paintHost.attachShadow({ mode: "closed" });
+    if (!customHighlights) document.documentElement.append(paintHost);
+    let paintFrame = 0;
+    let refreshFrame = 0;
+    const paint = () => {
+      paintFrame = 0;
+      if (!host.isConnected) return;
+      if (customHighlights) {
+        const all = new Highlight();
+        for (const range of matches) all.add(range);
+        CSS.highlights.set(highlightName, all);
+        const active = new Highlight();
+        if (matches[current]) active.add(matches[current]);
+        active.priority = 1;
+        CSS.highlights.set(currentName, active);
+        return;
+      }
+      const bounds = paintHost.getBoundingClientRect();
+      const scaleX = bounds.width / paintHost.clientWidth;
+      const scaleY = bounds.height / paintHost.clientHeight;
+      const rectangles = document.createDocumentFragment();
+      if (!(scaleX > 0 && scaleY > 0)) return;
+      matches.forEach((range, index) => {
+        // Clip to scrolling ancestors so a range cannot paint over their chrome.
+        let left = 0,
+          top = 0,
+          right = innerWidth,
+          bottom = innerHeight;
+        for (
+          let element = range.startContainer.parentElement;
+          element;
+          element = element.parentElement
+        ) {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          if (/auto|scroll|hidden|clip/.test(style.overflowX)) {
+            left = Math.max(left, rect.left);
+            right = Math.min(right, rect.right);
+          }
+          if (/auto|scroll|hidden|clip/.test(style.overflowY)) {
+            top = Math.max(top, rect.top);
+            bottom = Math.min(bottom, rect.bottom);
+          }
+        }
+        for (const rect of range.getClientRects()) {
+          const x = Math.max(left, rect.left),
+            y = Math.max(top, rect.top);
+          const width = Math.min(right, rect.right) - x;
+          const height = Math.min(bottom, rect.bottom) - y;
+          if (width <= 0 || height <= 0) continue;
+          const marker = document.createElement("span");
+          marker.style.cssText = `position:absolute;left:${(x - bounds.left) / scaleX}px;top:${(y - bounds.top) / scaleY}px;width:${width / scaleX}px;height:${height / scaleY}px;background:${index === current ? "#ff963270" : "#ffe06670"};box-shadow:inset 0 -2px ${index === current ? "#b54800" : "#8a6900"};pointer-events:none`;
+          rectangles.append(marker);
+        }
+      });
+      paintRoot.replaceChildren(rectangles);
+    };
+    const schedulePaint = () => {
+      if (!paintFrame) paintFrame = requestAnimationFrame(paint);
+    };
+    // Build literal text runs across inline markup, separating block boundaries.
+    // Form values, shadow trees, nested documents and media are outside this scan.
+    const collectMatches = (query) => {
+      const result = [];
+      if (!query) return result;
+      const expression = new RegExp(
+        query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"),
+        "giu",
+      );
+      let text = "";
+      let nodes = [];
+      const flush = () => {
+        expression.lastIndex = 0;
+        let hit;
+        let nodeIndex = 0;
+        while ((hit = expression.exec(text))) {
+          while (nodes[nodeIndex].end <= hit.index) nodeIndex++;
+          const first = nodes[nodeIndex];
+          let endIndex = nodeIndex;
+          const end = hit.index + hit[0].length;
+          while (nodes[endIndex].end < end) endIndex++;
+          const last = nodes[endIndex];
+          const range = document.createRange();
+          range.setStart(first.node, hit.index - first.start);
+          range.setEnd(last.node, end - last.start);
+          if (range.getClientRects().length) result.push(range);
+        }
+        text = "";
+        nodes = [];
+      };
+      const visit = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const style = getComputedStyle(node.parentElement);
+          if (style.visibility === "hidden" || style.visibility === "collapse") return;
+          const start = text.length;
+          text += node.data;
+          nodes.push({ node, start, end: text.length });
+          return;
+        }
+        if (!(node instanceof Element)) return;
+        if (
+          node.matches(
+            "script,style,noscript,template,input,textarea,select,iframe,object,embed,canvas",
+          )
+        ) {
+          flush();
+          return;
+        }
+        const style = getComputedStyle(node);
+        if (style.display === "none" || style.contentVisibility === "hidden") return;
+        const boundary = !["inline", "contents"].includes(style.display) || node.localName === "br";
+        if (boundary) flush();
+        for (const child of node.childNodes) visit(child);
+        if (boundary) flush();
+      };
+      visit(document.body);
+      flush();
+      return result;
+    };
+    const showCurrent = (scroll) => {
+      const match = matches[current];
+      status.textContent = input.value
+        ? match
+          ? labels.found(current + 1, matches.length)
+          : labels.missing
+        : "";
+      previous.disabled = next.disabled = !match;
+      if (match && scroll) {
+        match.startContainer.parentElement?.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "instant",
+        });
+        // A match can sit far from the centre of a tall paragraph. Scroll its
+        // actual range through each container rather than just its parent box.
+        for (
+          let element = match.startContainer.parentElement;
+          element && element !== document.scrollingElement;
+          element = element.parentElement
+        ) {
+          const style = getComputedStyle(element);
+          const bounds = element.getBoundingClientRect();
+          const rect = match.getBoundingClientRect();
+          const scale = bounds.height / element.offsetHeight;
+          if (
+            /auto|scroll|hidden/.test(style.overflowY) &&
+            scale > 0 &&
+            (rect.top < bounds.top || rect.bottom > bounds.bottom)
+          ) {
+            element.scrollTop +=
+              (rect.top - bounds.top - (bounds.height - rect.height) / 2) / scale;
+          }
+        }
+        const rect = match.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > innerHeight) {
+          window.scrollBy({ top: rect.top - (innerHeight - rect.height) / 2, behavior: "instant" });
+        }
+      }
+      paint();
+    };
+    const refresh = () => {
+      refreshFrame = 0;
+      if (!host.isConnected || composing) return;
+      const active = matches[current];
+      matches = collectMatches(input.value);
+      current = matches.findIndex(
+        (range) =>
+          active &&
+          range.startContainer === active.startContainer &&
+          range.startOffset === active.startOffset,
+      );
+      if (current < 0 && matches.length) current = 0;
+      showCurrent(false);
+    };
+    const observer = new MutationObserver(() => {
+      if (input.value && !refreshFrame) refreshFrame = requestAnimationFrame(refresh);
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+    window.addEventListener("scroll", schedulePaint, true);
+    window.addEventListener("resize", schedulePaint);
     const dismiss = () => {
+      observer.disconnect();
+      cancelAnimationFrame(paintFrame);
+      cancelAnimationFrame(refreshFrame);
+      window.removeEventListener("scroll", schedulePaint, true);
+      window.removeEventListener("resize", schedulePaint);
+      if (customHighlights) {
+        CSS.highlights.delete(highlightName);
+        CSS.highlights.delete(currentName);
+      }
+      highlightStyle.remove();
+      paintHost.remove();
       host.remove();
       documentFind = undefined;
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     };
-    const find = (backwards = false) => {
+    const find = (backwards = false, advance = true) => {
       if (composing || !host.isConnected || !document.hasFocus()) return;
       const query = input.value;
-      status.textContent = "";
-      if (!query) {
-        previousQuery = "";
-        match = start;
-        return;
+      const changed = query !== previousQuery;
+      const active = matches[current];
+      matches = collectMatches(query);
+      current = matches.findIndex(
+        (range) =>
+          active &&
+          range.startContainer === active.startContainer &&
+          range.startOffset === active.startOffset,
+      );
+      if (changed) {
+        current = matches.findIndex(
+          (range) =>
+            !start.commonAncestorContainer.isConnected ||
+            range.compareBoundaryPoints(Range.START_TO_START, start) >= 0,
+        );
+        if (current < 0 && matches.length) current = 0;
+      } else if (matches.length) {
+        current =
+          (current + (advance ? (backwards ? -1 : 1) : 0) + matches.length) % matches.length;
       }
-      if (typeof window.find !== "function") {
-        status.textContent = labels.unavailable;
-        return;
-      }
-      if (query !== previousQuery) match = start;
-      // Exclude our own controls and restore the last document match before
-      // advancing; focusing a search input must not change the search origin.
-      host.style.display = "none";
-      let found = false;
-      try {
-        if (selection && match.commonAncestorContainer.isConnected) {
-          selection.removeAllRanges();
-          selection.addRange(match);
-        }
-        found = window.find(query, false, backwards, true, false, false, false);
-        if (found && selection?.rangeCount) match = selection.getRangeAt(0).cloneRange();
-      } finally {
-        host.style.display = "block";
-        input.focus({ preventScroll: true });
-      }
-      // Focusing the input from a mouse button can replace the DOM selection.
-      // Retain the document highlight as well as our next-search position.
-      if (found && selection && match.commonAncestorContainer.isConnected) {
-        selection.removeAllRanges();
-        selection.addRange(match);
-      }
+      input.focus({ preventScroll: true });
       previousQuery = query;
-      status.textContent = found ? labels.found : labels.missing;
+      showCurrent(true);
     };
     input.addEventListener("input", (event) => {
-      if (!event.isComposing) find();
+      if (!event.isComposing) find(false, false);
     });
-    input.addEventListener("compositionend", () => queueMicrotask(() => find()));
+    input.addEventListener("compositionend", () => queueMicrotask(() => find(false, false)));
     root.addEventListener("keydown", (event) => {
       if (event.isComposing || composing || event.keyCode === 229) return;
       if (event.key === "Escape") {
@@ -195,6 +390,7 @@
     close.addEventListener("click", dismiss);
     document.documentElement.append(host);
     documentFind = { host, input };
+    previous.disabled = next.disabled = true;
     input.focus({ preventScroll: true });
   }
   function allowsDocumentFind(event) {

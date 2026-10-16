@@ -6,15 +6,21 @@ const keyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8
   JSON.stringify("a".repeat(64)),
 );
 
-async function documentFrame(page: Page, platform = "MacIntel", language = "en-US") {
+async function documentFrame(
+  page: Page,
+  platform = "MacIntel",
+  language = "en-US",
+  legacy = false,
+) {
   await page.setContent(
     '<iframe sandbox="allow-scripts" style="width:100%;height:600px"></iframe>',
   );
   await page.locator("iframe").evaluate(
-    (element, { keyboard, platform, language }) => {
+    (element, { keyboard, platform, language, legacy }) => {
       (element as HTMLIFrameElement).srcdoc = `<!doctype html><html><head><script>
         Object.defineProperty(navigator,'platform',{value:${JSON.stringify(platform)}});
         Object.defineProperty(navigator,'language',{value:${JSON.stringify(language)}});
+        if (${legacy}) Object.defineProperty(window,'Highlight',{value:undefined});
       </script><script>${keyboard}</script></head><body>
         <button id="plain">Document</button><input id="editor" aria-label="Document input">
         <p id="first">First needle in this document.</p>
@@ -22,7 +28,7 @@ async function documentFrame(page: Page, platform = "MacIntel", language = "en-U
         <dialog>Authored modal</dialog>
       </body></html>`;
     },
-    { keyboard, platform, language },
+    { keyboard, platform, language, legacy },
   );
   const frame = page.frameLocator("iframe");
   await frame.locator("#plain").click();
@@ -37,26 +43,36 @@ test("Mac document find opens inside the opaque HTML and searches forward/backwa
   const search = frame.getByRole("searchbox", { name: "Find in this HTML" });
   await expect(search).toBeFocused();
   await search.fill("needle");
-  const selected = () => frame.locator("body").evaluate(() => window.getSelection()?.toString());
-  const selectedParent = () =>
-    frame.locator("body").evaluate(() => window.getSelection()?.anchorNode?.parentElement?.id);
-  await expect.poll(selected).toBe("needle");
-  await expect.poll(selectedParent).toBe("first");
+  await expect(frame.getByRole("status")).toHaveText("1 of 2 matches");
+  const highlightedText = () =>
+    frame.locator("body").evaluate(() => {
+      const active = [...CSS.highlights].find(([name]) => name.endsWith("-current"))?.[1];
+      return active ? [...active][0]?.toString() : undefined;
+    });
+  const highlightedParent = () =>
+    frame.locator("body").evaluate(() => {
+      const active = [...CSS.highlights].find(([name]) => name.endsWith("-current"))?.[1];
+      return active ? ([...active][0] as Range)?.startContainer.parentElement?.id : undefined;
+    });
+  await expect.poll(highlightedText).toBe("needle");
+  await expect.poll(highlightedParent).toBe("first");
   await search.press("Enter");
-  await expect.poll(selectedParent).toBe("second");
+  await expect(frame.getByRole("status")).toHaveText("2 of 2 matches");
+  await expect.poll(highlightedParent).toBe("second");
   await search.press("Enter");
-  await expect.poll(selectedParent).toBe("first");
+  await expect.poll(highlightedParent).toBe("first");
   await search.press("Shift+Enter");
-  await expect.poll(selectedParent).toBe("second");
+  await expect.poll(highlightedParent).toBe("second");
   await frame.getByRole("button", { name: "Previous match" }).click();
-  await expect.poll(selectedParent).toBe("first");
+  await expect.poll(highlightedParent).toBe("first");
   await search.press("Enter");
-  await expect.poll(selectedParent).toBe("second");
+  await expect.poll(highlightedParent).toBe("second");
   await search.fill("");
   await search.fill("needle");
-  await expect.poll(selectedParent).toBe("first");
+  await expect.poll(highlightedParent).toBe("first");
   await search.fill("no such visible phrase");
-  await expect(frame.getByRole("status")).toHaveText("No match");
+  await expect(frame.getByRole("status")).toHaveText("0 matches (No match)");
+  await expect(frame.getByRole("button", { name: "Next match" })).toBeDisabled();
   await search.press("Escape");
   await expect(search).toHaveCount(0);
   await expect(frame.locator("#plain")).toBeFocused();
@@ -142,14 +158,13 @@ test("closing Mac find discards a queued composition search without stealing foc
   const search = frame.getByRole("searchbox", { name: "Find in this HTML" });
   await search.fill("needle");
   await search.evaluate((input) => {
-    const owner = window as unknown as { find: (...args: unknown[]) => boolean };
-    const original = owner.find;
+    const original = (input as HTMLInputElement).focus;
     document.body.dataset.closedFindCalls = "0";
-    owner.find = (...args) => {
+    (input as HTMLInputElement).focus = (...args) => {
       document.body.dataset.closedFindCalls = String(
         Number(document.body.dataset.closedFindCalls) + 1,
       );
-      return Reflect.apply(original, window, args);
+      return Reflect.apply(original, input, args);
     };
     input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, composed: true }));
     (input.getRootNode() as ShadowRoot)
@@ -165,5 +180,180 @@ test("Mac document find labels follow the WebView language", async ({ page }) =>
   const frame = await documentFrame(page, "MacIntel", "ja-JP");
   await frame.locator("#plain").press("Meta+f");
   await expect(frame.getByRole("searchbox", { name: "このHTML内を検索" })).toBeFocused();
+  await frame.getByRole("searchbox").fill("needle");
+  await expect(frame.getByRole("status")).toHaveText("2 件中 1 件目");
   await frame.getByRole("button", { name: "検索を閉じる" }).click();
+});
+
+test("Mac find paints all matches and current match while input owns focus", async ({
+  page,
+}, testInfo) => {
+  const frame = await documentFrame(page);
+  await frame.locator("#second").evaluate((element) => {
+    (element as HTMLElement).style.marginTop = "40px";
+  });
+  const original = await frame.locator("body").innerHTML();
+  await frame.locator("#plain").press("Meta+f");
+  const search = frame.getByRole("searchbox");
+  await search.fill("needle");
+  await expect(search).toBeFocused();
+  const highlights = () =>
+    frame.locator("body").evaluate(() => [...CSS.highlights.values()].map((value) => value.size));
+  await expect.poll(highlights).toEqual([2, 1]);
+  const colors = await frame
+    .locator("#first")
+    .evaluate((element) =>
+      [...CSS.highlights.keys()].map(
+        (name) => getComputedStyle(element, `::highlight(${name})`).backgroundColor,
+      ),
+    );
+  expect(colors).toEqual(["rgb(255, 224, 102)", "rgb(255, 150, 50)"]);
+  await page.screenshot({ path: testInfo.outputPath("find-count-highlights.png") });
+  expect(await frame.locator("body").innerHTML()).toBe(original);
+  await search.fill("document");
+  await expect(frame.getByRole("status")).toHaveText("1 of 3 matches");
+  await expect.poll(highlights).toEqual([3, 1]);
+  await search.fill("no such phrase");
+  await expect.poll(highlights).toEqual([0, 0]);
+  await search.fill("");
+  await expect(frame.getByRole("status")).toBeEmpty();
+  await search.fill("needle");
+  await search.press("Escape");
+  await expect.poll(highlights).toEqual([]);
+  expect(await frame.locator("body").innerHTML()).toBe(original);
+});
+
+test("Mac find tracks dynamic visible text, inline matches, literal queries and composition", async ({
+  page,
+}) => {
+  const frame = await documentFrame(page);
+  await frame.locator("#first").evaluate((element) => {
+    element.innerHTML =
+      "First nee<strong>dle</strong>. <span hidden>needle</span><span style='visibility:hidden'>needle</span> A+B\n      日本語";
+  });
+  await frame.locator("#plain").press("Meta+f");
+  const search = frame.getByRole("searchbox");
+  const status = frame.getByRole("status");
+  await search.fill("NEEDLE");
+  await expect(status).toHaveText("1 of 2 matches");
+  await frame.locator("#second").evaluate((element) => {
+    element.textContent = "changed";
+  });
+  await expect(status).toHaveText("1 of 1 matches");
+  await frame.locator("#first").evaluate((element) => {
+    element.setAttribute("hidden", "");
+  });
+  await expect(status).toHaveText("0 matches (No match)");
+  await frame.locator("#first").evaluate((element) => {
+    element.removeAttribute("hidden");
+  });
+  await expect(status).toHaveText("1 of 1 matches");
+  await search.fill("a+b");
+  await expect(status).toHaveText("1 of 1 matches");
+  await search.fill("a+b 日本語");
+  await expect(status).toHaveText("1 of 1 matches");
+  await search.evaluate((element) => {
+    const input = element as HTMLInputElement;
+    input.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true, composed: true }),
+    );
+    input.value = "日本語";
+    input.dispatchEvent(
+      new InputEvent("input", { isComposing: true, bubbles: true, composed: true }),
+    );
+  });
+  await expect(status).toHaveText("1 of 1 matches");
+  await search.press("Enter");
+  await search.evaluate((element) =>
+    element.dispatchEvent(
+      new CompositionEvent("compositionend", { bubbles: true, composed: true }),
+    ),
+  );
+  await expect(status).toHaveText("1 of 1 matches");
+  await search.press("Escape");
+  await expect(frame.locator("#plain")).toBeFocused();
+});
+
+test("legacy Mac find rectangles remain visible on scroll and disappear on clear and close", async ({
+  page,
+}, testInfo) => {
+  const frame = await documentFrame(page, "MacIntel", "en-US", true);
+  await frame.locator("#second").evaluate((element) => {
+    (element as HTMLElement).style.marginTop = "40px";
+  });
+  await frame.locator("#plain").press("Meta+f");
+  const search = frame.getByRole("searchbox");
+  const text = frame.locator("#first");
+  const before = await text.screenshot();
+  await search.fill("needle");
+  await expect(frame.getByRole("status")).toHaveText("1 of 2 matches");
+  await expect(frame.locator("mogledge-find-highlights")).toHaveCSS("pointer-events", "none");
+  expect((await text.screenshot()).equals(before)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("find-legacy-highlights.png") });
+  await frame.locator("body").evaluate(() => window.scrollBy(0, 20));
+  await search.press("Enter");
+  await expect(frame.getByRole("status")).toHaveText("2 of 2 matches");
+  await search.fill("");
+  expect((await text.screenshot()).equals(before)).toBe(true);
+  await search.fill("needle");
+  await search.press("Escape");
+  await expect(frame.locator("mogledge-find-highlights")).toHaveCount(0);
+});
+
+test("Mac find scans a large document without persisting highlights", async ({
+  page,
+}, testInfo) => {
+  const frame = await documentFrame(page);
+  await frame.locator("#second").evaluate((element) => {
+    element.replaceChildren(
+      ...Array.from({ length: 1000 }, (_, index) => {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = `Entry ${index}: performance fixture`;
+        return paragraph;
+      }),
+    );
+  });
+  await frame.locator("#plain").press("Meta+f");
+  const search = frame.getByRole("searchbox");
+  const elapsedMs = await search.evaluate((element) => {
+    const start = performance.now();
+    (element as HTMLInputElement).value = "performance fixture";
+    element.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true }));
+    return performance.now() - start;
+  });
+  await expect(frame.getByRole("status")).toHaveText("1 of 1000 matches");
+  await testInfo.attach("find-scan-measurement", {
+    body: JSON.stringify({ paragraphs: 1000, elapsedMs }),
+    contentType: "application/json",
+  });
+  await search.press("Escape");
+  await expect.poll(() => frame.locator("body").evaluate(() => CSS.highlights.size)).toBe(0);
+});
+
+test("Mac find reveals the matching range inside a tall scrolling paragraph", async ({ page }) => {
+  const frame = await documentFrame(page);
+  await frame.locator("#second").evaluate((element) => {
+    const scroller = document.createElement("div");
+    scroller.id = "scroller";
+    scroller.style.cssText = "height:100px;width:250px;overflow:auto;margin-top:20px";
+    const paragraph = document.createElement("p");
+    paragraph.textContent = `${"filler ".repeat(3000)}deepmatch`;
+    scroller.append(paragraph);
+    element.replaceWith(scroller);
+  });
+  await frame.locator("#plain").press("Meta+f");
+  await frame.getByRole("searchbox").fill("deepmatch");
+  await expect(frame.getByRole("status")).toHaveText("1 of 1 matches");
+  const visible = await frame.locator("#scroller").evaluate((element) => {
+    const active = [...CSS.highlights].find(([name]) => name.endsWith("-current"))![1];
+    const rect = ([...active][0] as Range).getBoundingClientRect();
+    const bounds = element.getBoundingClientRect();
+    return (
+      rect.top >= bounds.top &&
+      rect.bottom <= bounds.bottom &&
+      rect.top >= 0 &&
+      rect.bottom <= innerHeight
+    );
+  });
+  expect(visible).toBe(true);
 });
