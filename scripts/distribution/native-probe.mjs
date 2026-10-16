@@ -146,7 +146,11 @@ async function downloadLegacy(platform, fixture) {
       signal: AbortSignal.timeout(60_000),
     },
   );
-  if (!response.ok) throw new Error("Pinned legacy asset download failed");
+  if (!response.ok) {
+    const error = new Error("Pinned legacy asset download failed");
+    error.code = `LegacyHTTP${response.status}`;
+    throw error;
+  }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (digest(bytes) !== asset.sha256) throw new Error("Pinned legacy asset hash mismatch");
   const destination = path.join(fixture, asset.name);
@@ -209,7 +213,7 @@ function macProcess(pid) {
 }
 
 function hasMacWindow(pid) {
-  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap($.CGWindowListCopyWindowInfo(1,0));
+  const script = `ObjC.import('CoreGraphics'); const windows=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1,0)));
     JSON.stringify(windows.some(w=>w.kCGWindowOwnerPID===${pid} && w.kCGWindowLayer===0 &&
       w.kCGWindowBounds.Width>=400 && w.kCGWindowBounds.Height>=250));`;
   return command("/usr/bin/osascript", ["-l", "JavaScript", "-e", script]) === "true";
@@ -434,6 +438,15 @@ async function main(platform) {
           12 * 60_000,
         );
       } catch (error) {
+        const marker = String(error.stdout ?? "")
+          .split(/\r?\n/)
+          .find((line) => line.startsWith("MOGLEDGE_PROBE_ERROR="));
+        if (marker) {
+          const detail = JSON.parse(marker.slice("MOGLEDGE_PROBE_ERROR=".length));
+          if (/^[a-z-]+$/.test(detail.stage)) report.failedStage = detail.stage;
+          if (/^[A-Za-z0-9_.:,]+$/.test(detail.errorId)) report.errorId = detail.errorId;
+          if (/^[A-Za-z]+$/.test(detail.kind)) report.failureKind = detail.kind;
+        }
         const reasons = [
           ["Disposable matching approved", "hosted-source-guard"],
           ["exclusive ordinary runner temporary fixture", "fixture-guard"],
@@ -447,6 +460,12 @@ async function main(platform) {
           ? JSON.parse(await readFile(path.join(fixture, "windows-result.json"), "utf8"))
           : {};
         if (/^[a-z-]+$/.test(failed.failedStage ?? "")) report.failedStage = failed.failedStage;
+        if (/^[a-z-]+$/.test(failed.failureReason ?? ""))
+          report.failureReason = failed.failureReason;
+        if (/^[A-Za-z0-9_.:,]+$/.test(failed.errorId ?? "")) report.errorId = failed.errorId;
+        if (/^[A-Za-z]+$/.test(failed.failureKind ?? "")) report.failureKind = failed.failureKind;
+        if (Number.isInteger(failed.installerExitCode))
+          report.installerExitCode = failed.installerExitCode;
         if (
           Array.isArray(failed.checks) &&
           failed.checks.every((check) => /^[a-z0-9-]+$/.test(check))
@@ -461,7 +480,9 @@ async function main(platform) {
     } else await macProbe(platform, manifest, output, fixture, legacy, checks, report);
     delete report.failedStage;
     report.status = "passed";
-  } catch {
+  } catch (error) {
+    const code = error.code ?? error.cause?.code;
+    if (/^[A-Za-z0-9_-]+$/.test(code ?? "")) report.failureKind = code;
     throw new Error(`Native ${platform} probe failed; uncompleted checks remain unverified`);
   } finally {
     await writeFile(
