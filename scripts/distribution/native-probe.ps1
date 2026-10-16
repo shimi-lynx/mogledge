@@ -116,18 +116,38 @@ function Write-OwnedRun([string]$Name, [string]$Value) {
     finally { $key.Dispose() }
   } finally { $base.Dispose() }
 }
-function Assert-NoRegistry([string]$Identity) {
+function Assert-NoRegistry([string]$Identity, [bool]$IncludeInstallPreference = $true) {
   foreach ($hive in @([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryHive]::LocalMachine)) {
     foreach ($view in @([Microsoft.Win32.RegistryView]::Registry64, [Microsoft.Win32.RegistryView]::Registry32)) {
       $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($hive, $view)
       try {
-        foreach ($subkey in @("$uninstallBase\$Identity", "$productBase\$Identity")) {
+        $subkeys = @("$uninstallBase\$Identity")
+        if ($IncludeInstallPreference) { $subkeys += "$productBase\$Identity" }
+        foreach ($subkey in $subkeys) {
           $key = $base.OpenSubKey($subkey)
           if ($key) { $key.Dispose(); throw 'Preexisting formal product registration; probe refused' }
         }
       } finally { $base.Dispose() }
     }
   }
+}
+function Reset-OwnedFreshInstallPreference([string]$Directory) {
+  # Normal NSIS uninstall intentionally retains this preference unless app-data
+  # deletion is requested. Reset only our exact synthetic installation between
+  # independent fixtures; never request deletion of an application profile.
+  $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryView]::Registry64)
+  try {
+    $key = $base.OpenSubKey("$productBase\Mogledge")
+    if (-not $key) { throw 'Owned install preference is absent' }
+    try {
+      if ($key.GetValue('') -cne $Directory -or $key.SubKeyCount -ne 0 -or
+          @($key.GetValueNames() | Where-Object { $_ -cnotin @('', 'Installer Language') }).Count -ne 0 -or
+          ($null -ne $key.GetValue('Installer Language') -and $key.GetValue('Installer Language') -cnotin @('1033', '1041'))) {
+        throw 'Owned install preference identity mismatch'
+      }
+    } finally { $key.Dispose() }
+    $base.DeleteSubKey("$productBase\Mogledge")
+  } finally { $base.Dispose() }
 }
 function Assert-Executable([string]$File) {
   $item = Get-Item -LiteralPath $File
@@ -224,8 +244,10 @@ try {
   $checks.Add('fresh-nsis-install-executable-registry-shortcut-appid')
   $stage = 'owned-fresh-uninstall'
   Invoke-OwnedInstaller (Join-Path $fresh 'uninstall.exe') @('/S', "_?=$fresh")
-  Assert-NoRegistry 'Mogledge'
+  Assert-NoRegistry 'Mogledge' $false
   if (Test-Path -LiteralPath (Join-Path $fresh 'mogledge.exe')) { throw 'Owned fresh uninstall left its executable' }
+  Reset-OwnedFreshInstallPreference $fresh
+  Assert-NoRegistry 'Mogledge'
   $checks.Add('owned-fresh-uninstall')
   $stage = 'pinned-old-install'
   $installed = Join-Path $fixture 'fixed-install'
