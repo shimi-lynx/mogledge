@@ -217,7 +217,7 @@ export function KnowledgeTree({
     rows.filter((row) => parentOf(row.node.relativePath) === parentOf(path));
   const request = (
     path: string,
-    action: "createHtml" | "createFolder" | "renameHtml" | "move" | "up" | "down",
+    action: "createFolder" | "renameHtml" | "move" | "up" | "down",
   ) => {
     if (actionBusy || submitting.current) return;
     const node = rows.find((row) => row.node.relativePath === path)?.node;
@@ -226,7 +226,7 @@ export function KnowledgeTree({
         setIntent({ kind: action, source: path, name: htmlNameParts(node.name).basename });
       return;
     }
-    if (action === "createHtml" || action === "createFolder") {
+    if (action === "createFolder") {
       setIntent({
         kind: action,
         parent: node?.kind === "folder" || path === displayFolder ? path : parentOf(path),
@@ -259,16 +259,13 @@ export function KnowledgeTree({
     }
     if (!error) {
       const path =
-        mutation.kind === "createHtml"
-          ? (mutation.parent ? mutation.parent + "/" : "") +
-            (/\.html$/i.test(mutation.name) ? mutation.name : mutation.name + ".html")
-          : mutation.kind === "createFolder"
-            ? (mutation.parent ? mutation.parent + "/" : "") + mutation.name
-            : mutation.kind === "renameHtml"
-              ? renamedHtmlPath(mutation.source, mutation.name)
-              : mutation.kind === "move"
-                ? (mutation.parent ? mutation.parent + "/" : "") + mutation.source.split("/").pop()
-                : mutation.source;
+        mutation.kind === "createFolder"
+          ? (mutation.parent ? mutation.parent + "/" : "") + mutation.name
+          : mutation.kind === "renameHtml"
+            ? renamedHtmlPath(mutation.source, mutation.name)
+            : mutation.kind === "move"
+              ? (mutation.parent ? mutation.parent + "/" : "") + mutation.source.split("/").pop()
+              : mutation.source;
       pendingFocus.current = path;
       setFocused(path);
       setExpanded((previous) => {
@@ -351,19 +348,6 @@ export function KnowledgeTree({
         <div className="tree-tools" hidden={hideFiles}>
           <button
             type="button"
-            aria-label={t("HTMLを作成")}
-            aria-description={creationUnavailable ? t(creationUnavailable) : creationSelection}
-            title={t("{label}：{hint}", {
-              label: t("HTMLを作成"),
-              hint: creationUnavailable ? t(creationUnavailable) : creationSelection,
-            })}
-            disabled={actionBusy || !workspaceId}
-            onClick={() => request(focused ?? displayFolder, "createHtml")}
-          >
-            <CreationIcon kind="html" />
-          </button>
-          <button
-            type="button"
             aria-label={t("フォルダーを作成")}
             aria-description={creationUnavailable ? t(creationUnavailable) : creationSelection}
             title={t("{label}：{hint}", {
@@ -414,9 +398,14 @@ export function KnowledgeTree({
             document.querySelector("dialog[open]")
           )
             return;
-          if (onMutation && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+          if (
+            onMutation &&
+            (event.ctrlKey || event.metaKey) &&
+            event.shiftKey &&
+            event.key.toLowerCase() === "n"
+          ) {
             event.preventDefault();
-            request(focused ?? displayFolder, event.shiftKey ? "createFolder" : "createHtml");
+            request(focused ?? displayFolder, "createFolder");
             return;
           }
           const focusedIndex = rows.findIndex((row) => row.node.relativePath === focused);

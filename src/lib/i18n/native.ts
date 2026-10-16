@@ -73,11 +73,7 @@ export const nativeMessages: Readonly<Record<string, string>> = {
   "対象が変更されました。確認し直してください": "The target changed. Verify it again.",
   "対象が置き換えられました。確認し直してください": "The target was replaced. Verify it again.",
   親フォルダーが見つかりません: "The parent folder was not found",
-  "HTMLを作成できません。アクセス権を確認してください":
-    "Could not create the HTML file. Check permissions.",
   HTMLを書き込めません: "Could not write the HTML file",
-  "HTMLを公開できません。同名・アクセス権・外部変更を確認してください":
-    "Could not publish the HTML file. Check name conflicts, permissions and external changes.",
   "フォルダーを作成できません。同名・アクセス権を確認してください":
     "Could not create the folder. Check name conflicts and permissions.",
   名前変更対象が見つかりません: "The item to rename was not found",

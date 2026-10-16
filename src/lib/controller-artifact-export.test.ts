@@ -32,7 +32,7 @@ it("derives Native tab/request from main records, rejects hidden/help/stale URLs
     openDocument: vi.fn(
       async (_workspace, _view, id, request) => `http://127.0.0.1/s/${token(request)}/${id}.html`,
     ),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
   };
   const controller = new KnowledgeController(api);

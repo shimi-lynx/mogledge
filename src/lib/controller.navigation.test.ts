@@ -38,7 +38,7 @@ function setup() {
       listener = callback;
       return () => {};
     }),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
     validateDocumentNavigation: vi.fn(async (_w, _v, path) => ({
       relativePath: path,

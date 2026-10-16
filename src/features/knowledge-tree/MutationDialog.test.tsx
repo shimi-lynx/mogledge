@@ -226,18 +226,3 @@ it("updates the actual root name and language, distinguishes a same-named child 
     }),
   );
 });
-
-it("shows a drive or filesystem root in the HTML confirmation without changing the destination", () => {
-  const props = {
-    intent: { kind: "createHtml" as const, parent: "" },
-    nodes: [],
-    rootPath: "C:\\",
-    busy: false,
-    onSubmit: vi.fn(),
-    onClose: vi.fn(),
-  };
-  const view = render(<MutationDialog {...props} />);
-  expect(view.getByText("作成先: C:\\（ルート）").getAttribute("title")).toBe("C:\\（ルート）");
-  view.rerender(<MutationDialog {...props} rootPath="/" />);
-  expect(view.getByText("作成先: /（ルート）")).toBeTruthy();
-});

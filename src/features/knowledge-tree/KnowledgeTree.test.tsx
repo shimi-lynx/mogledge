@@ -69,15 +69,17 @@ it("creates in the displayed child by default while keeping the explicit registe
       onMutation={onMutation}
     />,
   );
-  const createHtml = view.getByRole("button", { name: "HTMLを作成" });
-  expect(createHtml.getAttribute("aria-description")).toContain("表示フォルダーparent/child");
-  fireEvent.click(createHtml);
-  expect(view.getByText("作成先: parent/child")).toBeTruthy();
+  const createFolder = view.getByRole("button", { name: "フォルダーを作成" });
+  expect(createFolder.getAttribute("aria-description")).toContain("表示フォルダーparent/child");
+  fireEvent.click(createFolder);
+  expect((view.getByRole("combobox", { name: "作成先" }) as HTMLInputElement).value).toBe(
+    "parent/child",
+  );
   fireEvent.change(view.getByRole("textbox", { name: "名前" }), { target: { value: "tool" } });
   fireEvent.click(view.getByRole("button", { name: "作成する" }));
   await waitFor(() =>
     expect(onMutation).toHaveBeenCalledWith({
-      kind: "createHtml",
+      kind: "createFolder",
       parent: "parent/child",
       name: "tool",
     }),
@@ -303,11 +305,49 @@ it("offers recovery only for the context HTML, respects busy state, and restores
   expect(view.getByRole("menuitem", { name: "以前の入力状態を引き継ぐ" })).toBeDefined();
 });
 
-it("names all three icon controls and explains unavailable creation without dispatching mutations", () => {
+it("removes HTML creation from icons, menus and shortcuts while keeping folder creation and AI handoff", async () => {
+  setLanguage("ja");
+  const onMutation = vi.fn(async () => null);
+  const onAiHandoff = vi.fn();
+  const view = render(
+    <KnowledgeTree
+      nodes={nodes}
+      workspaceId="workspace"
+      selected={null}
+      onSelect={vi.fn()}
+      onMutation={onMutation}
+      onAiHandoff={onAiHandoff}
+    />,
+  );
+  expect(view.queryByRole("button", { name: "HTMLを作成" })).toBeNull();
+  const tree = view.getByRole("tree");
+  tree.focus();
+  fireEvent.keyDown(tree, { key: "n", ctrlKey: true });
+  fireEvent.keyDown(tree, { key: "n", metaKey: true });
+  expect(view.queryByRole("dialog")).toBeNull();
+  expect(onMutation).not.toHaveBeenCalled();
+  for (const row of view.getAllByRole("treeitem")) {
+    fireEvent.contextMenu(row);
+    expect(view.queryByRole("menuitem", { name: "HTMLを作成" })).toBeNull();
+    expect(view.getByRole("menuitem", { name: "フォルダーを作成" })).toBeTruthy();
+    fireEvent.click(view.getByRole("menuitem", { name: "AIに渡す" }));
+  }
+  expect(onAiHandoff).toHaveBeenCalledTimes(2);
+  tree.focus();
+  fireEvent.keyDown(tree, { key: "n", ctrlKey: true, shiftKey: true });
+  expect(view.getByRole("dialog")).toBeTruthy();
+  fireEvent.change(view.getByRole("textbox", { name: "名前" }), { target: { value: "child" } });
+  fireEvent.click(view.getByRole("button", { name: "作成する" }));
+  await waitFor(() =>
+    expect(onMutation).toHaveBeenCalledWith({ kind: "createFolder", parent: "", name: "child" }),
+  );
+});
+
+it("names folder icon controls and explains unavailable creation without dispatching mutations", () => {
   const onMutation = vi.fn(async () => null);
   const props = { nodes, selected: null, onSelect: vi.fn(), onMutation };
   const view = render(<KnowledgeTree {...props} workspaceId="workspace" />);
-  const names = ["HTMLを作成", "フォルダーを作成", "ルートにフォルダーを作成"];
+  const names = ["フォルダーを作成", "ルートにフォルダーを作成"];
   for (const name of names) {
     const button = view.getByRole("button", { name });
     expect(button.textContent).toBe("");
@@ -390,7 +430,7 @@ it("uses the current root name in creation tooltips and accessible descriptions"
   expect(root.title).toContain("New root (root)");
   expect(root.title).not.toContain("資料 root");
   expect(
-    view.getByRole("button", { name: "Create HTML" }).getAttribute("aria-description"),
+    view.getByRole("button", { name: "Create folder" }).getAttribute("aria-description"),
   ).toContain("New root (root)");
 });
 

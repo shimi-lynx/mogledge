@@ -24,7 +24,6 @@ export const treeMessages: Readonly<Record<string, string>> = {
   以前の入力状態を引き継ぐ: "Recover earlier input state",
   ツリーで項目にフォーカスして名前を変更: "Focus the item in the tree to rename it",
   名前を変更: "Rename",
-  HTMLを作成: "Create HTML",
   フォルダーを作成: "Create folder",
   上へ並べ替え: "Move up in order",
   下へ並べ替え: "Move down in order",
@@ -43,11 +42,8 @@ export const treeMessages: Readonly<Record<string, string>> = {
   HTMLの名前を変更: "Rename HTML",
   移動先: "Destination",
   作成先: "Create in",
-  "作成先: {path}": "Create in: {path}",
   "相対参照が変わる場合があります。HTML・CSS・JSのリンクは書き換えません。":
     "Relative references may change. Links in HTML, CSS, and JavaScript will remain unchanged.",
-  ".html拡張子がない名前には自動で補います。内容の編集は外部AI・エディタで行います。":
-    "The .html extension is added when missing. Edit the contents with an external AI or editor.",
   "拡張子 {extension} は保持します。表示中の文書は再読み込みし、入力・実行状態はリセットします。HTML・CSS・JSのリンクは書き換えません。":
     "The {extension} extension is preserved. Open documents reload, resetting input and runtime state. Links in HTML, CSS, and JavaScript remain unchanged.",
   "選択したフォルダーが見つかりません。作成先／移動先を選び直してください。":

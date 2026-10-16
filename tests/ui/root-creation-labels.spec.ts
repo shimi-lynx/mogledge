@@ -44,14 +44,12 @@ for (const language of ["ja", "en"] as const) {
             suffix: "（ルート）",
             destination: "作成先",
             cancel: "キャンセル",
-            html: "HTMLを作成",
           }
         : {
             root: "Create a folder in the root",
             suffix: " (root)",
             destination: "Create in",
             cancel: "Cancel",
-            html: "Create HTML",
           };
     const root = page.getByRole("button", { name: names.root, exact: true });
     await expect(root).toHaveAttribute("aria-description", new RegExp("日本語"));
@@ -89,10 +87,6 @@ for (const language of ["ja", "en"] as const) {
       await expect(picker).toHaveValue(next + names.suffix);
       await page.getByRole("button", { name: names.cancel, exact: true }).click();
     }
-    await page.getByRole("button", { name: names.html, exact: true }).click();
-    await expect(page.locator("dialog p[title]")).toHaveAttribute("title", "/" + names.suffix);
-    await expect(page.locator("dialog p[title]")).toContainText("/" + names.suffix);
-    await page.getByRole("button", { name: names.cancel, exact: true }).click();
     expect(await page.evaluate("window.creationMutations")).toEqual([]);
   });
 }

@@ -39,7 +39,7 @@ function setup() {
     getTree: vi.fn(async () => snapshot),
     chooseRoot: vi.fn(async () => snapshot),
     refresh: vi.fn(async () => snapshot),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
     createTab: vi.fn(async (_workspace, _view, path) => {
       const id = `native-${++nativeCount}`;

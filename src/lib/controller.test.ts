@@ -31,7 +31,6 @@ function setup() {
   const api: Bridge = {
     mutateTree: vi.fn(async () => ({
       snapshot: current,
-      createdPath: null,
       moves: [],
       warning: null,
     })),
@@ -806,7 +805,6 @@ describe("closed view history", () => {
             : node,
         ),
       },
-      createdPath: null,
       moves: [move],
       warning: null,
     });
@@ -1395,36 +1393,29 @@ describe("limited file actions", () => {
 });
 
 describe("tree mutations", () => {
-  it("opens a created HTML only after accepting the Native snapshot", async () => {
+  it("creates a folder without opening or replacing the selected HTML", async () => {
     const { api, controller } = setup();
     await controller.start();
-    const next = {
-      ...snapshot,
-      revision: 2,
-      nodes: [
-        ...snapshot.nodes,
-        { name: "日本語.html", relativePath: "日本語.html", kind: "html" as const, children: [] },
-      ],
-    };
+    await controller.select("a.html");
+    const selected = controller.getSnapshot().selectedPath;
+    vi.mocked(api.openDocument).mockClear();
     vi.mocked(api.mutateTree).mockResolvedValueOnce({
-      snapshot: next,
-      createdPath: "日本語.html",
+      snapshot: {
+        ...snapshot,
+        revision: 2,
+        nodes: [
+          ...snapshot.nodes,
+          { name: "Folder", relativePath: "Folder", kind: "folder", children: [] },
+        ],
+      },
       moves: [],
       warning: null,
     });
     expect(
-      await controller.mutateTree({ kind: "createHtml", parent: "", name: "日本語" }),
+      await controller.mutateTree({ kind: "createFolder", parent: "", name: "Folder" }),
     ).toBeNull();
-    expect(controller.getSnapshot().selectedPath).toBe("日本語.html");
-    expect(api.openDocument).toHaveBeenCalledTimes(1);
-    vi.mocked(api.mutateTree).mockResolvedValueOnce({
-      snapshot: next,
-      createdPath: null,
-      moves: [],
-      warning: null,
-    });
-    await controller.mutateTree({ kind: "createFolder", parent: "", name: "Folder" });
-    expect(api.openDocument).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().selectedPath).toBe(selected);
+    expect(api.openDocument).not.toHaveBeenCalled();
     controller.stop();
   });
   it("remaps hidden and visible tabs, columns and closed paths, and coalesces the response with its event", async () => {
@@ -1459,7 +1450,6 @@ describe("tree mutations", () => {
       await flush();
       return {
         snapshot: next,
-        createdPath: null,
         moves: [move],
         warning: "移動は完了、順序JSONを保存できません",
       };
@@ -1498,7 +1488,6 @@ describe("tree mutations", () => {
     moveNative(move.from, move.to);
     vi.mocked(api.mutateTree).mockResolvedValueOnce({
       snapshot: next,
-      createdPath: null,
       moves: [move],
       warning: null,
     });
@@ -1544,7 +1533,6 @@ describe("tree mutations", () => {
     };
     vi.mocked(api.mutateTree).mockResolvedValueOnce({
       snapshot: next,
-      createdPath: null,
       moves: [move],
       warning: null,
     });
@@ -1574,10 +1562,10 @@ describe("tree mutations", () => {
           resolve = done;
         }),
     );
-    const pending = controller.mutateTree({ kind: "createHtml", parent: "", name: "old" });
+    const pending = controller.mutateTree({ kind: "createFolder", parent: "", name: "old" });
     update({ ...snapshot, workspaceId: "two", viewId: "view-two" });
     await controller.registerRoot();
-    resolve({ snapshot, createdPath: "a.html", moves: [], warning: null });
+    resolve({ snapshot, moves: [], warning: null });
     await pending;
     expect(controller.getSnapshot().snapshot.workspaceId).toBe("two");
     expect(controller.getSnapshot().tabs).toHaveLength(0);
@@ -1653,7 +1641,6 @@ describe("mutation completion context", () => {
     };
     vi.mocked(api.mutateTree).mockResolvedValueOnce({
       snapshot: next,
-      createdPath: null,
       moves: [move],
       warning: null,
     });
@@ -1709,7 +1696,6 @@ describe("folder move prefixes", () => {
     };
     vi.mocked(api.mutateTree).mockResolvedValueOnce({
       snapshot: next,
-      createdPath: null,
       moves: [move],
       warning: null,
     });

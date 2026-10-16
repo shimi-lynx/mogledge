@@ -51,11 +51,13 @@ In workspace management, explicitly assign number shortcuts if wanted. Recalling
 
 The sidebar remembers expanded folders on this device for each registered folder, including after restart or switching the displayed child folder. Deleted or externally moved paths are discarded only after a successful tree scan; loading, recovery and scan errors preserve the remembered paths. If local UI preferences cannot be saved, current choices survive switching registered roots during the same session. Failed writes remain available for a later save attempt, while unreadable or unsupported stored preferences stay protected from automatic replacement.
 
-Tree context menus provide creation, HTML rename, move, order, full-path copy, OS folder display and recycle actions where supported. Windows uses F2 and macOS Enter for HTML rename. The filename's existing HTML extension is retained. Files are not overwritten by rename/move, and HTML/CSS/JS references are not automatically rewritten.
+Create HTML with an external AI or editor; **Hand off to AI** prepares a request without sending it. The app does not create blank HTML files. Folder creation remains available through the sidebar and Ctrl+Shift+N / Cmd+Shift+N.
+
+Tree context menus provide folder creation, HTML rename, move, order, full-path copy, OS folder display and recycle actions where supported. Windows uses F2 and macOS Enter for HTML rename. The filename's existing HTML extension is retained. Files are not overwritten by rename/move, and HTML/CSS/JS references are not automatically rewritten.
 
 Drag within the same parent to reorder; choose a folder or the **Move to** action for a confirmed move. Order is saved separately from the source HTML. Root/self/descendant targets, collisions, symlinks and unsupported cloud writes are rejected. Review relative links after moving files.
 
-On Windows, supported locally retained OneDrive folders permit new HTML, nested folders, HTML rename and HTML/empty-folder moves. Nonempty-folder moves, drops with a position anchor, reorder and trash remain restricted. If an operation reports an unknown outcome, do not automatically retry or delete files; refresh to inspect the preserved result. If a move completes but reference/order saving fails, the files stay at their new location and the warning explains the save failure. See [Cloud-file support](onedrive-qa.md).
+On Windows, supported locally retained OneDrive folders permit nested folders, HTML rename and HTML/empty-folder moves. Nonempty-folder moves, drops with a position anchor, reorder and trash remain restricted. If an operation reports an unknown outcome, do not automatically retry or delete files; refresh to inspect the preserved result. If a move completes but reference/order saving fails, the files stay at their new location and the warning explains the save failure. See [Cloud-file support](onedrive-qa.md).
 
 Recycle actions do not make a saved-input database into an independent file backup. See [data management](data-management.md) before cleanup. Refresh/retry can recover an unavailable root without deleting its settings or creating a replacement folder.
 

@@ -503,7 +503,7 @@ async function unchangedFrames(before: Awaited<ReturnType<typeof stampFrames>>) 
     }
   });
 
-  it("keeps search results current after real Native create, reorder and move mutations", async function () {
+  it("keeps external HTML search results current after Native reorder and move mutations", async function () {
     if (process.env.MY_KNOWLEDGE_TEST_BINARY || !process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE)
       this.skip();
     const identifier = randomUUID().replaceAll("-", "");
@@ -522,12 +522,11 @@ async function unchangedFrames(before: Awaited<ReturnType<typeof stampFrames>>) 
     mutationDirectories.push({ path: join(fixture, target), files: [firstFile] });
     const firstPath = source + "/" + firstFile;
     const secondPath = source + "/" + secondFile;
-    const created = await mutate({ kind: "createHtml", parent: source, name: firstName });
-    assert.equal(created.createdPath, firstPath);
+    writeFileSync(join(fixture, firstPath), "<title>" + firstName + "</title>", { flag: "wx" });
     const originalPage = await waitPage(firstName, firstPath);
     await enterQuery(firstName);
     await chooseResult(firstPath);
-    await mutate({ kind: "createHtml", parent: source, name: secondName });
+    writeFileSync(join(fixture, secondPath), "<title>" + secondName + "</title>", { flag: "wx" });
     await waitPage(secondName, secondPath);
     await ready();
     // Native index completion can precede the shell's structure notification.

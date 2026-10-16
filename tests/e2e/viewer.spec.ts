@@ -823,38 +823,25 @@ describe("Native desktop viewer", () => {
       tree.scrollTop = tree.scrollHeight;
       tree.dispatchEvent(new Event("scroll"));
     });
-    let uiStep = "select-folder";
-    try {
-      await $('div[data-path="MutationSource"]').waitForDisplayed();
-      await $('div[data-path="MutationSource"]').click();
-      await $('[role="tree"]').waitForExist();
-      await browser.waitUntil(
-        async () =>
-          (await $('[role="tree"]').getAttribute("aria-activedescendant")) ===
-          "tree-MutationSource",
-      );
-      uiStep = "open-create-dialog";
-      await $(".tree-tools").$("button=HTMLを作成").click();
-      uiStep = "enter-create-name";
-      await $("dialog input").waitForDisplayed();
-      await $("dialog input").setValue("日本語メモ");
-      uiStep = "submit-create";
-      await $('dialog button[type="submit"]').click();
-    } catch (failure) {
-      console.error("NATIVE_MUTATION_UI_FAILURE " + uiStep);
-      throw failure;
-    }
     const path = "MutationSource/日本語メモ.html";
+    writeFileSync(
+      resolve(root, path),
+      '<!doctype html><meta charset="utf-8"><title>日本語メモ</title>',
+      { flag: "wx" },
+    );
+    writeFileSync(resolve(root, "MutationSource/second.html"), "<title>second</title>", {
+      flag: "wx",
+    });
+    const sourceFolder = $('div[data-path="MutationSource"]');
+    await sourceFolder.waitForDisplayed();
+    if ((await sourceFolder.getAttribute("aria-expanded")) !== "true") await sourceFolder.click();
+    await $('div[data-path="MutationSource/second.html"]').waitForExist();
+    await select(path);
     await $('iframe[title="' + path + '"]').waitForExist();
     const oldUrl = await $('iframe[title="' + path + '"]').getAttribute("src");
     const bytes = readFileSync(resolve(root, path));
     assert.match(bytes.toString("utf8"), /<!doctype html>/i);
     assert.match(bytes.toString("utf8"), /charset="utf-8"/);
-    assert.equal(
-      (await invoke({ kind: "createHtml", parent: "MutationSource", name: "second" }))
-        .nativeFailure,
-      undefined,
-    );
     assert.equal(
       (
         await invoke({
@@ -889,9 +876,9 @@ describe("Native desktop viewer", () => {
     assert.ok(
       (
         await invoke({
-          kind: "createHtml",
-          parent: "MutationTarget/MutationSource",
-          name: "日本語メモ",
+          kind: "renameHtml",
+          source: moved,
+          name: "second",
         })
       ).nativeFailure,
     );

@@ -18,7 +18,7 @@ function fixture(selected = true) {
     watchError: null,
   };
   const api: Bridge = {
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
     beginView: vi.fn(async () => snapshot),
     getTree: vi.fn(async () => snapshot),

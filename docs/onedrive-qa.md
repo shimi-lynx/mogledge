@@ -2,7 +2,7 @@
 
 Windows read operations distinguish supported Cloud Files reparse tags from ordinary symlinks/junctions. The supported first scope is locally retained OneDrive HTML/assets. Read guards reject files and directories observed as requiring recall or partial population. Metadata checks and no-recall flags do not establish zero provider communication.
 
-Keep needed files/assets locally using the provider's own controls, then refresh. Root/file identity, attributes, no-recall policy and bounded reads still apply. Unsupported reparse tags, symlinks and junctions remain rejected. Windows permits limited new HTML/nested-folder creation, HTML rename and HTML/empty-folder moves while all affected ancestors/items remain locally represented. Nonempty-folder moves, anchored drops, reorder and trash remain rejected.
+Keep needed files/assets locally using the provider's own controls, then refresh. Root/file identity, attributes, no-recall policy and bounded reads still apply. Unsupported reparse tags, symlinks and junctions remain rejected. Windows permits limited nested-folder creation, HTML rename and HTML/empty-folder moves while all affected ancestors/items remain locally represented. Nonempty-folder moves, anchored drops, reorder and trash remain rejected.
 
 ## Disposable QA
 

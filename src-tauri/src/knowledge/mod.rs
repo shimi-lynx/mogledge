@@ -19,7 +19,7 @@ mod windows;
 #[cfg(windows)]
 pub(crate) use windows::CloudWriteOutcome;
 #[cfg(windows)]
-pub(crate) use windows::{create_cloud_folder, create_cloud_html, move_cloud_leaf};
+pub(crate) use windows::{create_cloud_folder, move_cloud_leaf};
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
