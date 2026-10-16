@@ -47,7 +47,8 @@ test("Mac document find opens inside the opaque HTML and searches forward/backwa
   const highlightedText = () =>
     frame.locator("body").evaluate(() => {
       const active = [...CSS.highlights].find(([name]) => name.endsWith("-current"))?.[1];
-      return active ? [...active][0]?.toString() : undefined;
+      const range = active ? [...active][0] : undefined;
+      return range instanceof Range ? range.toString() : undefined;
     });
   const highlightedParent = () =>
     frame.locator("body").evaluate(() => {
@@ -158,13 +159,13 @@ test("closing Mac find discards a queued composition search without stealing foc
   const search = frame.getByRole("searchbox", { name: "Find in this HTML" });
   await search.fill("needle");
   await search.evaluate((input) => {
-    const original = (input as HTMLInputElement).focus;
+    const original = (input as HTMLInputElement).focus.bind(input);
     document.body.dataset.closedFindCalls = "0";
     (input as HTMLInputElement).focus = (...args) => {
       document.body.dataset.closedFindCalls = String(
         Number(document.body.dataset.closedFindCalls) + 1,
       );
-      return Reflect.apply(original, input, args);
+      return original(...args);
     };
     input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, composed: true }));
     (input.getRootNode() as ShadowRoot)
