@@ -36,8 +36,8 @@ def fixture():
     config["publication"]["enabled"] = False
     for index, (platform, (target, signature, _)) in enumerate(release.PLATFORMS.items()):
         candidate = copy.deepcopy(release.signing.policy()["candidate"])
-        prefix = f"Mogledge_0.9.0_{platform}_{signature}_updater_{config['source_sha'][:12]}"
-        candidate.update(source_sha=config["source_sha"], version="0.9.0", platform=platform, target=target, signature=signature, architecture="arm64" if platform == "macos-arm64" else "x64", run_id=100 + index, artifact_id=200 + index, expires_at="2099-01-01T00:00:00Z", update_archive=prefix + ("-setup.exe" if platform == "windows-x64" else ".app.tar.gz"), initial_archive=prefix + ".zip", artifact_name=f"Mogledge-{platform}-{config['source_sha']}")
+        prefix = f"Mogledge_0.9.1_{platform}_{signature}_updater_{config['source_sha'][:12]}"
+        candidate.update(source_sha=config["source_sha"], version="0.9.1", platform=platform, target=target, signature=signature, architecture="arm64" if platform == "macos-arm64" else "x64", run_id=100 + index, artifact_id=200 + index, expires_at="2099-01-01T00:00:00Z", update_archive=prefix + ("-setup.exe" if platform == "windows-x64" else ".app.tar.gz"), initial_archive=prefix + ".zip", artifact_name=f"Mogledge-{platform}-{config['source_sha']}")
         config["candidates"].append(candidate)
     return config
 
@@ -197,7 +197,7 @@ class VerificationTests(unittest.TestCase):
                 self.assertEqual(keywords["stdout"], release.subprocess.DEVNULL)
                 self.assertEqual(keywords["stderr"], release.subprocess.DEVNULL)
                 self.assertEqual(keywords["stdin"], release.subprocess.DEVNULL)
-                self.assertIn("0.9.0", args[0])
+                self.assertIn("0.9.1", args[0])
 
     def test_feed_has_exact_platforms_https_asset_urls_and_signature_contents(self):
         config = fixture()
@@ -205,7 +205,7 @@ class VerificationTests(unittest.TestCase):
         feed = release.feed(config, signatures, "2026-10-14T00:00:00Z")
         self.assertEqual(set(feed["platforms"]), {"windows-x86_64", "darwin-x86_64", "darwin-aarch64"})
         for entry in feed["platforms"].values():
-            self.assertTrue(entry["url"].startswith("https://github.com/shimi-lynx/mogledge/releases/download/v0.9.0/"))
+            self.assertTrue(entry["url"].startswith("https://github.com/shimi-lynx/mogledge/releases/download/v0.9.1/"))
             self.assertEqual(entry["signature"], base64.b64encode(b"fixture").decode())
         with self.assertRaises(ValueError):
             release.feed(config, signatures, "2026-10-14T00:00:00+01:00")
@@ -281,25 +281,25 @@ class PublicationTests(unittest.TestCase):
 
     def request(self, path, method="GET", data=None, upload_name=None):
         self.calls.append((path, method))
-        if method == "GET" and path in ("git/ref/tags/v0.9.0", "releases/tags/v0.9.0"):
+        if method == "GET" and path in ("git/ref/tags/v0.9.1", "releases/tags/v0.9.1"):
             if any(verb == "PATCH" for _, verb in self.calls):
                 return {"object": {"type": "commit", "sha": self.config["source_sha"]}}
             raise urllib.error.HTTPError("https://fixture.invalid", 404, "fixture", {}, None)
         if method == "POST" and path == "releases":
             self.assertEqual(data["target_commitish"], self.config["source_sha"])
             self.assertIs(data["draft"], True)
-            return {"id": 10, "draft": True, "tag_name": "v0.9.0", "target_commitish": self.config["source_sha"]}
+            return {"id": 10, "draft": True, "tag_name": "v0.9.1", "target_commitish": self.config["source_sha"]}
         if method == "POST" and path == "releases/10/assets":
             asset = {"id": 1000 + len(self.assets), "name": upload_name, "size": len(data), "digest": "sha256:" + release.signing.sha256(data), "state": "uploaded"}
             self.assets.append(asset)
             return asset
         if method == "GET" and path == "releases/10":
-            return {"id": 10, "draft": True, "tag_name": "v0.9.0", "target_commitish": self.config["source_sha"], "assets": self.assets}
+            return {"id": 10, "draft": True, "tag_name": "v0.9.1", "target_commitish": self.config["source_sha"], "assets": self.assets}
         if method == "PATCH" and path == "releases/10":
             self.assertEqual({item["name"] for item in self.assets}, set(self.files))
-            self.assertEqual(data["tag_name"], "v0.9.0")
+            self.assertEqual(data["tag_name"], "v0.9.1")
             self.assertEqual(data["target_commitish"], self.config["source_sha"])
-            return {"draft": False, "tag_name": "v0.9.0"}
+            return {"draft": False, "tag_name": "v0.9.1"}
         raise AssertionError("Unexpected fixture API operation")
 
     def test_stages_all_hash_verified_assets_before_publish_and_checks_tag_source(self):
@@ -327,7 +327,7 @@ class PublicationTests(unittest.TestCase):
             self.fixture(Path(temporary))
             with patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "policy", return_value=self.config), patch.object(release, "publication_prepare", side_effect=self.prepare), patch.object(release, "approval"), patch.object(release, "request", return_value={}) as request, self.assertRaisesRegex(ValueError, "no overwrite"):
                 release.publish(self.root / "verifier", self.root / "publication")
-            self.assertEqual(request.call_args.args, ("git/ref/tags/v0.9.0",))
+            self.assertEqual(request.call_args.args, ("git/ref/tags/v0.9.1",))
 
     def test_wrong_uploaded_digest_never_publishes_draft(self):
         with tempfile.TemporaryDirectory() as temporary:

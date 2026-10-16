@@ -205,3 +205,33 @@ Initial installation downloads:
 - [Mogledge_0.9.0_windows-x64_unsigned_updater_37b3032a4aeb.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.9.0/Mogledge_0.9.0_windows-x64_unsigned_updater_37b3032a4aeb.zip)
 
 The [anonymous update feed](https://github.com/shimi-lynx/mogledge/releases/latest/download/latest.json) contains the exact three 0.9.0 platform URLs and matching signature contents. The retained receipt describes its pre-publication stage, so its `published: false` and `nativeUpdateTested: false` fields remain accurate for that stage; actual public state is recorded above. Existing installed apps and the separate preview were preserved. Native macOS, real-data migration, automatic AI Skill discovery, initial Native onboarding appearance and established device/update checks remain unrun in #25/#9/#10/#22/#23. Packaging/signatures/publication do not establish those device results.
+
+## 0.9.1 integration and device checks
+
+The 0.9.1 patch integrates storage/UUID fixes [#41](https://github.com/shimi-lynx/mogledge/pull/41), trusted CI caching [#42](https://github.com/shimi-lynx/mogledge/pull/42), project-root AI handoff [#43](https://github.com/shimi-lynx/mogledge/pull/43), sidebar expansion [#46](https://github.com/shimi-lynx/mogledge/pull/46) and tab scrollbar input [#47](https://github.com/shimi-lynx/mogledge/pull/47). Actual merged binary source is `b07f0bab242ae3f8b47f461d4046e4211b91ea81`; its tree matches the checked integration. The release uses one patch increment for reported 0.9.0 defects. Ordinary identifier, current UUID keys, schema and storage API remain unchanged. Automatic inheritance of legacy physical saved input ends; retained rows and backups are not deleted.
+
+The combined tree passed `npm run check`, app/backend formatting and distribution fixtures (34 passed, four explicit skips). Integration found and corrected a redundant cache-array spread and a Rust formatting difference; their follow-up checks passed. Earlier targeted behavior and Clippy results are reused for unchanged affected code/dependencies as recorded in the individual PRs, without another full suite. Twenty release-tooling fixtures and read-only checks of the unchanged protected-main Environment/ruleset also pass. Neither signing keys nor repository protection settings were changed.
+
+A Windows WebView2 probe used integrated preview source `f48b978f01b3a13b338d3af9ea5ba9a4b49c1e46`, whose tab/sidebar code exactly matches #46/#47. Actual OS mouse track clicking changed horizontal overflow from 0% to 100%; thumb dragging returned it to 0%. Window bounds stayed unchanged, and original geometry was restored. After canonical saves and normal Quit/relaunch, three nested folders remained expanded. This preview predates #43's final removal of automatic prompt paragraphs and does not verify that follow-up in a receiving client.
+
+Remaining device acceptance is explicit in [#48](https://github.com/shimi-lynx/mogledge/issues/48): Native root switching, macOS scrolling/caption ownership, physical wheel/trackpad, Native blank-titlebar dragging/tab movement and actual AI-client draft/clipboard/trust behavior. The second synthetic Windows root has an existing kit readiness warning; no kit was rewritten to force a root-switch check. Storage and formal dedicated-folder checks stay in [#25](https://github.com/shimi-lynx/mogledge/issues/25), with existing saved-data/session/updater/Finder checks in #9/#10/#22/#23. Packaging, signatures and publication do not mark these device checks passed. Ordinary installed applications and their profiles were preserved.
+
+## 0.9.1 signing activation
+
+[Candidate run 38846600049](https://github.com/shimi-lynx/mogledge/actions/runs/38846600049), attempt 1, succeeded on all three standard runners with two Rust compiler jobs each. Downloaded raw artifact identities, sizes, hashes, expiry, architecture, version and embedded source matched their fixed metadata. Windows EXE and NSIS both report product/file version 0.9.1; the installer name contains 0.9.1. Native runner packaging, codesign, material and archive-restoration evidence is reused. No installer or downloaded application was executed. Common embedded source ZIP SHA-256: `de5ceeac2b899d63041f6224e26a035ab8cd33a6fd6a8678384fd9af69446582`.
+
+| Platform    | Artifact ID   | Raw artifact SHA-256                                               | Expiry UTC             |
+| ----------- | ------------- | ------------------------------------------------------------------ | ---------------------- |
+| windows-x64 | `12024071130` | `ae504069ccb95d9e63720fa6458d6a351ce7cb03150bdd8f34ab29977cd06cd9` | `2026-10-19T03:50:21Z` |
+| macos-x64   | `12023349557` | `86b7e49559b51a8603387848456564d4c74278d96c38ed7c844c1a5aed49d704` | `2026-10-19T03:54:20Z` |
+| macos-arm64 | `12024135716` | `20596857c33316aa0319c10b6690e97db569f972bd797a15475334b2d897456b` | `2026-10-19T03:49:32Z` |
+
+Signing pins these exact candidates and the unchanged protected-main Environment/ruleset. Publication remains disabled with no verified-output pins until the separate successful verification artifact is reviewed. The public key, feed endpoint, workflow files and old signing trial are unchanged. No key/password was retrieved or displayed. Later policy/tooling commits have separate SHAs from binary source `b07f0bab242ae3f8b47f461d4046e4211b91ea81` and require neither a product rebuild nor another version bump. Actual signatures/publication remain pending at this activation; device limits above remain explicit.
+
+All three first-use cache preparations, successful-main saves and separate redacted timing uploads completed. These are cold builds; exact-hit reuse, isolated cache overhead and memory/critical-unit comparison remain unmeasured. Earlier releases used different source/runner inputs, so these observations do not isolate a speedup from caching or compiler concurrency.
+
+| Platform    | Job wall seconds | Compile seconds | Bundle seconds | Cache |
+| ----------- | ---------------- | --------------- | -------------- | ----- |
+| windows-x64 | 671              | 533.86          | 20.47          | miss  |
+| macos-x64   | 910              | 796.93          | 4.06           | miss  |
+| macos-arm64 | 625              | 524             | 2.05           | miss  |
