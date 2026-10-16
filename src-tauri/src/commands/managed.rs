@@ -135,13 +135,7 @@ pub async fn configure_document_identity(
     main_only(&webview)?;
     let core = core.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        document_identity::configure(
-            &core,
-            &workspace_id,
-            &view_id,
-            &relative_path,
-            &action,
-        )
+        document_identity::configure(&core, &workspace_id, &view_id, &relative_path, &action)
     })
     .await
     .map_err(|_| "文書IDの変更を完了できません".to_owned())?
