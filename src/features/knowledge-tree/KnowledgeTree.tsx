@@ -8,6 +8,7 @@ import { FolderIcon } from "./FolderIcon";
 import { CreationIcon } from "./CreationIcon";
 import { TrashDialog } from "./TrashDialog";
 import { rootCreationLabels } from "./rootCreationLabels";
+import { useTreeExpansion } from "./expansion";
 
 const ROW_HEIGHT = 32;
 type TreeFocusRequest = {
@@ -41,6 +42,7 @@ export function KnowledgeTree({
   onTrash,
   headerContent,
   hideFiles = false,
+  treeReady = true,
 }: {
   nodes: TreeNode[];
   workspaceId: string | null;
@@ -65,9 +67,14 @@ export function KnowledgeTree({
   onTrash?: (source: string, revision: number) => Promise<string | null>;
   headerContent?: ReactNode;
   hideFiles?: boolean;
+  treeReady?: boolean;
 }) {
   const t = useT();
-  const [expanded, setExpanded] = useState(new Set<string>());
+  const { expanded, setExpanded, reconcileExpanded } = useTreeExpansion(
+    rootPath,
+    workspaceId,
+    nodes,
+  );
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(500);
   const [focused, setFocused] = useState<string | null>(null);
@@ -90,7 +97,6 @@ export function KnowledgeTree({
     [nodes, displayFolder, expanded],
   );
   useEffect(() => {
-    setExpanded(new Set());
     setFocused(null);
     setMenu(null);
     setIntent(null);
@@ -121,6 +127,11 @@ export function KnowledgeTree({
     setFocused((previous) => (previous ? map(previous) : null));
     moveRevision.current = Math.max(...fresh.map((move) => move.revision));
   }, [pathMoves]);
+  useEffect(() => {
+    // Apply confirmed path moves first, then prune against the complete registered-root tree.
+    // The initial empty/loading snapshot must never replace the saved expansion.
+    if (workspaceId && treeReady) reconcileExpanded();
+  }, [workspaceId, treeReady, reconcileExpanded]);
   useEffect(() => {
     const element = container.current;
     if (!element) return;
