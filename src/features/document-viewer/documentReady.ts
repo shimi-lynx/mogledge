@@ -22,12 +22,14 @@ export function useDocumentReady(
           : message.type;
       const ready =
         messageType === "mogledge-document-ready-v1" && Object.keys(message).length === 2;
+      const storage =
+        messageType === "mogledge-storage-request-v1" && Object.keys(message).length === 2;
       const anchor =
         messageType === "mogledge-anchor-result-v1" &&
         Object.keys(message).length === 4 &&
         Number.isSafeInteger(message.request) &&
         typeof message.success === "boolean";
-      if (!ready && !anchor) return;
+      if (!ready && !anchor && !storage) return;
       for (const frame of stage.current?.querySelectorAll("iframe") ?? []) {
         if (frame.contentWindow !== event.source) continue;
         const tab = latest.current.tabs.find(
@@ -37,6 +39,7 @@ export function useDocumentReady(
         const token = new URL(tab.url).pathname.match(/^\/s\/([a-f0-9]{64})\//)?.[1];
         if (token && message.token === token) {
           if (ready) controller.documentReady(tab.id, tab.url);
+          else if (storage) controller.documentStorageRequested(tab.id, tab.url);
           else
             controller.documentAnchorResult(
               tab.id,

@@ -1,6 +1,6 @@
 [package]
 name = "mogledge"
-version = "0.10.0"
+version = "0.10.1"
 description = "Sandboxed local HTML knowledge viewer"
 edition = "2021"
 default-run = "mogledge"

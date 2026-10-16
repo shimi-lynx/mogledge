@@ -1127,7 +1127,11 @@ async fn served_descriptor_preserves_sandbox_and_original_document() {
     assert!(served.starts_with("<!doctype html><script>"));
     assert!(served.contains("__MOGLEDGE_STORAGE_V1__"));
     assert!(served.contains("Object.freeze("));
-    assert!(served.contains("writable:false,configurable:false"));
+    assert!(served.contains("writable: false"));
+    assert!(served.contains("configurable: false"));
+    assert!(served.contains("mogledge-storage-request-v1"));
+    assert!(!served.contains("__MOGLEDGE_STORAGE_DESCRIPTOR__"));
+    assert!(!served.contains("__MOGLEDGE_STORAGE_TOKEN__"));
     assert!(served.contains("\"available\":true"));
     assert!(served.contains(&endpoint(&current.token)));
     assert!(
