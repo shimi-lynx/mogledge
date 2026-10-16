@@ -8,7 +8,7 @@ const LEGACY_REGISTRATION: &str = "ResidentStartupLegacyRegistration";
 
 /// Detect only the exact old OS registration, without discovering or transferring app data.
 #[cfg(any(target_os = "macos", test))]
-pub(crate) fn check_legacy_launch_agent(
+pub fn check_legacy_launch_agent(
     launch_agents: &std::path::Path,
     executable: &std::path::Path,
 ) -> Result<(), &'static str> {
