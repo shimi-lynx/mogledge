@@ -69,7 +69,13 @@ Self-build remains supported. The manual GitHub Actions workflow supports ordina
 
 ## Author HTML apps
 
-Each [dedicated folder](docs/registered-folders.md) receives the [HTML authoring kit](docs/html-authoring-kit.md): a complete template, guide and Codex/Claude Skills. Create or register folders through Settings; existing instructions and files are protected. Static HTML UUIDs preserve saved input across renames, folder moves and replacement saves. Detected UUID copies require an explicit share-or-new decision. Legacy physical records and backups remain intact, but this workflow does not discover or inherit them. Ordinary JSON transfer remains available.
+A [dedicated folder](docs/registered-folders.md) keeps your HTML apps, assets and AI authoring kit together. Create or register several through Settings, for example for different projects. Setup installs the [HTML authoring kit](docs/html-authoring-kit.md)—a complete template, guide and project-local Codex/Claude Code Skills—while protecting existing instructions and conflicting files.
+
+A Skill is a set of instructions for a compatible AI tool. The guide and Skills explain Mogledge's saved-input API and static HTML document IDs, including preserving an existing document's ID when editing it. The guide and template live in `.mogledge/html-authoring/`; the Codex and Claude Code Skills are installed under `.agents/skills/mogledge-html-authoring/` and `.claude/skills/mogledge-html-authoring/` respectively.
+
+You normally do not need to edit these guide files. Right-click a folder or HTML, choose **Send to AI**, and describe what you want to create or change; review the draft in the receiving tool before sending. If the AI misses the local guidance, ask it to read `.mogledge/html-authoring/GUIDE.md` before editing. Discovery and correct use depend on the AI tool, its settings and working directory; installing the kit does not guarantee that the AI follows its instructions.
+
+Static HTML UUIDs preserve saved input across renames, folder moves and replacement saves. Detected UUID copies require an explicit share-or-new decision. Legacy physical records and backups remain intact, but this workflow does not discover or inherit them. Ordinary JSON transfer remains available.
 
 For repository-based authoring, use the [HTML skill](.agents/skills/mogledge-html/SKILL.md), [storage API](docs/document-storage.md) and [artifact export API](docs/html-artifact-export.md). Restore saved input before calculation or saving; failed restoration must not overwrite existing input with defaults.
 
