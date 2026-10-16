@@ -78,6 +78,155 @@
       !modalOpen()
     );
   }
+  // WebView2 supplies Ctrl+F, but the Mac host has no native document-find UI.
+  // Keep this fallback inside the focused HTML: no query, DOM or selection crosses
+  // the sandbox, and window.find searches the current frame without rewriting it.
+  let documentFind;
+  function openDocumentFind() {
+    if (!document.body) return;
+    if (documentFind?.host.isConnected) {
+      documentFind.input.focus();
+      documentFind.input.select();
+      return;
+    }
+    const labels = navigator.language?.toLowerCase().startsWith("ja")
+      ? {
+          find: "このHTML内を検索",
+          previous: "前の一致",
+          next: "次の一致",
+          close: "検索を閉じる",
+          found: "一致しました",
+          missing: "一致なし",
+          unavailable: "検索を利用できません",
+        }
+      : {
+          find: "Find in this HTML",
+          previous: "Previous match",
+          next: "Next match",
+          close: "Close find",
+          found: "Match found",
+          missing: "No match",
+          unavailable: "Find unavailable",
+        };
+    const returnFocus = document.activeElement;
+    const selection = window.getSelection();
+    const start = selection?.rangeCount
+      ? selection.getRangeAt(0).cloneRange()
+      : document.createRange();
+    if (!selection?.rangeCount) {
+      start.selectNodeContents(document.body);
+      start.collapse(true);
+    }
+    let match = start;
+    let previousQuery = "";
+    const host = document.createElement("mogledge-document-find");
+    host.style.cssText =
+      "all:initial;position:fixed;top:12px;right:12px;z-index:2147483647;display:block;width:min(440px,calc(100vw - 24px))";
+    const root = host.attachShadow({ mode: "open" });
+    // Only fixed application labels enter this markup; the query stays an input value.
+    root.innerHTML = `<style>
+      *{box-sizing:border-box}.bar{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,32px);gap:6px;padding:9px;background:#202832;color:#f2f4f7;border:1px solid #7f8c9b;border-radius:7px;box-shadow:0 3px 14px #0005;font:14px/1.4 system-ui,sans-serif}
+      input{min-width:0;width:100%;font:inherit;padding:5px;border:1px solid #8e9aaa;border-radius:3px;background:#fff;color:#111}button{font:inherit;border:1px solid #8e9aaa;border-radius:3px;background:#303d4b;color:#fff;cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid #a8e4ce;outline-offset:1px}output{grid-column:1/-1;font-size:12px;min-height:1.4em}
+      </style><div class="bar" role="search" aria-label="${labels.find}"><input type="search" maxlength="4096" aria-label="${labels.find}" placeholder="${labels.find}"><button type="button" aria-label="${labels.previous}">↑</button><button type="button" aria-label="${labels.next}">↓</button><button type="button" aria-label="${labels.close}">×</button><output role="status" aria-live="polite"></output></div>`;
+    const input = root.querySelector("input");
+    const status = root.querySelector("output");
+    const [previous, next, close] = root.querySelectorAll("button");
+    const dismiss = () => {
+      host.remove();
+      documentFind = undefined;
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    };
+    const find = (backwards = false) => {
+      if (composing || !host.isConnected || !document.hasFocus()) return;
+      const query = input.value;
+      status.textContent = "";
+      if (!query) {
+        previousQuery = "";
+        match = start;
+        return;
+      }
+      if (typeof window.find !== "function") {
+        status.textContent = labels.unavailable;
+        return;
+      }
+      if (query !== previousQuery) match = start;
+      // Exclude our own controls and restore the last document match before
+      // advancing; focusing a search input must not change the search origin.
+      host.style.display = "none";
+      let found = false;
+      try {
+        if (selection && match.commonAncestorContainer.isConnected) {
+          selection.removeAllRanges();
+          selection.addRange(match);
+        }
+        found = window.find(query, false, backwards, true, false, false, false);
+        if (found && selection?.rangeCount) match = selection.getRangeAt(0).cloneRange();
+      } finally {
+        host.style.display = "block";
+        input.focus({ preventScroll: true });
+      }
+      // Focusing the input from a mouse button can replace the DOM selection.
+      // Retain the document highlight as well as our next-search position.
+      if (found && selection && match.commonAncestorContainer.isConnected) {
+        selection.removeAllRanges();
+        selection.addRange(match);
+      }
+      previousQuery = query;
+      status.textContent = found ? labels.found : labels.missing;
+    };
+    input.addEventListener("input", (event) => {
+      if (!event.isComposing) find();
+    });
+    input.addEventListener("compositionend", () => queueMicrotask(() => find()));
+    root.addEventListener("keydown", (event) => {
+      if (event.isComposing || composing || event.keyCode === 229) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        dismiss();
+      } else if (event.key === "Enter" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        find(event.shiftKey);
+      }
+    });
+    previous.addEventListener("click", () => find(true));
+    next.addEventListener("click", () => find());
+    close.addEventListener("click", dismiss);
+    document.documentElement.append(host);
+    documentFind = { host, input };
+    input.focus({ preventScroll: true });
+  }
+  function allowsDocumentFind(event) {
+    return (
+      event.isTrusted &&
+      !event.isComposing &&
+      event.keyCode !== 229 &&
+      !composing &&
+      !event.defaultPrevented &&
+      !event.cancelBubble &&
+      document.hasFocus() &&
+      !modalOpen()
+    );
+  }
+  window.addEventListener("keydown", (event) => {
+    if (
+      !/Mac/i.test(navigator.platform) ||
+      !event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.shiftKey ||
+      event.repeat ||
+      event.key.toLowerCase() !== "f" ||
+      !allowsDocumentFind(event)
+    )
+      return;
+    // Iframe keys do not bubble to main. Keep later authored handlers' first
+    // refusal; unlike destructive tab commands, unhandled find also works in inputs.
+    setTimeout(() => {
+      if (allowsDocumentFind(event)) openDocumentFind();
+    }, 0);
+  });
   function afterZoomInput(event, apply) {
     // Native page zoom is disabled. Keep the normal HTML event path, including
     // later synchronous window listeners, before proposing a document-only zoom.
