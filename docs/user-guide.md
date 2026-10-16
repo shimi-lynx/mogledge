@@ -34,6 +34,12 @@ Each column keeps up to 32 navigation-history entries while the app is running. 
 
 Ctrl+W on Windows or Cmd+W on macOS closes the current tab in the active column from app controls or unhandled, non-editing HTML focus. Closing the last tab keeps the app open. Held keys close only one tab; HTML editing, IME, dialogs and synchronous cancellation retain priority. Reopen uses the existing closed-document history.
 
+## Find within the open HTML
+
+With focus inside an HTML document on macOS, press **Cmd+F** to open its local find bar. Type a phrase, use **Enter** / **Shift+Enter** or the arrow buttons for the next / previous match with wrap, and press **Escape** to close it and return focus. Search is case-insensitive and uses rendered text in that frame; it is not Canvas/image OCR or a search of saved-input records. The English/Japanese labels follow the WebView language. Unhandled Cmd+F also works from an HTML input; authored key cancellation, IME composition and an open HTML modal retain priority.
+
+Windows retains its existing WebView2 **Ctrl+F** behavior. This current-document find is separate from **Cmd+Shift+F / Ctrl+Shift+F**, which opens indexed full-text document search below. Mac WKWebView/device acceptance remains explicitly unverified in [known limitations](known-limitations.md#existing-reported-problems).
+
 ## Find documents and save workspaces
 
 | Feature              | Use                                                                                                                             |
