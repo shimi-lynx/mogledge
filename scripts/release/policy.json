@@ -79,15 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.9.1",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38848170136,
+    "verification_tooling_sha": "271fb287d02ee8183892f9b5d457d26bb1c7f747",
+    "artifact_id": 12023697887,
+    "artifact_size": 134004153,
+    "artifact_sha256": "05e834c9ce9937ad2ac4eeb46fb5349ab4688fbd67e0f8f8e4fc87b138a62307",
+    "artifact_name": "production-verified-0.8.2-38848170136-1",
+    "expires_at": "2026-10-19T03:59:19Z",
     "notes": "Fix Windows nested document storage and UUID import validation, retain saved input only through current UUIDs without automatic inheritance of legacy records, keep AI handoff at the selected project root without automatic instruction paragraphs, restore sidebar expansion per registered root and restore tab scrollbar input. Existing rows and backups are retained. Windows is not Authenticode-signed; macOS uses ad-hoc signing and is not notarized. Device, receiving-client and installed-update checks remain tracked in #25/#48/#9/#10/#22/#23."
   }
 }
