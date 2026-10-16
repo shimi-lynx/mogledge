@@ -97,6 +97,10 @@
           close: "検索を閉じる",
           found: (current, total) => `${total} 件中 ${current} 件目`,
           missing: "0 件（一致なし）",
+          limited: (current, total) =>
+            total
+              ? `検索範囲を制限中：少なくとも ${total} 件中 ${current} 件目`
+              : "検索範囲を制限中：調べた範囲に一致なし",
         }
       : {
           find: "Find in this HTML",
@@ -105,6 +109,10 @@
           close: "Close find",
           found: (current, total) => `${current} of ${total} matches`,
           missing: "0 matches (No match)",
+          limited: (current, total) =>
+            total
+              ? `${current} of at least ${total} matches (search limited)`
+              : "Search limited; no match in scanned text",
         };
     const returnFocus = document.activeElement;
     const selection = window.getSelection();
@@ -116,6 +124,7 @@
       start.collapse(true);
     }
     let matches = [];
+    let limited = false;
     let current = -1;
     let previousQuery = "";
     const host = document.createElement("mogledge-document-find");
@@ -144,7 +153,7 @@
     const paintRoot = paintHost.attachShadow({ mode: "closed" });
     if (!customHighlights) document.documentElement.append(paintHost);
     let paintFrame = 0;
-    let refreshFrame = 0;
+    let refreshTimer = 0;
     const paint = () => {
       paintFrame = 0;
       if (!host.isConnected) return;
@@ -164,6 +173,11 @@
       const rectangles = document.createDocumentFragment();
       if (!(scaleX > 0 && scaleY > 0)) return;
       matches.forEach((range, index) => {
+        const visibleRects = [...range.getClientRects()].filter(
+          (rect) =>
+            rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth,
+        );
+        if (!visibleRects.length) return;
         // Clip to scrolling ancestors so a range cannot paint over their chrome.
         let left = 0,
           top = 0,
@@ -185,7 +199,7 @@
             bottom = Math.min(bottom, rect.bottom);
           }
         }
-        for (const rect of range.getClientRects()) {
+        for (const rect of visibleRects) {
           const x = Math.max(left, rect.left),
             y = Math.max(top, rect.top);
           const width = Math.min(right, rect.right) - x;
@@ -205,7 +219,21 @@
     // Form values, shadow trees, nested documents and media are outside this scan.
     const collectMatches = (query) => {
       const result = [];
+      limited = false;
       if (!query) return result;
+      // Bound both allocations and synchronous work for arbitrary authored HTML.
+      // A browser style/layout or regexp operation cannot be preempted mid-call;
+      // the deadline is checked between operations, not a real-time guarantee.
+      const deadline = performance.now() + 40;
+      let visited = 0;
+      let textUnits = 0;
+      const exhausted = () => {
+        if (limited || performance.now() >= deadline) {
+          limited = true;
+          return true;
+        }
+        return false;
+      };
       const expression = new RegExp(
         query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"),
         "giu",
@@ -216,7 +244,7 @@
         expression.lastIndex = 0;
         let hit;
         let nodeIndex = 0;
-        while ((hit = expression.exec(text))) {
+        while (!exhausted() && (hit = expression.exec(text))) {
           while (nodes[nodeIndex].end <= hit.index) nodeIndex++;
           const first = nodes[nodeIndex];
           let endIndex = nodeIndex;
@@ -227,17 +255,33 @@
           range.setStart(first.node, hit.index - first.start);
           range.setEnd(last.node, end - last.start);
           if (range.getClientRects().length) result.push(range);
+          if (result.length >= 1000) {
+            limited = true;
+            break;
+          }
         }
         text = "";
         nodes = [];
       };
-      const visit = (node) => {
+      const visit = (node, depth = 0) => {
+        if (exhausted()) return;
+        if (++visited > 5000 || depth > 128) {
+          limited = true;
+          return;
+        }
         if (node.nodeType === Node.TEXT_NODE) {
           const style = getComputedStyle(node.parentElement);
           if (style.visibility === "hidden" || style.visibility === "collapse") return;
           const start = text.length;
-          text += node.data;
+          const remaining = 200000 - textUnits;
+          const content = node.data.slice(0, remaining);
+          textUnits += content.length;
+          text += content;
           nodes.push({ node, start, end: text.length });
+          if (content.length < node.length) {
+            flush();
+            limited = true;
+          }
           return;
         }
         if (!(node instanceof Element)) return;
@@ -253,7 +297,10 @@
         if (style.display === "none" || style.contentVisibility === "hidden") return;
         const boundary = !["inline", "contents"].includes(style.display) || node.localName === "br";
         if (boundary) flush();
-        for (const child of node.childNodes) visit(child);
+        for (const child of node.childNodes) {
+          if (exhausted()) break;
+          visit(child, depth + 1);
+        }
         if (boundary) flush();
       };
       visit(document.body);
@@ -263,9 +310,11 @@
     const showCurrent = (scroll) => {
       const match = matches[current];
       status.textContent = input.value
-        ? match
-          ? labels.found(current + 1, matches.length)
-          : labels.missing
+        ? limited
+          ? labels.limited(current + 1, matches.length)
+          : match
+            ? labels.found(current + 1, matches.length)
+            : labels.missing
         : "";
       previous.disabled = next.disabled = !match;
       if (match && scroll) {
@@ -302,8 +351,12 @@
       paint();
     };
     const refresh = () => {
-      refreshFrame = 0;
-      if (!host.isConnected || composing) return;
+      refreshTimer = 0;
+      if (!host.isConnected) return;
+      if (composing) {
+        scheduleRefresh();
+        return;
+      }
       const active = matches[current];
       matches = collectMatches(input.value);
       current = matches.findIndex(
@@ -315,9 +368,16 @@
       if (current < 0 && matches.length) current = 0;
       showCurrent(false);
     };
-    const observer = new MutationObserver(() => {
-      if (input.value && !refreshFrame) refreshFrame = requestAnimationFrame(refresh);
-    });
+    // A clock/style animation must not force a full scan on every frame. Keep
+    // one pending refresh, while navigation reuses the currently known ranges.
+    const scheduleRefresh = () => {
+      if (input.value && !refreshTimer) refreshTimer = setTimeout(refresh, 250);
+    };
+    const resizeFind = () => {
+      schedulePaint();
+      scheduleRefresh();
+    };
+    const observer = new MutationObserver(scheduleRefresh);
     observer.observe(document.body, {
       subtree: true,
       childList: true,
@@ -325,13 +385,13 @@
       attributes: true,
     });
     window.addEventListener("scroll", schedulePaint, true);
-    window.addEventListener("resize", schedulePaint);
+    window.addEventListener("resize", resizeFind);
     const dismiss = () => {
       observer.disconnect();
       cancelAnimationFrame(paintFrame);
-      cancelAnimationFrame(refreshFrame);
+      clearTimeout(refreshTimer);
       window.removeEventListener("scroll", schedulePaint, true);
-      window.removeEventListener("resize", schedulePaint);
+      window.removeEventListener("resize", resizeFind);
       if (customHighlights) {
         CSS.highlights.delete(highlightName);
         CSS.highlights.delete(currentName);
@@ -347,7 +407,11 @@
       const query = input.value;
       const changed = query !== previousQuery;
       const active = matches[current];
-      matches = collectMatches(query);
+      if (changed) {
+        clearTimeout(refreshTimer);
+        refreshTimer = 0;
+        matches = collectMatches(query);
+      }
       current = matches.findIndex(
         (range) =>
           active &&

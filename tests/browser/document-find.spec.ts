@@ -321,9 +321,13 @@ test("Mac find scans a large document without persisting highlights", async ({
     element.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true }));
     return performance.now() - start;
   });
-  await expect(frame.getByRole("status")).toHaveText("1 of 1000 matches");
+  await expect(frame.getByRole("status")).toContainText("search limited");
+  const matchCount = await frame
+    .locator("body")
+    .evaluate(() => [...CSS.highlights.values()][0].size);
+  expect(matchCount).toBeLessThanOrEqual(1000);
   await testInfo.attach("find-scan-measurement", {
-    body: JSON.stringify({ paragraphs: 1000, elapsedMs }),
+    body: JSON.stringify({ paragraphs: 1000, matchCount, elapsedMs }),
     contentType: "application/json",
   });
   await search.press("Escape");
@@ -356,4 +360,71 @@ test("Mac find reveals the matching range inside a tall scrolling paragraph", as
     );
   });
   expect(visible).toBe(true);
+});
+
+test("Mac find bounds oversized text and reuses ranges during navigation and frequent mutations", async ({
+  page,
+}) => {
+  const frame = await documentFrame(page);
+  await frame.locator("#second").evaluate((element) => {
+    element.textContent = "needle ".repeat(100000);
+    const original = window.getComputedStyle;
+    const state = window as unknown as { scanStyleReads: number };
+    state.scanStyleReads = 0;
+    window.getComputedStyle = (...args) => {
+      if (args[0].id === "plain") state.scanStyleReads++;
+      return Reflect.apply(original, window, args);
+    };
+  });
+  await frame.locator("#plain").press("Meta+f");
+  const search = frame.getByRole("searchbox");
+  await search.fill("needle");
+  await expect(frame.getByRole("status")).toContainText("search limited");
+  const matches = await frame.locator("body").evaluate(() => [...CSS.highlights.values()][0].size);
+  expect(matches).toBeGreaterThan(0);
+  expect(matches).toBeLessThanOrEqual(1000);
+  await frame.locator("body").evaluate(() => {
+    (window as unknown as { scanStyleReads: number }).scanStyleReads = 0;
+  });
+  await search.press("Enter");
+  await expect(frame.getByRole("status")).toContainText("2 of at least");
+  // The unmatched button is visited by a scan, but not by range navigation.
+  const readsAfterNext = await frame
+    .locator("body")
+    .evaluate(() => (window as unknown as { scanStyleReads: number }).scanStyleReads);
+  expect(readsAfterNext).toBe(0);
+  const mutationReads = await frame.locator("body").evaluate(async () => {
+    const state = window as unknown as { scanStyleReads: number };
+    state.scanStyleReads = 0;
+    let updates = 0;
+    const timer = setInterval(
+      () => document.body.setAttribute("data-clock", String(updates++)),
+      10,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    clearInterval(timer);
+    return state.scanStyleReads;
+  });
+  expect(mutationReads).toBeGreaterThan(0);
+  expect(mutationReads).toBeLessThanOrEqual(6);
+  await search.fill("text beyond scanned prefix");
+  await expect(frame.getByRole("status")).toHaveText("Search limited; no match in scanned text");
+  await search.press("Escape");
+  await expect(frame.locator("mogledge-document-find")).toHaveCount(0);
+});
+
+test("Mac find refreshes media-query visibility counts after resize", async ({ page }) => {
+  const frame = await documentFrame(page);
+  await frame.locator("body").evaluate(() => {
+    const style = document.createElement("style");
+    style.textContent = "@media (max-width:900px) { #second { display:none } }";
+    document.head.append(style);
+  });
+  await frame.locator("#plain").press("Meta+f");
+  await frame.getByRole("searchbox").fill("needle");
+  await expect(frame.getByRole("status")).toHaveText("1 of 2 matches");
+  await page.setViewportSize({ width: 800, height: 720 });
+  await expect(frame.getByRole("status")).toHaveText("1 of 1 matches");
+  await page.setViewportSize({ width: 1200, height: 720 });
+  await expect(frame.getByRole("status")).toHaveText("1 of 2 matches");
 });
