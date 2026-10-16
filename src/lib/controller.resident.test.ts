@@ -32,7 +32,7 @@ async function setup() {
     openDocument: vi.fn(async (_, __, id) => `http://fixture/${id}`),
     listen: vi.fn(async () => vi.fn()),
     performFileAction: vi.fn(async () => {}),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     validateDocumentNavigation: vi.fn(async (_, __, path) => ({
       relativePath: path,
       identity: "a".repeat(64),

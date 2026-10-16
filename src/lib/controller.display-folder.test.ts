@@ -79,7 +79,7 @@ function fixture() {
       },
     ),
     validateWorkspaceDocument: vi.fn(async (_workspace, _view, document) => document.relativePath),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
   };
   const controller = new KnowledgeController(api);

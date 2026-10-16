@@ -38,9 +38,7 @@ export function FileContextMenu({
   onAction?: (action: FileAction) => void;
   onClose: (restoreFocus: boolean) => void;
   kind?: "html" | "folder";
-  onTreeAction?: (
-    action: "createHtml" | "createFolder" | "renameHtml" | "move" | "up" | "down",
-  ) => void;
+  onTreeAction?: (action: "createFolder" | "renameHtml" | "move" | "up" | "down") => void;
   onOpenColumn?: (path: string, column: 0 | 1) => void;
   onRecoverState?: (path: string) => void;
   onStateTransfer?: (path: string, kind: "import" | "export") => void;
@@ -239,7 +237,6 @@ export function FileContextMenu({
       {onTreeAction &&
         (
           [
-            ["createHtml", "HTMLを作成", false],
             ["createFolder", "フォルダーを作成", false],
             ["up", "上へ並べ替え", reorderDisabled[0]],
             ["down", "下へ並べ替え", reorderDisabled[1]],
@@ -257,13 +254,7 @@ export function FileContextMenu({
           >
             <MenuItemLabel
               label={t(label)}
-              shortcut={
-                action === "createHtml"
-                  ? modifier + "+N"
-                  : action === "createFolder"
-                    ? modifier + "+Shift+N"
-                    : undefined
-              }
+              shortcut={action === "createFolder" ? modifier + "+Shift+N" : undefined}
             />
           </button>
         ))}

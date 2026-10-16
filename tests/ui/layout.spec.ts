@@ -909,9 +909,9 @@ for (const platform of ["Win32", "MacIntel"]) {
     await row.click({ button: "right" });
     const fileMenu = page.getByRole("menu");
     const modifier = platform === "MacIntel" ? "⌘" : "Ctrl";
-    await expect(
-      fileMenu.getByRole("menuitem", { name: "HTMLを作成", exact: true }).locator("kbd"),
-    ).toHaveText(modifier + "+N");
+    await expect(fileMenu.getByRole("menuitem", { name: "HTMLを作成", exact: true })).toHaveCount(
+      0,
+    );
     await expect(
       fileMenu.getByRole("menuitem", { name: "フォルダーを作成", exact: true }).locator("kbd"),
     ).toHaveText(modifier + "+Shift+N");
@@ -1345,14 +1345,13 @@ async function prepare(
             };
             const parentOf = path => path.split('/').slice(0, -1).join('/');
             const join = (parent, name) => parent ? parent + '/' + name : name;
-            let createdPath = null; const moves = [];
-            if (mutation.kind === 'createHtml' || mutation.kind === 'createFolder') {
-              const name = mutation.kind === 'createHtml' && !mutation.name.toLowerCase().endsWith('.html') ? mutation.name + '.html' : mutation.name;
+            const moves = [];
+            if (mutation.kind === 'createFolder') {
+              const name = mutation.name;
               const children = list(mutation.parent);
               if (children.some(node => node.name.toLowerCase() === name.toLowerCase())) throw new Error('同じ名前');
               const relativePath = join(mutation.parent, name);
-              children.push({ name, relativePath, kind: mutation.kind === 'createHtml' ? 'html' : 'folder', children: [] });
-              if (mutation.kind === 'createHtml') createdPath = relativePath;
+              children.push({ name, relativePath, kind: 'folder', children: [] });
             } else {
               const old = list(parentOf(mutation.source)); const index = old.findIndex(node => node.relativePath === mutation.source);
               const node = old[index];
@@ -1375,7 +1374,7 @@ async function prepare(
               }
             }
             snapshot.revision++; snapshot.pathMoves = [...(snapshot.pathMoves || []), ...moves];
-            return { snapshot: structuredClone(snapshot), createdPath, moves, warning: window.layoutMutationWarning || null };
+            return { snapshot: structuredClone(snapshot), moves, warning: window.layoutMutationWarning || null };
           },
           performFileAction: async (workspace, view, path, action) => {
             calls.actions.push({workspace, view, path, action});
@@ -2027,7 +2026,7 @@ test("shell refresh capture protects focused dialogs and both context menus", as
   await page.getByRole("tab").click({ button: "right" });
   await checkFocusedKeys(page.getByRole("menu"));
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "HTMLを作成", exact: true }).click();
+  await page.getByRole("button", { name: "フォルダーを作成", exact: true }).click();
   await checkFocusedKeys(page.getByRole("dialog"));
   await page.getByRole("button", { name: "キャンセル", exact: true }).click();
   const frameEvent = await frame
@@ -2722,8 +2721,8 @@ test("creation icons stay in one row at sidebar limits and preserve keyboard tar
   await frame.contentFrame().getByRole("button", { name: "Draw" }).click();
   const tools = page.locator(".tree-tools");
   const buttons = tools.getByRole("button");
-  const names = ["HTMLを作成", "フォルダーを作成", "ルートにフォルダーを作成"];
-  await expect(buttons).toHaveCount(3);
+  const names = ["フォルダーを作成", "ルートにフォルダーを作成"];
+  await expect(buttons).toHaveCount(2);
   const assertOneRow = async () => {
     const boxes = await buttons.evaluateAll((elements) =>
       elements.map((element) => {
@@ -2759,9 +2758,7 @@ test("creation icons stay in one row at sidebar limits and preserve keyboard tar
   await buttons.nth(0).focus();
   await page.keyboard.press("Tab");
   await expect(buttons.nth(1)).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(buttons.nth(2)).toBeFocused();
-  expect(await buttons.nth(2).evaluate((element) => getComputedStyle(element).outlineStyle)).toBe(
+  expect(await buttons.nth(1).evaluate((element) => getComputedStyle(element).outlineStyle)).toBe(
     "solid",
   );
   await page.screenshot({ path: test.info().outputPath("creation-icons-230.png") });
@@ -2771,19 +2768,16 @@ test("creation icons stay in one row at sidebar limits and preserve keyboard tar
     await tools.getByRole("button", { name, exact: true }).press("Enter");
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("textbox", { name: "名前" })).toBeFocused();
-    if (index === 0) await expect(dialog).toContainText("作成先: Examples");
-    else
-      await expect(dialog.getByRole("combobox", { name: "作成先" })).toHaveValue(
-        index === 2 ? "knowledge（ルート）" : "Examples",
-      );
+    await expect(dialog.getByRole("combobox", { name: "作成先" })).toHaveValue(
+      index === 1 ? "knowledge（ルート）" : "Examples",
+    );
     await dialog.getByRole("textbox").fill(`icon-${index}`);
     await dialog.getByRole("button", { name: "作成する", exact: true }).click();
     await expect(dialog).toHaveCount(0);
   }
   expect(await page.evaluate("window.layoutCalls.mutations")).toEqual([
-    { kind: "createHtml", parent: "Examples", name: "icon-0" },
-    { kind: "createFolder", parent: "Examples", name: "icon-1" },
-    { kind: "createFolder", parent: "", name: "icon-2" },
+    { kind: "createFolder", parent: "Examples", name: "icon-0" },
+    { kind: "createFolder", parent: "", name: "icon-1" },
   ]);
   expect(await frame.evaluate((element, original) => element === original, original)).toBe(true);
   await page.getByRole("tab", { name: "0.html", exact: true }).click();
@@ -2807,14 +2801,16 @@ test("creation icons stay in one row at sidebar limits and preserve keyboard tar
   await page.screenshot({ path: test.info().outputPath("creation-icons-forced-colors.png") });
 });
 
-test("creates Unicode HTML and folders with keyboard focus, cancellation and retry after Native failure", async ({
+test("creates Unicode folders with keyboard focus, cancellation and retry after Native failure", async ({
   page,
 }) => {
   await prepare(page);
   const tree = page.getByRole("tree");
   await tree.press("Control+n");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await tree.press("Control+Shift+n");
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toHaveAccessibleName("HTMLを作成");
+  await expect(dialog).toHaveAccessibleName("フォルダーを作成");
   await expect(dialog.getByRole("textbox", { name: "名前" })).toBeFocused();
   await dialog.getByRole("textbox").fill("日本語 メモ");
   await page.evaluate("window.layoutMutationFailure = true");
@@ -2825,9 +2821,9 @@ test("creates Unicode HTML and folders with keyboard focus, cancellation and ret
   await page.evaluate("window.layoutMutationFailure = false");
   await dialog.getByRole("button", { name: "作成する" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.locator('iframe[title="Examples/日本語 メモ.html"]')).toHaveCount(1);
+  await expect(page.locator("iframe")).toHaveCount(0);
   await expect(tree).toBeFocused();
-  await expect(page.locator('[data-path="Examples/日本語 メモ.html"]')).toBeInViewport();
+  await expect(page.locator('[data-path="Examples/日本語 メモ"]')).toBeInViewport();
   await tree.press("Control+Shift+n");
   await expect(dialog).toHaveAccessibleName("フォルダーを作成");
   await page.keyboard.press("Escape");
@@ -2836,14 +2832,15 @@ test("creates Unicode HTML and folders with keyboard focus, cancellation and ret
   await tree.press("Control+Shift+n");
   await dialog.getByRole("textbox").fill("資料");
   await dialog.getByRole("button", { name: "作成する" }).click();
-  await expect(page.locator('[data-path="Examples/資料"]')).toBeInViewport();
-  expect(await page.evaluate("window.layoutCalls.open")).toBe(1);
+  await expect(page.locator('[data-path="Examples/日本語 メモ/資料"]')).toBeInViewport();
+  expect(await page.evaluate("window.layoutCalls.open")).toBe(0);
   expect(await page.evaluate("window.layoutCalls.actions")).toEqual([]);
   await tree.press("Shift+F10");
+  await expect(page.getByRole("menuitem", { name: "AIに渡す", exact: true })).toBeFocused();
   await expect(
     page.getByRole("menuitem", { name: "このフォルダー内を検索", exact: true }),
-  ).toBeFocused();
-  await expect(page.getByRole("menuitem", { name: "HTMLを作成", exact: true })).toBeVisible();
+  ).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "HTMLを作成", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "フルパスをコピー" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "フォルダーを開く", exact: true })).toBeVisible();
   await expect(

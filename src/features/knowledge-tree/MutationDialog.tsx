@@ -6,7 +6,7 @@ import { translateUiMessage, useT } from "../../lib/i18n";
 import { rootCreationLabels } from "./rootCreationLabels";
 
 export type MutationIntent =
-  | { kind: "createHtml" | "createFolder"; parent: string }
+  | { kind: "createFolder"; parent: string }
   | { kind: "renameHtml"; source: string; name: string }
   | { kind: "move"; source: string; parent: string; anchor?: string; after?: boolean };
 export function MutationDialog({
@@ -66,13 +66,7 @@ export function MutationDialog({
     return folders;
   }, [nodes, intent, pickDestination, rootLabel]);
   const validParent = !pickDestination || folders.some((folder) => folder.path === parent);
-  const title = moving
-    ? "別フォルダーへ移動"
-    : renaming
-      ? "HTMLの名前を変更"
-      : intent.kind === "createHtml"
-        ? "HTMLを作成"
-        : "フォルダーを作成";
+  const title = moving ? "別フォルダーへ移動" : renaming ? "HTMLの名前を変更" : "フォルダーを作成";
   return (
     <dialog
       ref={dialog}
@@ -117,7 +111,7 @@ export function MutationDialog({
                   ? { kind: intent.kind, source: intent.source, name }
                   : {
                       ...intent,
-                      parent: intent.kind === "createFolder" ? parent : intent.parent,
+                      parent,
                       name,
                     };
             try {
@@ -156,13 +150,7 @@ export function MutationDialog({
           </>
         ) : (
           <>
-            {intent.kind !== "createFolder" && (
-              <p title={renaming ? undefined : intent.parent || rootLabel}>
-                {renaming
-                  ? intent.source
-                  : t("作成先: {path}", { path: intent.parent || rootLabel })}
-              </p>
-            )}
+            {renaming && <p>{intent.source}</p>}
             <label>
               {t("名前")}
               <input
@@ -187,13 +175,6 @@ export function MutationDialog({
                 readOnly={locked}
               />
             </label>
-            {intent.kind === "createHtml" && (
-              <p>
-                {t(
-                  ".html拡張子がない名前には自動で補います。内容の編集は外部AI・エディタで行います。",
-                )}
-              </p>
-            )}
             {renaming && (
               <p className="mutation-warning">
                 {t(

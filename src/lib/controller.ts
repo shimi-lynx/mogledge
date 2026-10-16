@@ -791,7 +791,6 @@ export class KnowledgeController {
         );
       }
       await this.reloadMoved(result.moves);
-      if (result.createdPath && current()) await this.select(result.createdPath);
       // Tab cleanup/reloads can clear transient errors. A committed mutation's
       // recovery warning must remain visible after those asynchronous steps.
       if (result.warning && current()) this.set({ error: result.warning });

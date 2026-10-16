@@ -1,6 +1,6 @@
 # OneDrive Native write probe
 
-Windows supports retained reads and a limited writer for new HTML, nested folders, HTML rename and HTML/empty-folder moves. Every affected ancestor/item must have a supported local representation. Offline/partial items and unsupported links are rejected. Nonempty-folder moves, anchored drops, reorder and trash remain restricted.
+Windows supports retained reads and a limited writer for nested folders, HTML rename and HTML/empty-folder moves. Every affected ancestor/item must have a supported local representation. Offline/partial items and unsupported links are rejected. Nonempty-folder moves, anchored drops, reorder and trash remain restricted.
 
 Directory enumeration and namespace rename may trigger provider communication, population, synchronization or waits. No-recall flags and held handles do not establish zero provider activity. An unknown outcome preserves files and confirmed tree/preferences/database state, revokes affected old grants and stops automatic retry, cleanup or opening. Refresh before another attempt. A sidecar-publication failure preserves the committed move and reports partial success.
 

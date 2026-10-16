@@ -130,14 +130,14 @@ impl Fixture {
 }
 
 #[test]
-fn native_create_queues_title_index_before_a_suppressed_watcher_echo() {
+fn native_rename_queues_index_before_a_suppressed_watcher_echo() {
     let fixture = Fixture::new();
     let before = fixture.status();
-    let result = fixture.perform(Mutation::CreateHtml {
-        parent: String::new(),
+    let result = fixture.perform(Mutation::RenameHtml {
+        source: "a.html".into(),
         name: "新規資料題名".into(),
     });
-    let relative = result.created_path.unwrap();
+    let relative = result.moves[0].to.clone();
     assert_eq!(relative, "新規資料題名.html");
     assert!(fixture.core.watcher.lock().unwrap().is_none());
     let queued = fixture.status().request_revision;
@@ -159,7 +159,7 @@ fn native_create_queues_title_index_before_a_suppressed_watcher_echo() {
     let page = fixture.search("新規資料題名");
     assert_eq!(page.hits.len(), 1);
     assert_eq!(page.hits[0].relative_path, relative);
-    assert_eq!(page.hits[0].title, "新規資料題名");
+    assert_eq!(page.hits[0].title, "東京単独");
     assert_eq!(page.request_revision, queued);
 }
 
@@ -269,12 +269,13 @@ fn native_reorder_changes_only_tree_order_and_preserves_index_and_html_bytes() {
 fn external_save_and_delete_are_not_hidden_by_native_echo_suppression() {
     let fixture = Fixture::new();
     let created = fixture
-        .perform(Mutation::CreateHtml {
-            parent: String::new(),
+        .perform(Mutation::RenameHtml {
+            source: "a.html".into(),
             name: "EchoCoverage".into(),
         })
-        .created_path
-        .unwrap();
+        .moves[0]
+        .to
+        .clone();
     fixture.wait();
     let initial = fixture.search("EchoCoverage").hits.remove(0);
     let (tab, token) = fixture.grant(&created, false);
@@ -313,7 +314,7 @@ fn external_save_and_delete_are_not_hidden_by_native_echo_suppression() {
         .index
         .read_document(fixture.workspace(), &initial.document_id, 100)
         .is_err());
-    assert_eq!(fixture.status().indexed, 4);
+    assert_eq!(fixture.status().indexed, 3);
 }
 
 #[test]
@@ -325,6 +326,7 @@ fn real_watcher_reindexes_same_size_same_mtime_edit_inside_native_echo_window() 
     let cache = temporary.path().join("cache");
     let settings = temporary.path().join("config/settings.json");
     fs::create_dir(&root).unwrap();
+    fs::write(root.join("EchoDraft.html"), "<title>EchoOld</title>").unwrap();
     let core = Core::new(19071);
     core.settings_path.set(settings).unwrap();
     let index = IndexService::new(cache).unwrap();
@@ -335,19 +337,24 @@ fn real_watcher_reindexes_same_size_same_mtime_edit_inside_native_echo_window() 
         "real OS watcher must remain active"
     );
     let workspace = snapshot.workspace_id.as_deref().unwrap();
+    let initial_deadline = Instant::now() + Duration::from_secs(3);
+    while index.status(workspace).unwrap().phase != "ready" {
+        assert!(Instant::now() < initial_deadline);
+        thread::sleep(Duration::from_millis(5));
+    }
     let started = Instant::now();
     let result = tree_mutations::perform(
         &core,
         workspace,
         &snapshot.view_id,
-        Mutation::CreateHtml {
-            parent: String::new(),
+        Mutation::RenameHtml {
+            source: "EchoDraft.html".into(),
             name: "EchoOld".into(),
         },
     )
     .unwrap();
     let native_revision = result.snapshot.revision;
-    let relative = result.created_path.unwrap();
+    let relative = result.moves[0].to.clone();
     // Block watcher publication until the native cache is ready and the external
     // write is complete. The index worker has no dependency on Core's gate.
     let gate = core.gate.lock().unwrap();

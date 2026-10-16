@@ -90,7 +90,7 @@ describe("Sidebar and refresh protection", () => {
     await checkShellScope(".tab-context-menu");
     await browser.saveScreenshot(resolve(".tools/native-sidebar-tab-menu.png"));
     await browser.keys("Escape");
-    await $("button=HTMLを作成").click();
+    await $("button=ルートにフォルダーを作成").click();
     await $("dialog[open] input").waitForExist();
     await checkShellScope("dialog[open]");
     await $('dialog[open] button[type="button"]').click();

@@ -46,7 +46,7 @@ function fixture(saved: TabSession | null = session()) {
     closeTab: vi.fn(async () => {}),
     getTabSession: vi.fn(async () => saved),
     captureTabSession: vi.fn(async () => {}),
-    mutateTree: vi.fn(async () => ({ snapshot, moves: [], createdPath: null, warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
   };
   return {

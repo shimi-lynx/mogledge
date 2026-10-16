@@ -176,10 +176,11 @@ mod tests {
     };
     use notify::event::{CreateKind, DataChange, MetadataKind, ModifyKind};
 
-    fn native_create() -> (tempfile::TempDir, Arc<Core>, Snapshot, PathBuf) {
+    fn native_rename() -> (tempfile::TempDir, Arc<Core>, Snapshot, PathBuf) {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("documents");
         std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("before.html"), "<title>external fixture</title>").unwrap();
         let core = Core::new(19072);
         core.settings_path
             .set(temporary.path().join("config/settings.json"))
@@ -190,8 +191,8 @@ mod tests {
             &core,
             snapshot.workspace_id.as_deref().unwrap(),
             &snapshot.view_id,
-            Mutation::CreateHtml {
-                parent: String::new(),
+            Mutation::RenameHtml {
+                source: "before.html".into(),
                 name: "Echo".into(),
             },
         )
@@ -207,7 +208,7 @@ mod tests {
     #[test]
     fn mixed_create_and_data_batch_preserves_content_notification_in_either_order() {
         for data_first in [false, true] {
-            let (_temporary, core, snapshot, root) = native_create();
+            let (_temporary, core, snapshot, root) = native_rename();
             let workspace = snapshot.workspace_id.as_deref().unwrap();
             let create = event(&root, EventKind::Create(CreateKind::File));
             let data = event(
@@ -219,7 +220,7 @@ mod tests {
             } else {
                 vec![create, data]
             };
-            // File metadata is still exactly the native create fingerprint.
+            // File metadata is still exactly the native rename fingerprint.
             apply_events(&core, &root, workspace, events);
             assert_eq!(core.snapshot().revision, snapshot.revision + 1);
             assert!(core.workspace.lock().unwrap().mutation_echoes.is_empty());
@@ -244,7 +245,7 @@ mod tests {
             EventKind::Any,
             EventKind::Other,
         ] {
-            let (_temporary, core, snapshot, root) = native_create();
+            let (_temporary, core, snapshot, root) = native_rename();
             let workspace = snapshot.workspace_id.as_deref().unwrap();
             std::fs::write(root.join("unreported.html"), "external").unwrap();
             apply_events(&core, &root, workspace, vec![event(&root, kind)]);
@@ -260,8 +261,8 @@ mod tests {
     }
 
     #[test]
-    fn explicit_structural_only_create_echo_still_avoids_duplicate_publication() {
-        let (_temporary, core, snapshot, root) = native_create();
+    fn explicit_structural_only_rename_echo_still_avoids_duplicate_publication() {
+        let (_temporary, core, snapshot, root) = native_rename();
         apply_events(
             &core,
             &root,

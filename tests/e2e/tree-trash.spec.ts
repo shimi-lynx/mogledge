@@ -59,10 +59,9 @@ describe("Disposable Windows OS recycle fixture", () => {
       (await invoke({ kind: "createFolder", parent: "", name })).nativeFailure,
       undefined,
     );
-    assert.equal(
-      (await invoke({ kind: "createHtml", parent: name, name: "child.html" })).nativeFailure,
-      undefined,
-    );
+    writeFileSync(resolve(root, name, "child.html"), "<title>external fixture</title>", {
+      flag: "wx",
+    });
     writeFileSync(resolve(root, name, ".hidden"), "disposable-hidden");
     writeFileSync(resolve(root, name, "asset.json"), "disposable-asset");
     await $('button[aria-controls="knowledge-files"]').click();
