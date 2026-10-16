@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00.000 --> 00:03.000
+Mogledge: a local HTML viewer for AI-assisted workflows.
+
+00:03.000 --> 00:06.000
+Open local HTML from the folder tree.
+
+00:06.000 --> 00:09.000
+Compare HTML pages in two columns.
+
+00:09.000 --> 00:15.000
+Choose Send to AI and create a request draft.
+
+00:15.000 --> 00:20.000
+Review the draft in a compatible AI app, such as ChatGPT / Codex or Claude Code.
+
+00:20.000 --> 00:23.000
+Run interactive HTML tools with explicit input saving through the storage API.
+
+00:23.000 --> 00:26.833
+Read. Compare. Iterate. Mogledge for Windows and macOS.
