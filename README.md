@@ -81,7 +81,7 @@ npm run check
 npm test
 ```
 
-See [CONTRIBUTING](CONTRIBUTING.md) and the [documentation index](docs/README.md) for architecture, security and targeted verification. The existing manual macOS validation workflow is for Native QA. The separately prepared distribution workflow supports Windows and both Mac architectures; it does not replace Native QA or run on pushes, pull requests or tags. Actions execution requires a separate cost/policy check and explicit run approval.
+See [CONTRIBUTING](CONTRIBUTING.md) and the [documentation index](docs/README.md) for architecture, security and targeted verification. **Desktop validation (manual)** requires an exact `expected_source_sha` and `cost_confirmed` approval. Its default `focused` scope runs fixed backend tests, Rust formatting and harness Clippy on selected Windows x64, Intel Mac and Apple Silicon runners, using an isolated hosted target with one Rust job and incremental compilation disabled. It does not build or exercise the Native application. The separate `full` scope retains the existing macOS application/E2E suite; see [manual validation scope](docs/testing.md#manual-actions-and-macos). The distribution workflow remains separate, and none of these workflows runs on pushes, pull requests or tags. Actions execution requires a separate cost/policy check and explicit run approval.
 
 ## License
 
