@@ -22,12 +22,12 @@ Choose **Binary distribution candidates (manual)** in Actions, then select the r
 
 Both `cost_confirmed` and `license_reviewed` default to false; jobs run only when both are true. Reuse unchanged account/budget/policy confirmations; inspect billing only for a related failure or known change. Confirm that adopted legal texts/notices and required sources cover the selected revision, including any new dependencies. An SPDX identifier alone is not a notice or full license text.
 
-| Platform                | Runner                               | Candidate contents                                                              |
-| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
-| `windows-x64` (default) | `windows-2022`                       | Unsigned `my-knowledge.exe`, with product name Mogledge, in a ZIP; no installer |
-| `macos-arm64`           | `macos-15`                           | Apple Silicon `Mogledge.app`, with an ad-hoc signature, in a ZIP                |
-| `macos-x64`             | `macos-15-intel`                     | Intel `Mogledge.app`, with an ad-hoc signature, in a ZIP                        |
-| `all`                   | Three separate runners, concurrently | Three separate artifacts                                                        |
+| Platform                | Runner                               | Candidate contents                                                          |
+| ----------------------- | ------------------------------------ | --------------------------------------------------------------------------- |
+| `windows-x64` (default) | `windows-2022`                       | Unsigned `mogledge.exe`, with product name Mogledge, in a ZIP; no installer |
+| `macos-arm64`           | `macos-15`                           | Apple Silicon `Mogledge.app`, with an ad-hoc signature, in a ZIP            |
+| `macos-x64`             | `macos-15-intel`                     | Intel `Mogledge.app`, with an ad-hoc signature, in a ZIP                    |
+| `all`                   | Three separate runners, concurrently | Three separate artifacts                                                    |
 
 The workflow uses explicit native targets matching the [runner architectures](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). It does not produce a universal Mac binary or validate Rosetta compatibility. Builds use Node 24.11.0, Rust 1.99.0, npm/Cargo lockfiles and CI Cargo `jobs=2`, without E2E features. Local distribution commands retain `jobs=1`. The workflow has `contents:read`, retains no checkout credentials, references no secrets and has no push, pull-request or tag trigger. Scoped Rust caching is described below; artifacts expire after three days. The separate macOS validation workflow is unchanged and remains for Native QA.
 
@@ -75,7 +75,7 @@ Windows checks cover the executable's x64 PE architecture, ProductName/FileDescr
 2. [Download the run's artifact](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts). A browser download wraps the application ZIP, `SHA256SUMS.txt` and `manifest.json` in an outer artifact archive; extract that first. A GitHub CLI artifact download extracts this layer already. Match the run's complete source SHA, version and platform to the manifest.
 3. Compare the **inner `Mogledge_...zip`** hash with `SHA256SUMS.txt`: use `Get-FileHash -Algorithm SHA256 <ZIP>` on Windows or `shasum -a 256 <ZIP>` on macOS. The listed checksum is for the application ZIP, not the browser's outer download. A checksum detects changed bytes; it is not an authenticated publisher signature.
 4. Extract the verified application ZIP into a new directory. It contains a candidate folder with the app and companion materials. Keep the complete Mac bundle and retain the license, NOTICE and source material when redistributing the package.
-5. For first use, place `my-knowledge.exe` in a chosen fixed folder on Windows, or the complete `Mogledge.app` at a chosen fixed Mac location, such as Applications. Open that EXE or bundle. For an existing installation, quit the old app, back up the app/profile/HTML and follow `docs/update-guide.md` in the extracted `source.zip` before replacing its confirmed fixed target. The ZIP is not an installer and provides no automatic update.
+5. For first use, place `mogledge.exe` in a chosen fixed folder on Windows, or the complete `Mogledge.app` at a chosen fixed Mac location, such as Applications. Open that EXE or bundle. For an existing installation, quit the old app, back up the app/profile/HTML and follow `docs/update-guide.md` in the extracted `source.zip` before replacing its confirmed fixed target. The ZIP is not an installer and provides no automatic update.
 
 Running a completed ZIP does not require Node, Rust, MSVC or Xcode build tools. Windows does require the [WebView2 Runtime](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution); if missing, obtain Microsoft's Evergreen Runtime for the device. The Windows executable is unsigned. SmartScreen or organizational policy may warn or block it. Check its origin and source/hash correspondence, and proceed only as permitted by your policy. Do not disable Defender or other OS protections globally. Source-building instructions are in `docs/first-run.md` in the extracted `source.zip`.
 

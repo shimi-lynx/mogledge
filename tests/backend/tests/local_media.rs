@@ -3,7 +3,7 @@ use axum::{
     http::{header, Method, Request, StatusCode},
 };
 use http_body_util::BodyExt;
-use my_knowledge_backend_tests::{core::Core, document_server, knowledge};
+use mogledge_backend_tests::{core::Core, document_server, knowledge};
 use std::{
     io::{Seek, SeekFrom, Write},
     sync::Arc,
@@ -471,7 +471,7 @@ async fn if_range_without_a_strong_validator_uses_the_bounded_full_response() {
 async fn fifo_head_get_and_replacement_are_rejected_without_waiting_for_a_writer() {
     let f = fixture();
     let fifo = f.root.path().join("pipe.mp3");
-    my_knowledge_backend_tests::test_fixtures::create_fifo(&fifo, 0o600).unwrap();
+    mogledge_backend_tests::test_fixtures::create_fifo(&fifo, 0o600).unwrap();
     for method in [Method::HEAD, Method::GET] {
         let response = tokio::time::timeout(
             std::time::Duration::from_secs(1),
@@ -501,7 +501,7 @@ async fn fifo_head_get_and_replacement_are_rejected_without_waiting_for_a_writer
             // Switch the relative leaf after the guarded regular handle is
             // opened. The final reopen must neither block nor accept the FIFO.
             std::fs::rename(&path, f.root.path().join("displaced.mp4")).unwrap();
-            my_knowledge_backend_tests::test_fixtures::create_fifo(&path, 0o600).unwrap();
+            mogledge_backend_tests::test_fixtures::create_fifo(&path, 0o600).unwrap();
             Ok(())
         },
         || true,

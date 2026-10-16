@@ -11,7 +11,7 @@ pub fn signed_artifacts_enabled(
         json_patch::merge(&mut config, &serde_json::from_str(selected)?);
     }
     let config: Config = serde_json::from_value(config)?;
-    Ok(config.identifier == "com.shimilynx.myknowledge"
+    Ok(config.identifier == "com.shimilynx.mogledge"
         && config.bundle.create_updater_artifacts == Updater::Bool(true))
 }
 
@@ -43,7 +43,8 @@ mod tests {
         for identifier in [
             "com.shimilynx.mogledge.updaterqa",
             "com.shimilynx.aiwiki",
-            "com.shimilynx.myknowledge.custom",
+            "com.shimilynx.myknowledge",
+            "com.shimilynx.mogledge.custom",
         ] {
             let selected = serde_json::json!({
                 "identifier": identifier,

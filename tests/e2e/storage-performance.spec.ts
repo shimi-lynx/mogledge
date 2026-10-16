@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 function processMetrics() {
   const command = String.raw`
     $all = @(Get-CimInstance Win32_Process)
-    $app = $all | Where-Object { $_.ExecutablePath -eq $env:MY_KNOWLEDGE_E2E_BINARY } | Sort-Object CreationDate -Descending | Select-Object -First 1
+    $app = $all | Where-Object { $_.ExecutablePath -eq $env:MOGLEDGE_E2E_BINARY } | Sort-Object CreationDate -Descending | Select-Object -First 1
     if (-not $app) { throw 'Dedicated QA app not found' }
     $ids = [Collections.Generic.HashSet[uint32]]::new(); $ids.Add([uint32]$app.ProcessId) | Out-Null
     do { $changed=$false; foreach ($child in $all) { if ($ids.Contains($child.ParentProcessId) -and $child.CreationDate -ge $app.CreationDate -and $ids.Add([uint32]$child.ProcessId)) { $changed=$true } } } while ($changed)

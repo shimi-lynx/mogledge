@@ -31,7 +31,7 @@ it("retains the browsing context and restores current zoom before load/fragment 
   expect(frame.style.transform).toBe("");
   expect(send).toHaveBeenLastCalledWith(
     {
-      type: "my-knowledge-document-zoom-render-v1",
+      type: "mogledge-document-zoom-render-v1",
       token,
       zoom: 113.7,
       anchor: { x: 0.2, y: 0.8 },
@@ -40,7 +40,7 @@ it("retains the browsing context and restores current zoom before load/fragment 
   );
   fireEvent.load(frame);
   expect(send).toHaveBeenLastCalledWith(
-    { type: "my-knowledge-document-zoom-render-v1", token, zoom: 113.7, anchor: null },
+    { type: "mogledge-document-zoom-render-v1", token, zoom: 113.7, anchor: null },
     "*",
   );
   send.mockClear();
@@ -54,14 +54,14 @@ it("retains the browsing context and restores current zoom before load/fragment 
     />,
   );
   expect(send.mock.calls.slice(-2)).toEqual([
-    [{ type: "my-knowledge-document-zoom-render-v1", token, zoom: 113.7, anchor: null }, "*"],
-    [{ type: "my-knowledge-anchor-v1", token, fragment: "section", request: 1 }, "*"],
+    [{ type: "mogledge-document-zoom-render-v1", token, zoom: 113.7, anchor: null }, "*"],
+    [{ type: "mogledge-anchor-v1", token, fragment: "section", request: 1 }, "*"],
   ]);
   view.rerender(<DocumentViewer url={url} loading={false} zoom={100} zoomRequest={1} />);
   send.mockClear();
   view.rerender(<DocumentViewer url={url} loading={false} zoom={100} zoomRequest={2} />);
   expect(send).toHaveBeenCalledExactlyOnceWith(
-    { type: "my-knowledge-document-zoom-render-v1", token, zoom: 100, anchor: null },
+    { type: "mogledge-document-zoom-render-v1", token, zoom: 100, anchor: null },
     "*",
   );
 });

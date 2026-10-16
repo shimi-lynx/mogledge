@@ -6,7 +6,9 @@ use std::{collections::BTreeMap, fmt};
 pub(crate) fn maximum_transfer_bytes() -> usize {
     crate::storage_limits::maximum_document_bytes().saturating_add(16 * 1024)
 }
-const FORMAT: &str = "my-knowledge-saved-state";
+const FORMAT: &str = "mogledge-saved-state";
+// Explicit portable import is compatible; startup never searches old profiles.
+const LEGACY_FORMAT: &str = "my-knowledge-saved-state";
 const MAX_SAFE_SCHEMA: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -167,7 +169,7 @@ fn validate_apps(apps: &BTreeMap<String, AppState>) -> Result<String, FormatErro
     Ok(state)
 }
 fn validate_file(file: &TransferFile) -> Result<String, FormatError> {
-    if file.format != FORMAT || file.format_version != 1 {
+    if (file.format != FORMAT && file.format != LEGACY_FORMAT) || file.format_version != 1 {
         return Err(FormatError::UnsupportedFormat);
     }
     if !valid_app_version(&file.app_version) {
@@ -240,7 +242,7 @@ fn parse_with_capacity(
     if envelope.source.get().len() > 16 * 1024 {
         return Err(FormatError::InvalidSource);
     }
-    if envelope.format != FORMAT {
+    if envelope.format != FORMAT && envelope.format != LEGACY_FORMAT {
         return Err(FormatError::UnsupportedFormat);
     }
     if envelope.app_version.len() > 64 {

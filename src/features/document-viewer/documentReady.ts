@@ -15,10 +15,15 @@ export function useDocumentReady(
       if (event.origin !== "null" || !data || typeof data !== "object" || Array.isArray(data))
         return;
       const message = data as Record<string, unknown>;
+      // Legacy messages share all source, token and payload checks.
+      const messageType =
+        typeof message.type === "string"
+          ? message.type.replace(/^my-knowledge-/, "mogledge-")
+          : message.type;
       const ready =
-        message.type === "my-knowledge-document-ready-v1" && Object.keys(message).length === 2;
+        messageType === "mogledge-document-ready-v1" && Object.keys(message).length === 2;
       const anchor =
-        message.type === "my-knowledge-anchor-result-v1" &&
+        messageType === "mogledge-anchor-result-v1" &&
         Object.keys(message).length === 4 &&
         Number.isSafeInteger(message.request) &&
         typeof message.success === "boolean";

@@ -491,7 +491,7 @@ async fn unconfirmed_http_read_write_delete_are_held_and_confirmed_copy_survives
         };
         let request = Request::builder()
             .method("POST")
-            .uri(format!("/s/{token}/__my_knowledge_storage_v1__"))
+            .uri(format!("/s/{token}/__mogledge_storage_v1__"))
             .header("Host", "127.0.0.1:19979")
             .header("Origin", "null")
             .header("Content-Type", "application/json")

@@ -7,22 +7,22 @@ import { pathToFileURL } from "node:url";
 const token = "a".repeat(64);
 const adapter = readFileSync(".agents/skills/mogledge-html/assets/export.js", "utf8");
 const bridge = readFileSync("src-tauri/src/document_server/export.js", "utf8").replace(
-  "__MY_KNOWLEDGE_EXPORT_TOKEN__",
+  "__MOGLEDGE_EXPORT_TOKEN__",
   JSON.stringify(token),
 );
 const body = `<input value="keep input"><canvas width="2" height="2"></canvas><audio controls></audio><video controls></video>
 <button id="export">Export text</button><button id="png" disabled>Export PNG</button><script>window.results=[];
 document.querySelector('canvas').toBlob(blob=>{window.image=blob;document.querySelector('#png').disabled=false;});
-document.querySelector('#png').onclick=()=>MyKnowledgeExport.exportArtifact({blob:image,name:'image',format:'png'}).then(result=>results.push(result)).catch(error=>results.push({error:error.code}));
-exportButton=document.querySelector('#export');exportButton.onclick=()=>MyKnowledgeExport.exportArtifact({blob:new Blob(['generated'],{type:'text/plain'}),name:'report',format:'text'}).then(result=>results.push(result)).catch(error=>results.push({error:error.code}));
+document.querySelector('#png').onclick=()=>MogledgeExport.exportArtifact({blob:image,name:'image',format:'png'}).then(result=>results.push(result)).catch(error=>results.push({error:error.code}));
+exportButton=document.querySelector('#export');exportButton.onclick=()=>MogledgeExport.exportArtifact({blob:new Blob(['generated'],{type:'text/plain'}),name:'report',format:'text'}).then(result=>results.push(result)).catch(error=>results.push({error:error.code}));
 </script>`;
 for (const protocol of ["file", "https"]) {
   test(`portable Blob adapter requests a standard browser download over ${protocol} only without the application bridge`, async ({
     page,
   }) => {
     test.skip(
-      protocol === "file" && process.env.MY_KNOWLEDGE_SKIP_FILE_DOWNLOAD === "1",
-      "This browser environment blocks file: navigation with ERR_BLOCKED_BY_ADMINISTRATOR. File download remains unverified; unset MY_KNOWLEDGE_SKIP_FILE_DOWNLOAD to execute it.",
+      protocol === "file" && process.env.MOGLEDGE_SKIP_FILE_DOWNLOAD === "1",
+      "This browser environment blocks file: navigation with ERR_BLOCKED_BY_ADMINISTRATOR. File download remains unverified; unset MOGLEDGE_SKIP_FILE_DOWNLOAD to execute it.",
     );
     let downloads = 0;
     page.on("download", () => downloads++);
@@ -30,7 +30,7 @@ for (const protocol of ["file", "https"]) {
     // before automation fills an input or clicks, and retain the actual activation observed.
     const html = `<!doctype html><script>${adapter}</script>${body}<script>
 window.initialActivation=navigator.userActivation.isActive;
-MyKnowledgeExport.exportArtifact({blob:new Blob(['x']),name:'report',format:'text'})
+MogledgeExport.exportArtifact({blob:new Blob(['x']),name:'report',format:'text'})
   .then(result=>results.push(result)).catch(error=>results.push({error:error.code}));
 </script>`;
     const directory = await mkdtemp(join(tmpdir(), "artifact-browser-"));
@@ -82,7 +82,7 @@ test("actual injected opaque transport sends bounded Blob data and accepts only 
   );
   await page.goto("https://artifact.test/");
   await page.setContent(
-    `<script>window.requests=[];addEventListener('message',event=>{if(event.source!==document.querySelector('iframe').contentWindow||event.data.type!=='my-knowledge-artifact-export-v1')return;requests.push(event.data);event.source.postMessage({type:'my-knowledge-artifact-result-v1',token:event.data.token,id:event.data.id,result:{error:'ArtifactPublishedUnconfirmed'}},'*');});</script><iframe sandbox="allow-scripts"></iframe>`,
+    `<script>window.requests=[];addEventListener('message',event=>{if(event.source!==document.querySelector('iframe').contentWindow||event.data.type!=='mogledge-artifact-export-v1')return;requests.push(event.data);event.source.postMessage({type:'mogledge-artifact-result-v1',token:event.data.token,id:event.data.id,result:{error:'ArtifactPublishedUnconfirmed'}},'*');});</script><iframe sandbox="allow-scripts"></iframe>`,
   );
   await page.locator("iframe").evaluate((frame, html) => {
     (frame as HTMLIFrameElement).srcdoc = html;

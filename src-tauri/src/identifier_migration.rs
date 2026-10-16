@@ -1,5 +1,5 @@
-//! Opt-in identifier migration. Call before creating any settings or state DB.
-//! Originals remain the rollback copy; only an allowlisted, verified bundle is published.
+//! Guarded current-profile preparation and explicit legacy migration tooling.
+//! Ordinary Mogledge startup opens only its own profile; legacy sources remain unchanged.
 use cap_std::fs::{Dir, OpenOptions};
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,8 @@ use std::{
 };
 
 pub const LEGACY_IDENTIFIER: &str = "com.shimilynx.aiwiki"; // Compatibility read only.
-pub const CURRENT_IDENTIFIER: &str = "com.shimilynx.myknowledge";
+pub const LEGACY_PRODUCT_IDENTIFIER: &str = "com.shimilynx.myknowledge"; // Reject as a new runtime ID.
+pub const CURRENT_IDENTIFIER: &str = "com.shimilynx.mogledge";
 const BUNDLE: &str = "identifier-migration-v1";
 const STAGING_PREFIX: &str = "migration-staging-";
 const MAX_JSON_BYTES: u64 = 1024 * 1024;
@@ -431,6 +432,43 @@ struct Completion {
 pub fn prepare(locations: &Locations, decision: Decision) -> Result<Startup, MigrationError> {
     prepare_inner(locations, decision, &mut |_| Ok(()))
 }
+
+/// Open only the configured current profile. Never construct or inspect an old identifier's path.
+pub fn prepare_current(config: &Path, local: &Path) -> Result<PreparedProfile, MigrationError> {
+    let directory = directory(local, true)?.ok_or(MigrationError::Unavailable)?;
+    let lease = acquire_profile_lease(&directory)?;
+    // A manually copied migration bundle is not authority to silently import it.
+    if exists(&directory, BUNDLE)? {
+        return Err(MigrationError::UnsupportedDatabase);
+    }
+    let paths = ActivePaths {
+        settings: config.join("settings.json"),
+        document_state: local.join("document-state"),
+        search_index: local.join("search-index"),
+    };
+    validate_current_profile(&paths)?;
+    Ok(PreparedProfile {
+        paths,
+        _lease: lease,
+    })
+}
+
+fn acquire_profile_lease(local: &Dir) -> Result<File, MigrationError> {
+    let lock_name = "identifier-migration.lock";
+    if !exists(local, lock_name)? {
+        match crate::write_fs::open_at(local, lock_name, false, true, false) {
+            Ok(_) => (),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => (),
+            Err(error) => return Err(error.into()),
+        }
+    }
+    let lock = read_file(local, lock_name, true)?;
+    lock.try_lock().map_err(|error| match error {
+        std::fs::TryLockError::WouldBlock => MigrationError::Busy,
+        std::fs::TryLockError::Error(_) => MigrationError::Unavailable,
+    })?;
+    Ok(lock)
+}
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Checkpoint {
     StagingCreated,
@@ -445,19 +483,7 @@ fn prepare_inner(
     checkpoint: &mut dyn FnMut(Checkpoint) -> Result<(), MigrationError>,
 ) -> Result<Startup, MigrationError> {
     let local = directory(&locations.new_local, true)?.ok_or(MigrationError::Unavailable)?;
-    let lock_name = "identifier-migration.lock";
-    if !exists(&local, lock_name)? {
-        match crate::write_fs::open_at(&local, lock_name, false, true, false) {
-            Ok(_) => (),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => (),
-            Err(error) => return Err(error.into()),
-        }
-    }
-    let lock = read_file(&local, lock_name, true)?;
-    lock.try_lock().map_err(|error| match error {
-        std::fs::TryLockError::WouldBlock => MigrationError::Busy,
-        std::fs::TryLockError::Error(_) => MigrationError::Unavailable,
-    })?;
+    let lock = acquire_profile_lease(&local)?;
     // Every new runtime retains this lease, so initialization cannot race import.
     let ready = |paths| {
         Startup::Ready(PreparedProfile {

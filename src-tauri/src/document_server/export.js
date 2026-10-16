@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const token = __MY_KNOWLEDGE_EXPORT_TOKEN__;
+  const token = __MOGLEDGE_EXPORT_TOKEN__;
   const parentWindow = window.parent;
   const post = parentWindow.postMessage.bind(parentWindow);
   const formats = ["png", "jpeg", "csv", "json", "text"];
@@ -53,7 +53,7 @@
             binary += String.fromCharCode(...bytes.subarray(offset, offset + 16384));
           post(
             {
-              type: "my-knowledge-artifact-export-v1",
+              type: "mogledge-artifact-export-v1",
               token,
               id,
               format,
@@ -78,7 +78,8 @@
       !pending ||
       !message ||
       Object.keys(message).sort().join() !== "id,result,token,type" ||
-      message.type !== "my-knowledge-artifact-result-v1" ||
+      (message.type !== "mogledge-artifact-result-v1" &&
+        message.type !== "my-knowledge-artifact-result-v1") ||
       message.token !== token ||
       message.id !== pending.id
     )
@@ -105,9 +106,12 @@
     if (failed) current.reject(fail(result.error));
     else current.resolve(result);
   });
-  Object.defineProperty(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__", {
-    value: Object.freeze({ version: 1, exportArtifact }),
-    writable: false,
-    configurable: false,
-  });
+  // Legacy HTML receives the same frozen bridge and the same view grant.
+  const descriptor = Object.freeze({ version: 1, exportArtifact });
+  for (const name of ["__MOGLEDGE_EXPORT_V1__", "__MY_KNOWLEDGE_EXPORT_V1__"])
+    Object.defineProperty(globalThis, name, {
+      value: descriptor,
+      writable: false,
+      configurable: false,
+    });
 })();

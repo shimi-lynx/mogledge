@@ -1,4 +1,4 @@
-use my_knowledge_lib::{core::Core, knowledge};
+use mogledge_lib::{core::Core, knowledge};
 use std::{
     fs,
     sync::{mpsc, Arc},
@@ -215,7 +215,7 @@ fn refreshing_the_same_root_retains_tabs_and_grants() {
         .unwrap();
     let url = core.open(workspace, &snapshot.view_id, &tab, 1).unwrap();
     let (token, _) =
-        my_knowledge_lib::document_server::decode_path(url.strip_prefix(&core.origin).unwrap())
+        mogledge_lib::document_server::decode_path(url.strip_prefix(&core.origin).unwrap())
             .unwrap();
     let refreshed = core.refresh().unwrap();
     assert_eq!(snapshot.workspace_id, refreshed.workspace_id);

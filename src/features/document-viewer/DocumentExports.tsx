@@ -18,6 +18,7 @@ import {
 import "./document-exports.css";
 
 type Proposal = ArtifactProposal & {
+  resultType: "mogledge-artifact-result-v1" | "my-knowledge-artifact-result-v1";
   id: string;
   tabId: string;
   url: string;
@@ -54,7 +55,7 @@ export function DocumentExports({
     // Replies disclose no Native path, file contents or OS exception text.
     if (item.frame.isConnected && item.frame.src === item.url)
       item.frame.contentWindow?.postMessage(
-        { type: "my-knowledge-artifact-result-v1", token: item.context.token, id: item.id, result },
+        { type: item.resultType, token: item.context.token, id: item.id, result },
         "*",
       );
   };
@@ -89,9 +90,14 @@ export function DocumentExports({
       )
         return;
       const message = value as Record<string, unknown>;
+      // Legacy messages share all source, token and payload checks.
+      const messageType =
+        typeof message.type === "string"
+          ? message.type.replace(/^my-knowledge-/, "mogledge-")
+          : message.type;
       if (
         Object.keys(message).sort().join() !== "data,format,id,name,token,type" ||
-        message.type !== "my-knowledge-artifact-export-v1" ||
+        messageType !== "mogledge-artifact-export-v1" ||
         typeof message.id !== "string" ||
         !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(message.id)
       )
@@ -101,11 +107,15 @@ export function DocumentExports({
       if (!tab || pane?.hidden || frame.closest("[hidden], [inert]")) return;
       const context = controller.artifactContext(tab.id, frame.src);
       if (!context || context.token !== message.token) return;
-      const base = { id: message.id, tabId: tab.id, url: frame.src, frame, context };
+      const resultType =
+        message.type === "my-knowledge-artifact-export-v1"
+          ? ("my-knowledge-artifact-result-v1" as const)
+          : ("mogledge-artifact-result-v1" as const);
+      const base = { id: message.id, tabId: tab.id, url: frame.src, frame, context, resultType };
       const reject = (code: string) =>
         frame.contentWindow?.postMessage(
           {
-            type: "my-knowledge-artifact-result-v1",
+            type: resultType,
             token: context.token,
             id: message.id,
             result: { error: code },

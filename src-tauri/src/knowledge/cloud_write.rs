@@ -491,7 +491,7 @@ pub(crate) fn create_html(
     parent.no_collision(name)?;
     // Reserved internal leaf is generated, never accepted from IPC. A collision
     // stops the operation rather than retrying at another provider-controlled path.
-    let temporary = format!(".my-knowledge-{:016x}.tmp", rand::random::<u64>());
+    let temporary = format!(".mogledge-{:016x}.tmp", rand::random::<u64>());
     let Some(mut child) = open_leaf(&parent.dir, &temporary, false, true, true)? else {
         return Ok(CloudWriteOutcome::Unknown);
     };

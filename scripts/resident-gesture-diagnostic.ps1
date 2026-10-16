@@ -2,11 +2,11 @@ param([ValidateRange(1,120)][int]$Seconds=120)
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 $artifact=[IO.Path]::GetFullPath($PSScriptRoot)
-$exe=Join-Path $artifact 'my-knowledge.exe'
+$exe=Join-Path $artifact 'mogledge.exe'
 $manifest=Get-Content -LiteralPath (Join-Path $artifact 'manifest.json') -Raw | ConvertFrom-Json
 if((Get-FileHash -LiteralPath $exe).Hash -cne $manifest.sha256){throw 'Trial binary hash mismatch'}
 $targetProduct=(Get-Item -LiteralPath $exe).VersionInfo.ProductName
-foreach($running in @(Get-CimInstance Win32_Process -Filter "Name='my-knowledge.exe'")){
+foreach($running in @(Get-CimInstance Win32_Process -Filter "Name='mogledge.exe'")){
  if(-not $running.ExecutablePath){throw 'Application identity unavailable; diagnostic not started'}
  $samePath=[IO.Path]::GetFullPath($running.ExecutablePath) -eq $exe
  $sameProduct=$targetProduct -match 'Resident Gesture' -and (Get-Item -LiteralPath $running.ExecutablePath).VersionInfo.ProductName -eq $targetProduct
@@ -35,10 +35,10 @@ New-Item -ItemType Directory -Path $capture | Out-Null
 $stdout=Join-Path $capture 'temporary.stdout.log'
 $stderr=Join-Path $capture 'temporary.stderr.log'
 $guard=New-QaProcessGuard -EvidencePath (Join-Path $capture 'process-evidence.json') -SourceCommit $manifest.sourceCommit
-$oldGesture=$env:MY_KNOWLEDGE_RESIDENT_GESTURE_DIAGNOSTICS
-$oldRegistration=$env:MY_KNOWLEDGE_RESIDENT_DIAGNOSTICS
-$env:MY_KNOWLEDGE_RESIDENT_GESTURE_DIAGNOSTICS='1'
-$env:MY_KNOWLEDGE_RESIDENT_DIAGNOSTICS=$null
+$oldGesture=$env:MOGLEDGE_RESIDENT_GESTURE_DIAGNOSTICS
+$oldRegistration=$env:MOGLEDGE_RESIDENT_DIAGNOSTICS
+$env:MOGLEDGE_RESIDENT_GESTURE_DIAGNOSTICS='1'
+$env:MOGLEDGE_RESIDENT_DIAGNOSTICS=$null
 $started=[DateTime]::UtcNow
 $failure=$null
 Write-Host "DIAGNOSTIC START: maximum $Seconds seconds / 128 target records."
@@ -56,8 +56,8 @@ try {
  }while([DateTime]::UtcNow -lt $deadline)
 }catch{$failure=$_.Exception.GetType().Name}
 finally {
- $env:MY_KNOWLEDGE_RESIDENT_GESTURE_DIAGNOSTICS=$oldGesture
- $env:MY_KNOWLEDGE_RESIDENT_DIAGNOSTICS=$oldRegistration
+ $env:MOGLEDGE_RESIDENT_GESTURE_DIAGNOSTICS=$oldGesture
+ $env:MOGLEDGE_RESIDENT_DIAGNOSTICS=$oldRegistration
  $summary=$null
  try {
  $cleanup=Complete-QaProcessGuard $guard

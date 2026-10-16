@@ -60,6 +60,8 @@ def candidate_policy(config):
         require(candidate["target"] == target and candidate["signature"] == signature, "Candidate target/signature mismatch")
         require(candidate["architecture"] == ("arm64" if candidate["platform"] == "macos-arm64" else "x64"), "Candidate architecture mismatch")
         require(candidate["artifact_name"] == f"Mogledge-{candidate['platform']}-{source}", "Candidate artifact name mismatch")
+        # This receipt validates the pinned, already published 0.9.1 source; new
+        # Mogledge-identifier candidates require a separately reviewed release policy.
         require(candidate["identifier"] == "com.shimilynx.myknowledge", "Candidate identifier mismatch")
         require(candidate["public_key"] == signing.policy()["candidate"]["public_key"], "Unexpected production public key")
         require(candidate["distribution_config_sha256"] == signing.policy()["candidate"]["distribution_config_sha256"], "Unexpected distribution overlay")

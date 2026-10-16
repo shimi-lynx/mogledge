@@ -1,7 +1,7 @@
 #[cfg(feature = "e2e")]
 #[tokio::main]
 async fn main() {
-    use my_knowledge_lib::{core::Core, document_server};
+    use mogledge_lib::{core::Core, document_server};
     let root = std::env::args_os().nth(1).expect("Provide a fixture root");
     let entry = std::env::args()
         .nth(2)
@@ -38,7 +38,7 @@ async fn main() {
     let shell_core = core.clone();
     let shell_url = url.clone();
     let shell = axum::Router::new().route("/",axum::routing::get(move || {
-        let csp = my_knowledge_lib::shell_csp(&shell_core.origin,false);
+        let csp = mogledge_lib::shell_csp(&shell_core.origin,false);
         let url = shell_url.clone();
         async move {
             ([(axum::http::header::CONTENT_TYPE,"text/html; charset=utf-8".to_owned()),

@@ -12,7 +12,7 @@ type MainNative = {
 const sourcePath = "01-Welcome.html";
 const externalUrl = "https://example.com/?q=%E6%97%A5%E6%9C%AC&x=%22%5C#section";
 const captures = () =>
-  readFileSync(process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE!, "utf8")
+  readFileSync(process.env.MOGLEDGE_E2E_ACTION_CAPTURE!, "utf8")
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as { action: string; target: string });
@@ -30,13 +30,13 @@ describe("document link routing in isolated Native QA", () => {
   before(function () {
     // e2e alone does not isolate app data. Require a separate QA binary with
     // a verified manifest; ordinary/default and production binaries skip.
-    const binary = process.env.MY_KNOWLEDGE_E2E_BINARY;
-    if (!binary || !process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE) this.skip();
+    const binary = process.env.MOGLEDGE_E2E_BINARY;
+    if (!binary || !process.env.MOGLEDGE_E2E_ACTION_CAPTURE) this.skip();
     const manifest = JSON.parse(
       readFileSync(resolve(dirname(binary!), "manifest.json"), "utf8"),
     ) as { identifier: string; features: string[]; sha256: string };
     assert.ok(
-      manifest.identifier.startsWith("com.shimilynx.aiwiki.") &&
+      manifest.identifier.startsWith("com.shimilynx.mogledge.") &&
         manifest.identifier !== "com.shimilynx.aiwiki",
     );
     assert.ok(manifest.features.includes("e2e"));
@@ -172,7 +172,7 @@ describe("document link routing in isolated Native QA", () => {
     await browser.execute(
       (href) =>
         parent.postMessage(
-          { type: "my-knowledge-link-v1", token: location.pathname.split("/")[2], href },
+          { type: "mogledge-link-v1", token: location.pathname.split("/")[2], href },
           "*",
         ),
       externalUrl,
@@ -185,7 +185,7 @@ describe("document link routing in isolated Native QA", () => {
     await browser.execute(() => {
       const buttons = document.querySelectorAll<HTMLButtonElement>(".external-link-dialog button");
       buttons[1].click();
-      window.postMessage({ type: "my-knowledge-link-confirm-v1" }, "*");
+      window.postMessage({ type: "mogledge-link-confirm-v1" }, "*");
     });
     assert.equal(captures().length, baseline);
     await dialog.$("button:nth-of-type(2)").click();

@@ -26,7 +26,7 @@ function setup(overrides = {}) {
   return {
     scope,
     records,
-    adapter: scope.MyKnowledgeStorage.create({ appId: "calculator", schemaVersion: 1 }),
+    adapter: scope.MogledgeStorage.create({ appId: "calculator", schemaVersion: 1 }),
   };
 }
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -47,13 +47,63 @@ test("browser saves snapshots and document/app namespaces stay isolated", async 
   state.amount = 99;
   await saving;
   assert.deepEqual(plain(await adapter.read()), { amount: 20, mode: "sum", enabled: true });
-  const otherApp = scope.MyKnowledgeStorage.create({ appId: "other", schemaVersion: 1 });
+  const otherApp = scope.MogledgeStorage.create({ appId: "other", schemaVersion: 1 });
   assert.equal(await otherApp.read(), null);
   scope.location.href = "https://example.test/other.html";
   assert.equal(await adapter.read(), null);
   scope.location.href = "https://example.test/calculator.html?preview=1#part";
   assert.deepEqual(plain(await adapter.read()), { amount: 20, mode: "sum", enabled: true });
   assert.equal(records.size, 1);
+});
+
+test("legacy API is a frozen alias and never discovers old browser keys", async () => {
+  const { scope, adapter, records } = setup();
+  const oldKey = "my-knowledge:v1:" + encodeURIComponent(scope.location.href) + ":calculator";
+  const oldValue = JSON.stringify({
+    version: 1,
+    revision: 7,
+    value: { schemaVersion: 1, data: 99 },
+  });
+  records.set(oldKey, oldValue);
+  assert.equal(scope.MyKnowledgeStorage, scope.MogledgeStorage);
+  assert.equal(Object.isFrozen(scope.MogledgeStorage), true);
+  assert.equal(Object.getOwnPropertyDescriptor(scope, "MyKnowledgeStorage").writable, false);
+  assert.equal(await adapter.read(), null);
+  await scope.MyKnowledgeStorage.create({ appId: "calculator", schemaVersion: 1 }).write(12);
+  assert.equal(await adapter.read(), 12);
+  assert.equal(records.get(oldKey), oldValue);
+  assert.equal(records.size, 2);
+  assert.ok([...records.keys()].some((key) => key.startsWith("mogledge:v1:")));
+});
+
+test("legacy Native descriptors retain authorization failures and canonical descriptors take precedence", async () => {
+  for (const settings of [
+    { __MY_KNOWLEDGE_STORAGE_V1__: { version: 1, available: false } },
+    {
+      __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+      fetch: async () => ({ ok: false, json: async () => ({ version: 1, error: "Revoked" }) }),
+    },
+    { __MOGLEDGE_STORAGE_V1__: { version: 2 }, __MY_KNOWLEDGE_STORAGE_V1__: descriptor },
+  ]) {
+    const { adapter, records } = setup(settings);
+    await assert.rejects(adapter.read());
+    await assert.rejects(adapter.write({ amount: 2 }));
+    await assert.rejects(adapter.flush());
+    assert.equal(records.size, 0);
+  }
+  const requests = [];
+  const { scope } = setup({
+    __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+    fetch: async (endpoint, options) => {
+      requests.push([endpoint, JSON.parse(options.body)]);
+      return response({ schemaVersion: 1, data: 42 });
+    },
+  });
+  assert.equal(
+    await scope.MyKnowledgeStorage.create({ appId: "calculator", schemaVersion: 1 }).read(),
+    42,
+  );
+  assert.equal(requests[0][0], descriptor.endpoint);
 });
 
 test("consecutive queued writes coalesce, while reads and deletion preserve operation order", async () => {
@@ -65,7 +115,7 @@ test("consecutive queued writes coalesce, while reads and deletion preserve oper
     release = resolve;
   });
   const { adapter } = setup({
-    __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+    __MOGLEDGE_STORAGE_V1__: descriptor,
     fetch: async (_, options) => {
       const request = JSON.parse(options.body);
       requests.push(request);
@@ -102,13 +152,13 @@ test("consecutive queued writes coalesce, while reads and deletion preserve oper
 
 test("provided Native transport never falls back even when unavailable or revoked", async () => {
   for (const settings of [
-    { __MY_KNOWLEDGE_STORAGE_V1__: { version: 1, available: false } },
+    { __MOGLEDGE_STORAGE_V1__: { version: 1, available: false } },
     {
-      __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+      __MOGLEDGE_STORAGE_V1__: descriptor,
       fetch: async () => ({ ok: false, json: async () => ({ version: 1, error: "expired_view" }) }),
     },
     {
-      __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+      __MOGLEDGE_STORAGE_V1__: descriptor,
       fetch: async () => {
         throw new Error("Network failed");
       },
@@ -131,7 +181,7 @@ test("provided Native transport never falls back even when unavailable or revoke
 test("failed saves remain visible to flush until an acknowledged retry succeeds", async () => {
   let fail = true;
   const { adapter } = setup({
-    __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+    __MOGLEDGE_STORAGE_V1__: descriptor,
     fetch: async (_, options) => {
       if (fail) return { ok: false, json: async () => ({ version: 1, error: "quota_exceeded" }) };
       return response(JSON.parse(options.body).value);
@@ -190,16 +240,16 @@ test("quota uses UTF-8 bytes; browser quota failures and malformed/schema-mismat
 
 test("malformed Native replies are rejected and app/schema initialization is validated", async () => {
   const { adapter, scope } = setup({
-    __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+    __MOGLEDGE_STORAGE_V1__: descriptor,
     fetch: async () => ({ ok: true, json: async () => null }),
   });
   await rejectCode(adapter.read(), "invalid_response");
   assert.throws(
-    () => scope.MyKnowledgeStorage.create({ appId: "../foreign", schemaVersion: 1 }),
+    () => scope.MogledgeStorage.create({ appId: "../foreign", schemaVersion: 1 }),
     (error) => error.code === "invalid_key",
   );
   assert.throws(
-    () => scope.MyKnowledgeStorage.create({ appId: "ok", schemaVersion: 0 }),
+    () => scope.MogledgeStorage.create({ appId: "ok", schemaVersion: 0 }),
     (error) => error.code === "invalid_schema",
   );
 });
@@ -207,14 +257,14 @@ test("malformed Native replies are rejected and app/schema initialization is val
 test("5MiB includes appId, schema/data envelope and UTF-8 escaping; requests send objects", async () => {
   const requests = [];
   const { scope } = setup({
-    __MY_KNOWLEDGE_STORAGE_V1__: descriptor,
+    __MOGLEDGE_STORAGE_V1__: descriptor,
     fetch: async (_, options) => {
       requests.push(options.body);
       return response(JSON.parse(options.body).value);
     },
   });
   const appId = "k".repeat(80);
-  const adapter = scope.MyKnowledgeStorage.create({ appId, schemaVersion: 1 });
+  const adapter = scope.MogledgeStorage.create({ appId, schemaVersion: 1 });
   const bytes = 5 * 1024 * 1024;
   const encoder = new TextEncoder();
   const overhead = encoder.encode(
@@ -260,7 +310,7 @@ test("a finite 8MiB Native ceiling keeps current quota changes server-authoritat
   let persisted = null;
   let requests = 0;
   const { scope } = setup({
-    __MY_KNOWLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes: bytes },
+    __MOGLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes: bytes },
     fetch: async (_, options) => {
       requests++;
       const request = JSON.parse(options.body);
@@ -280,7 +330,7 @@ test("a finite 8MiB Native ceiling keeps current quota changes server-authoritat
       return assert.fail("Native must never fall back");
     },
   });
-  const adapter = scope.MyKnowledgeStorage.create({ appId, schemaVersion: 1 });
+  const adapter = scope.MogledgeStorage.create({ appId, schemaVersion: 1 });
   const overhead = new TextEncoder().encode(
     JSON.stringify({ [appId]: { schemaVersion: 1, data: "" } }),
   ).byteLength;
@@ -305,7 +355,7 @@ test("Native ceilings above 8MiB and non-MiB byte limits retain exact UTF-8 boun
     let requests = 0;
     const appId = "byte-boundary";
     const { scope } = setup({
-      __MY_KNOWLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes: bytes },
+      __MOGLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes: bytes },
       fetch: async (_, options) => {
         requests++;
         return response(JSON.parse(options.body).value);
@@ -316,7 +366,7 @@ test("Native ceilings above 8MiB and non-MiB byte limits retain exact UTF-8 boun
         return assert.fail("Native must never fall back");
       },
     });
-    const adapter = scope.MyKnowledgeStorage.create({ appId, schemaVersion: 1 });
+    const adapter = scope.MogledgeStorage.create({ appId, schemaVersion: 1 });
     const encoder = new TextEncoder();
     const overhead = encoder.encode(
       JSON.stringify({ [appId]: { schemaVersion: 1, data: "" } }),
@@ -339,7 +389,7 @@ test("positive safe integer byte ceilings do not require MiB multiples or large 
   for (const maximumDocumentBytes of [1, 1_000_000_000, Number.MAX_SAFE_INTEGER]) {
     let requests = 0;
     const { adapter } = setup({
-      __MY_KNOWLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes },
+      __MOGLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes },
       fetch: async (_, options) => {
         requests++;
         return response(JSON.parse(options.body).value);
@@ -380,7 +430,7 @@ test("invalid Native ceiling fails closed without a request or browser fallback"
     Number.MAX_SAFE_INTEGER + 1,
   ]) {
     const { adapter, scope } = setup({
-      __MY_KNOWLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes },
+      __MOGLEDGE_STORAGE_V1__: { ...descriptor, maximumDocumentBytes },
       fetch: async () => assert.fail("Invalid descriptor must not reach Native"),
     });
     Object.defineProperty(scope, "localStorage", {

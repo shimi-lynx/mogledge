@@ -25,7 +25,7 @@ const result = spawnSync(
   {
     shell: process.platform === "win32",
     stdio: "inherit",
-    env: { ...process.env, MY_KNOWLEDGE_BENCH_ROOT: root },
+    env: { ...process.env, MOGLEDGE_BENCH_ROOT: root },
   },
 );
 process.exitCode = result.status ?? 1;

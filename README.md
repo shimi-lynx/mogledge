@@ -57,7 +57,9 @@ macOS, application only with ad-hoc signing:
 npm run tauri -- build --bundles app --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}' -- --locked --jobs 1
 ```
 
-Default outputs are `src-tauri/target/release/my-knowledge.exe` and `src-tauri/target/release/bundle/macos/Mogledge.app`. The technical package and executable name remains `my-knowledge`.
+Default outputs are `src-tauri/target/release/mogledge.exe` and `src-tauri/target/release/bundle/macos/Mogledge.app`. The technical package and executable name is `mogledge`.
+
+Current source changes the application identifier to `com.shimilynx.mogledge` and starts a separate profile without automatically transferring old settings, saved input or WebView data. Old data stays intact. This identity change is unreleased; the published 0.9.1 binaries and their verification record are unchanged. Existing-installation update, login registration and OS permission behavior require separate Native checks before distribution; see the [profile and compatibility contract](docs/identifier-migration.md).
 
 See [first build and local instructions](docs/first-run.md) before preparing a new machine, and [updating and rollback](docs/update-guide.md) before replacing an existing app. Preserve custom `AGENTS.md`, `AGENTS.local.md`, `CLAUDE.md`, skills, HTML and profiles. `npm run build` creates only the frontend, not a complete desktop application.
 

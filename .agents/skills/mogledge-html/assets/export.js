@@ -1,10 +1,14 @@
 (function () {
   "use strict";
-  if (Object.hasOwn(globalThis, "MyKnowledgeExport")) return;
+  if (Object.hasOwn(globalThis, "MogledgeExport")) return;
   const maximum = 5 * 1024 * 1024;
   const formats = { png: "png", jpeg: "jpg", csv: "csv", json: "json", text: "txt" };
-  const descriptorPresent = Object.hasOwn(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__");
-  const descriptor = globalThis.__MY_KNOWLEDGE_EXPORT_V1__;
+  const canonicalNative = Object.hasOwn(globalThis, "__MOGLEDGE_EXPORT_V1__");
+  const descriptorPresent =
+    canonicalNative || Object.hasOwn(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__");
+  const descriptor = canonicalNative
+    ? globalThis.__MOGLEDGE_EXPORT_V1__
+    : globalThis.__MY_KNOWLEDGE_EXPORT_V1__;
   let busy = false;
   let last = -Infinity;
   function failure(code) {
@@ -69,8 +73,13 @@
       busy = false;
     });
   }
-  Object.defineProperty(globalThis, "MyKnowledgeExport", {
+  Object.defineProperty(globalThis, "MogledgeExport", {
     value: Object.freeze({ exportArtifact }),
+    writable: false,
+    configurable: false,
+  });
+  Object.defineProperty(globalThis, "MyKnowledgeExport", {
+    value: globalThis.MogledgeExport,
     writable: false,
     configurable: false,
   });

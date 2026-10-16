@@ -1,5 +1,7 @@
 # Mogledge production distribution
 
+This page preserves source-bound historical distribution receipts. Current unreleased source changes product identity and profile behavior; follow the [new identity contract](identifier-migration.md) and its unrun Native update checks before preparing another distribution. Earlier artifact names, identifiers, signatures and hashes below describe the binaries actually verified and are not renamed retroactively.
+
 The current public release is [Mogledge 0.9.1](https://github.com/shimi-lynx/mogledge/releases/tag/v0.9.1). See the [actual 0.9.1 publication and minimum verification](#actual-091-publication-and-minimum-verification) for its binary source, signing/publication runs and public-byte evidence. Earlier plans and records below are retained for traceability.
 
 Windows x64 NSIS, Intel Mac and Apple Silicon Mac distribution use one reviewed source. The product stays 0.8.2, the identifier remains `com.shimilynx.myknowledge`, and the existing NSIS installation identity/template is retained. Installed Windows and Mac 0.8.1 are preserved for the owner's signed in-app update check after publication. Candidate inspection does not execute installers or applications, access Mac devices, publish a Release or delegate human approval.

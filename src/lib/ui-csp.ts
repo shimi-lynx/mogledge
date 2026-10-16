@@ -10,16 +10,15 @@ export function installUiCsp(origin: string) {
   ) {
     throw new Error("Invalid document server origin");
   }
-  const previous = document.querySelector<HTMLMetaElement>("meta[data-my-knowledge-csp]");
+  const previous = document.querySelector<HTMLMetaElement>("meta[data-mogledge-csp]");
   if (previous) {
-    if (previous.dataset.myKnowledgeCsp !== origin)
-      throw new Error("Document server origin changed");
+    if (previous.dataset.mogledgeCsp !== origin) throw new Error("Document server origin changed");
     return;
   }
   const dev = import.meta.env.DEV ? " http://127.0.0.1:1420 ws://127.0.0.1:1420" : "";
   const meta = document.createElement("meta");
   meta.httpEquiv = "Content-Security-Policy";
-  meta.dataset.myKnowledgeCsp = origin;
+  meta.dataset.mogledgeCsp = origin;
   meta.content =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
     "connect-src ipc: http://ipc.localhost" +

@@ -214,9 +214,12 @@ export async function identity(repo) {
   const config = await json("src-tauri/tauri.conf.json");
   if (
     !/^\d+\.\d+\.\d+$/.test(pkg.version) ||
+    pkg.name !== "mogledge" ||
+    lock.name !== "mogledge" ||
+    lock.packages[""].name !== "mogledge" ||
     config.productName !== "Mogledge" ||
-    config.mainBinaryName !== "my-knowledge" ||
-    config.identifier !== "com.shimilynx.myknowledge"
+    config.mainBinaryName !== "mogledge" ||
+    config.identifier !== "com.shimilynx.mogledge"
   )
     throw new Error("Unexpected product identity");
   if (
@@ -227,8 +230,13 @@ export async function identity(repo) {
     throw new Error("Product version mismatch");
   for (const file of ["src-tauri/Cargo.toml", "src-tauri/Cargo.lock"]) {
     const text = await readFile(path.join(repo, file), "utf8");
-    const entry = text.match(/name = "my-knowledge"\r?\nversion = "([^"]+)"/);
+    const entry = text.match(/name = "mogledge"\r?\nversion = "([^"]+)"/);
     if (entry?.[1] !== pkg.version) throw new Error("Cargo product version mismatch");
+    if (
+      file.endsWith(".toml") &&
+      (!/^default-run = "mogledge"$/m.test(text) || !/\[lib\]\r?\nname = "mogledge_lib"/.test(text))
+    )
+      throw new Error("Unexpected Cargo executable/library identity");
   }
   if (
     config.bundle.macOS.signingIdentity !== "-" ||
@@ -349,7 +357,7 @@ async function main(platform, appOnly = false, updaterApp = false) {
       "--",
       ...cargoArguments,
     ]);
-    const executable = path.join(targetDirectory, "release/my-knowledge.exe");
+    const executable = path.join(targetDirectory, "release/mogledge.exe");
     const bytes = await readFile(executable);
     assertBinaryPrivacy(bytes, remappings);
     verifyWindows(executable, path.join(output, "windows-verification.json"));
@@ -429,10 +437,10 @@ async function main(platform, appOnly = false, updaterApp = false) {
       get("CFBundleIdentifier") !== product.identifier ||
       get("CFBundleShortVersionString") !== product.version ||
       get("CFBundleName") !== product.productName ||
-      get("CFBundleExecutable") !== "my-knowledge"
+      get("CFBundleExecutable") !== "mogledge"
     )
       throw new Error("Unexpected Mac bundle identity/version");
-    const executable = path.join(app, "Contents/MacOS/my-knowledge");
+    const executable = path.join(app, "Contents/MacOS/mogledge");
     if (
       run("lipo", ["-archs", executable]).stdout.trim() !==
       (selected.arch === "arm64" ? "arm64" : "x86_64")
@@ -442,8 +450,8 @@ async function main(platform, appOnly = false, updaterApp = false) {
   };
   let executable;
   if (selected.os === "win32") {
-    executable = path.join(staging, "my-knowledge.exe");
-    await cp(path.join(release, "my-knowledge.exe"), executable);
+    executable = path.join(staging, "mogledge.exe");
+    await cp(path.join(release, "mogledge.exe"), executable);
     verifyWindows(executable, path.join(work, "windows-verification.json"));
   } else {
     const app = path.join(staging, "Mogledge.app");
@@ -520,7 +528,7 @@ async function main(platform, appOnly = false, updaterApp = false) {
       "-Output",
       extracted,
     ]);
-    const restored = path.join(extracted, "my-knowledge.exe");
+    const restored = path.join(extracted, "mogledge.exe");
     verifyWindows(restored, path.join(work, "installer-payload-verification.json"));
     requireNsisPayload(await readFile(executable), await readFile(restored));
     await cp(restored, executable);
@@ -562,7 +570,7 @@ async function main(platform, appOnly = false, updaterApp = false) {
       "-Output",
       archive,
     ]);
-    const restored = path.join(work, "extracted", name, "my-knowledge.exe");
+    const restored = path.join(work, "extracted", name, "mogledge.exe");
     verifyWindows(restored, path.join(work, "windows-restored-verification.json"));
     if ((await sha256(restored)) !== manifest.executableSha256)
       throw new Error("Archive changed executable bytes");

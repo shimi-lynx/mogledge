@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const token = "a".repeat(64);
 const keyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8").replace(
-  "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+  "__MOGLEDGE_KEYBOARD_TOKEN__",
   JSON.stringify(token),
 );
 
@@ -12,10 +12,10 @@ for (const [platform, primary, other] of [
   ["MacIntel", "Meta", "Control"],
 ]) {
   for (const [key, message, label, shift] of [
-    ["p", "my-knowledge-quick-open-v1", "quick-open", false],
-    ["b", "my-knowledge-sidebar-toggle-v1", "sidebar-toggle", false],
-    ["e", "my-knowledge-files-show-v1", "files-show", true],
-    ["w", "my-knowledge-close-tab-v1", "close-tab", false],
+    ["p", "mogledge-quick-open-v1", "quick-open", false],
+    ["b", "mogledge-sidebar-toggle-v1", "sidebar-toggle", false],
+    ["e", "mogledge-files-show-v1", "files-show", true],
+    ["w", "mogledge-close-tab-v1", "close-tab", false],
   ])
     test(`opaque ${label} uses ${platform} keys and honors HTML, editor and composition priority`, async ({
       page,
@@ -122,7 +122,7 @@ for (const [platform, primary, other] of [
     page,
   }) => {
     await page.setContent(`<script>window.handoff=[];addEventListener('message',event=>{
-      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='my-knowledge-ai-handoff-v1')window.handoff.push(event.data);
+      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='mogledge-ai-handoff-v1')window.handoff.push(event.data);
     });</script><iframe sandbox="allow-scripts"></iframe>`);
     await page.locator("iframe").evaluate(
       (frame, { script, platform }) => {
@@ -142,7 +142,7 @@ for (const [platform, primary, other] of [
     await plain.press(primary + "+Shift+a");
     await expect.poll(() => page.evaluate("window.handoff.length")).toBe(1);
     expect(await page.evaluate("window.handoff[0]")).toEqual({
-      type: "my-knowledge-ai-handoff-v1",
+      type: "mogledge-ai-handoff-v1",
       token,
     });
     for (const key of [
@@ -203,7 +203,7 @@ type ShadowWindow = {
 
 async function zoomDocument(page: Page) {
   await page.setContent(`<script>window.zooms=[];addEventListener('message',event=>{
-    if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='my-knowledge-document-zoom-v1')window.zooms.push(event.data);
+    if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='mogledge-document-zoom-v1')window.zooms.push(event.data);
   });</script><iframe sandbox="allow-scripts" style="width:600px;height:400px"></iframe>`);
   await page.locator("iframe").evaluate((frame, script) => {
     (frame as HTMLIFrameElement).srcdoc = `<!doctype html><script>${script}</script>
@@ -338,7 +338,7 @@ test("opaque document keyboard defers to HTML cancellation and preserves editing
     window.moves = [];
     addEventListener('message', event => {
       if (event.source === document.querySelector('iframe').contentWindow)
-        if (event.data?.type === 'my-knowledge-move-tab-v1') window.moves.push({ data: event.data, origin: event.origin });
+        if (event.data?.type === 'mogledge-move-tab-v1') window.moves.push({ data: event.data, origin: event.origin });
     });
   </script><iframe sandbox="allow-scripts"></iframe>`);
   await page.locator("iframe").evaluate((frame, script) => {
@@ -367,7 +367,7 @@ test("opaque document keyboard defers to HTML cancellation and preserves editing
     .toBe(1);
   const first = await page.evaluate(() => (window as unknown as { moves: unknown[] }).moves[0]);
   expect(first).toEqual({
-    data: { type: "my-knowledge-move-tab-v1", token, direction: 1 },
+    data: { type: "mogledge-move-tab-v1", token, direction: 1 },
     origin: "null",
   });
   const counts: number[] = [];
@@ -431,7 +431,7 @@ async function shadowDocument(page: Page) {
     window.moves = [];
     addEventListener('message', event => {
       if (event.source === document.querySelector('iframe').contentWindow)
-        if (event.data?.type === 'my-knowledge-move-tab-v1') window.moves.push(event.data);
+        if (event.data?.type === 'mogledge-move-tab-v1') window.moves.push(event.data);
     });
   </script><iframe sandbox="allow-scripts"></iframe>`);
   await page.locator("iframe").evaluate((frame, script) => {
@@ -602,7 +602,7 @@ for (const [platform, back, forward] of [
     page,
   }) => {
     await page.setContent(
-      `<script>window.steps=[];addEventListener('message', event=>{if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='my-knowledge-history-v1')window.steps.push(event.data);});</script><iframe sandbox="allow-scripts"></iframe>`,
+      `<script>window.steps=[];addEventListener('message', event=>{if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='mogledge-history-v1')window.steps.push(event.data);});</script><iframe sandbox="allow-scripts"></iframe>`,
     );
     await page.locator("iframe").evaluate(
       (frame, { platform, script }) => {
@@ -654,7 +654,7 @@ test("history fragment waits for parser-blocking script and complete DOM before 
   page,
 }) => {
   const links = readFileSync("src-tauri/src/document_server/links.js", "utf8").replace(
-    "__MY_KNOWLEDGE_LINK_TOKEN__",
+    "__MOGLEDGE_LINK_TOKEN__",
     JSON.stringify(token),
   );
   let gate!: import("@playwright/test").Route;
@@ -664,7 +664,7 @@ test("history fragment waits for parser-blocking script and complete DOM before 
   await page.route("https://fixture.test/host", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<script>window.anchorResults=[];addEventListener('message',e=>{if(e.data.type==='my-knowledge-anchor-result-v1')window.anchorResults.push(e.data);});</script><iframe sandbox="allow-scripts" src="/document"></iframe>`,
+      body: `<script>window.anchorResults=[];addEventListener('message',e=>{if(e.data.type==='mogledge-anchor-result-v1')window.anchorResults.push(e.data);});</script><iframe sandbox="allow-scripts" src="/document"></iframe>`,
     }),
   );
   await page.route("https://fixture.test/document", (route) =>
@@ -681,7 +681,7 @@ test("history fragment waits for parser-blocking script and complete DOM before 
     .evaluate(
       (frame, token) =>
         (frame as HTMLIFrameElement).contentWindow!.postMessage(
-          { type: "my-knowledge-anchor-v1", token, fragment: "#chapter", request: 7 },
+          { type: "mogledge-anchor-v1", token, fragment: "#chapter", request: 7 },
           "*",
         ),
       token,

@@ -21,7 +21,7 @@ These guides describe current Mogledge behavior. They separate user operations, 
 | [HTML authoring kit](html-authoring-kit.md)           | Optional project-local guide, template and AI skills                                |
 | [Architecture](architecture.md)                       | UI, Native, server, search and persistence responsibilities                         |
 | [Security](security.md)                               | Trust boundaries, supported paths and restrictions                                  |
-| [Identifier migration](identifier-migration.md)       | Startup gate and protection of old and new profiles                                 |
+| [Product identity](identifier-migration.md)           | Separate Mogledge profile, preserved old data and update compatibility boundaries   |
 | [Cloud-file QA](onedrive-qa.md)                       | Retained reads, limited writes and provider verification                            |
 | [Coding standards](coding-standards.md)               | Naming, types, responsibility and comments                                          |
 | [Testing](testing.md)                                 | Targeted checks and browser/Native evidence                                         |

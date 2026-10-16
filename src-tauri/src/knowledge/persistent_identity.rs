@@ -69,6 +69,7 @@ fn hash(domain: &[u8], objects: &[MountedObject]) -> io::Result<String> {
 }
 
 pub(crate) fn document(root: MountedObject, file: MountedObject) -> io::Result<String> {
+    // Frozen identity-format domain; changing branding here would produce different record keys.
     hash(b"my-knowledge-document-state-macos-v2", &[root, file])
 }
 

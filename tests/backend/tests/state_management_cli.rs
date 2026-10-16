@@ -1,5 +1,5 @@
 //! Actual CLI protocol against a synthetic profile; never uses user data.
-use my_knowledge_backend_tests::{document_state::DocumentState, knowledge};
+use mogledge_backend_tests::{document_state::DocumentState, knowledge};
 use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 use std::{
@@ -84,7 +84,7 @@ impl Drop for Process {
 #[test]
 fn actual_cli_inspect_explicit_select_quarantine_restart_status_restore() {
     let temp = tempfile::tempdir().unwrap();
-    let profile = temp.path().join("com.shimilynx.myknowledge");
+    let profile = temp.path().join("com.shimilynx.mogledge");
     let state = profile.join("document-state");
     drop(DocumentState::new(state.clone()).unwrap());
     fs::write(profile.join("identifier-migration.lock"), []).unwrap();

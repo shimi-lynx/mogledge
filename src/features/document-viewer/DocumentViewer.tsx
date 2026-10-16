@@ -29,7 +29,7 @@ export function DocumentViewer({
     if (token)
       frame.current?.contentWindow?.postMessage(
         {
-          type: "my-knowledge-document-zoom-render-v1",
+          type: "mogledge-document-zoom-render-v1",
           token,
           zoom,
           anchor: useGestureAnchor ? (zoomAnchor ?? null) : null,
@@ -43,7 +43,7 @@ export function DocumentViewer({
     if (token)
       frame.current?.contentWindow?.postMessage(
         {
-          type: "my-knowledge-anchor-v1",
+          type: "mogledge-anchor-v1",
           token,
           fragment: navigation.fragment,
           request: navigation.request,

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 // Chromium opaque-frame rendering only; not a Native/WKWebView or physical pinch test.
 const token = "a".repeat(64);
 const keyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8").replace(
-  "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+  "__MOGLEDGE_KEYBOARD_TOKEN__",
   JSON.stringify(token),
 );
 type Anchor = { x: number; y: number } | null;
@@ -23,7 +23,7 @@ type FixtureWindow = Window & {
   };
 };
 function renderMessage(zoom: number, anchor: Anchor = null) {
-  return { type: "my-knowledge-document-zoom-render-v1", token, zoom, anchor };
+  return { type: "mogledge-document-zoom-render-v1", token, zoom, anchor };
 }
 async function send(page: Page, message: unknown) {
   await page.locator("#document").evaluate((element, message) => {

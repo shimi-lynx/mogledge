@@ -1,4 +1,4 @@
-use my_knowledge_backend_tests::{
+use mogledge_backend_tests::{
     core::Core,
     document_server,
     document_state::{self, DocumentState, StateRequest},
@@ -175,7 +175,7 @@ fn recovery_is_scoped_to_current_workspace_view_and_tree_path() {
 
 #[test]
 fn native_rename_tracks_recovery_location_before_next_read() {
-    use my_knowledge_backend_tests::tree_mutations::{self, Mutation};
+    use mogledge_backend_tests::tree_mutations::{self, Mutation};
     let fixture = Fixture::new();
     fixture.operation(&fixture.token(), "write", Some(json!(12)));
     let snapshot = fixture.core.snapshot();

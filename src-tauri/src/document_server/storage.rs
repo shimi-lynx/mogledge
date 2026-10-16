@@ -12,11 +12,16 @@ use std::{
     task::{Context, Poll},
 };
 
-pub const ENDPOINT: &str = "__my_knowledge_storage_v1__";
+pub const ENDPOINT: &str = "__mogledge_storage_v1__";
+// Existing inline HTML may retain the old endpoint. Both names pass through
+// exactly the same token, origin, admission and commit authorization checks.
+const LEGACY_ENDPOINT: &str = "__my_knowledge_storage_v1__";
 pub fn token(path: &str) -> Option<&str> {
     let (token, tail) = path.strip_prefix("/s/")?.split_once('/')?;
-    (tail == ENDPOINT && token.len() == 64 && token.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        .then_some(token)
+    ((tail == ENDPOINT || tail == LEGACY_ENDPOINT)
+        && token.len() == 64
+        && token.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    .then_some(token)
 }
 fn response(status: StatusCode, value: impl serde::Serialize) -> Response<Body> {
     response_bytes(status, Bytes::from(serde_json::to_vec(&value).unwrap()))
@@ -278,19 +283,19 @@ pub fn inject(
         "maximumDocumentBytes":crate::storage_limits::maximum_document_bytes(),
         "available":core.document_state.get().is_some() && session.storage_identity.is_some()});
     let keyboard = include_str!("keyboard.js").replace(
-        "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+        "__MOGLEDGE_KEYBOARD_TOKEN__",
         &serde_json::to_string(&session.token).unwrap(),
     );
     let links = include_str!("links.js").replace(
-        "__MY_KNOWLEDGE_LINK_TOKEN__",
+        "__MOGLEDGE_LINK_TOKEN__",
         &serde_json::to_string(&session.token).unwrap(),
     );
     let export = include_str!("export.js").replace(
-        "__MY_KNOWLEDGE_EXPORT_TOKEN__",
+        "__MOGLEDGE_EXPORT_TOKEN__",
         &serde_json::to_string(&session.token).unwrap(),
     );
     let export_adapter = include_str!("../../../.agents/skills/mogledge-html/assets/export.js");
-    let script = format!("<script>Object.defineProperty(globalThis,'__MY_KNOWLEDGE_STORAGE_V1__',{{value:Object.freeze({descriptor}),writable:false,configurable:false}});{keyboard}{links}{export}{export_adapter}</script>");
+    let script = format!("<script>(()=>{{const descriptor=Object.freeze({descriptor});for(const name of ['__MOGLEDGE_STORAGE_V1__','__MY_KNOWLEDGE_STORAGE_V1__'])Object.defineProperty(globalThis,name,{{value:descriptor,writable:false,configurable:false}});}})();{keyboard}{links}{export}{export_adapter}</script>");
     // Preserve the leading doctype and standards mode. No source file is edited.
     let text = std::str::from_utf8(&bytes).unwrap_or_default();
     let offset = insertion_offset(text);
@@ -365,6 +370,20 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering},
     };
     use tower::ServiceExt;
+
+    #[test]
+    fn canonical_and_legacy_endpoints_require_the_same_exact_token_path() {
+        let valid = "a".repeat(64);
+        for endpoint in [ENDPOINT, LEGACY_ENDPOINT] {
+            assert_eq!(
+                token(&format!("/s/{valid}/{endpoint}")),
+                Some(valid.as_str())
+            );
+            assert_eq!(token(&format!("/s/short/{endpoint}")), None);
+            assert_eq!(token(&format!("/s/{}/{endpoint}", "g".repeat(64))), None);
+            assert_eq!(token(&format!("/s/{valid}/{endpoint}/extra")), None);
+        }
+    }
 
     fn fixture() -> (
         Arc<Core>,

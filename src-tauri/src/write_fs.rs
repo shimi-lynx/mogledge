@@ -295,7 +295,9 @@ pub fn open_at(
 
 /// Reserved writer artifacts are never settings or migration authority.
 pub(crate) fn unpublished_staging_name(name: &str) -> bool {
-    name.strip_prefix(".my-knowledge-")
+    name.strip_prefix(".mogledge-")
+        // Compatibility recognition never grants authority or modifies old artifacts.
+        .or_else(|| name.strip_prefix(".my-knowledge-"))
         .and_then(|value| value.strip_suffix(".tmp"))
         .is_some_and(|token| {
             token.len() == 64
@@ -308,7 +310,7 @@ pub(crate) fn unpublished_staging_name(name: &str) -> bool {
 /// Creates an internal, hidden staging file. Callers cannot supply its name;
 /// user paths still go through the public relative-path validator.
 pub fn create_temporary(parent: &Dir) -> io::Result<(String, File)> {
-    let name = format!(".my-knowledge-{}.tmp", crate::core::random_token());
+    let name = format!(".mogledge-{}.tmp", crate::core::random_token());
     #[cfg(windows)]
     let file = open_leaf_at(parent, &name, false, true, true, true)?;
     #[cfg(unix)]
@@ -556,7 +558,7 @@ fn replace_hashed_sidecar(
         || !stem
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        || !temporary.starts_with(".my-knowledge-")
+        || !temporary.starts_with(".mogledge-")
         || !temporary.ends_with(".tmp")
     {
         return Err(io::Error::new(
@@ -1020,7 +1022,7 @@ mod tests {
         let (path, root) = crate::knowledge::open_root(fixture.path()).unwrap();
         let parent = LockedDir::open(&root, "").unwrap();
         let (temporary, mut file) = create_temporary(parent.dir()).unwrap();
-        assert!(temporary.starts_with(".my-knowledge-"));
+        assert!(temporary.starts_with(".mogledge-"));
         assert!(temporary.ends_with(".tmp"));
         assert!(crate::knowledge::validate_relative(&temporary).is_err());
         assert!(crate::tree_mutations::valid_name(&temporary).is_err());

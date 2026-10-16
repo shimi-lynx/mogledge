@@ -4,6 +4,8 @@ Settings → **App updates** provides a manual flow: check for updates, read the
 
 Ordinary source builds and unenrolled application-only candidates are **not enrolled**. The update page explains this and keeps the check button disabled. This protects custom builds from replacement with a distributor's build.
 
+Current unreleased source uses `com.shimilynx.mogledge`; enrollment checks use that new identity. Published 0.9.1 binaries retain their recorded older identity. This source does not transfer old profiles, settings, input or WebView storage. Exact old-product installer detection is retained for update compatibility, but signed bytes and source tests do not establish old-to-new installation, restart, permission or login-registration behavior. Those Windows, Intel Mac and Apple Silicon checks remain required before distributing this identity transition. See [profile separation](identifier-migration.md).
+
 The [0.8.2 production release](https://github.com/shimi-lynx/mogledge/releases/tag/v0.8.2) supplies explicitly enrolled Windows x64 NSIS and Intel/Apple Silicon Mac distributions with the reviewed public key and [anonymous production feed](https://github.com/shimi-lynx/mogledge/releases/latest/download/latest.json). Public asset hashes, signatures and signed versions passed verification; see the [distribution evidence](production-distribution.md#actual-publication-and-anonymous-verification). Actual Settings check/download/apply, data preservation and restart from installed 0.8.1 remain owner device QA after publication. A public feed and valid signatures do not establish those Native results.
 
 ## User flow and saved inputs

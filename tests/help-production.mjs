@@ -45,7 +45,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
   // This regression exercises both help translations from an explicit locale.
   await page.addInitScript(() => {
-    if (window === window.top) localStorage.setItem("my-knowledge.ui-language", "ja");
+    if (window === window.top) localStorage.setItem("mogledge.ui-language", "ja");
   });
   page.setDefaultTimeout(10000);
   const errors = [];

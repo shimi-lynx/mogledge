@@ -17,7 +17,7 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let temp = tempfile::tempdir().unwrap();
-        let profile = temp.path().join("com.shimilynx.myknowledge");
+        let profile = temp.path().join("com.shimilynx.mogledge");
         drop(DocumentState::new(profile.join("document-state")).unwrap());
         fs::write(profile.join("identifier-migration.lock"), []).unwrap();
         let root = temp.path().join("root");
@@ -877,7 +877,7 @@ fn interrupted_import_begin_preserves_state_and_allows_next_command() {
 #[test]
 #[ignore]
 fn fixture_child_probes_transfer_writer() {
-    let path = std::env::var_os("MY_KNOWLEDGE_TRANSFER_FIXTURE_DB").unwrap();
+    let path = std::env::var_os("MOGLEDGE_TRANSFER_FIXTURE_DB").unwrap();
     let connection = rusqlite::Connection::open(PathBuf::from(path)).unwrap();
     connection.busy_timeout(Duration::ZERO).unwrap();
     std::process::exit(match connection.execute_batch("BEGIN EXCLUSIVE;") {
@@ -901,7 +901,7 @@ fn external_writer(path: &Path) -> i32 {
             "state_transfer::tests::fixture_child_probes_transfer_writer",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_TRANSFER_FIXTURE_DB", path)
+        .env("MOGLEDGE_TRANSFER_FIXTURE_DB", path)
         .stdout(std::process::Stdio::null())
         .fixture_status()
         .unwrap()

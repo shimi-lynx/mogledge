@@ -18,8 +18,8 @@ import { stateManagementMessages } from "./i18n/stateManagement";
 import { storageLimitsMessages } from "./i18n/storageLimits";
 
 export type Language = "ja" | "en";
-// Preserve the existing key so the app rename keeps each user's language choice.
-export const LANGUAGE_STORAGE_KEY = "my-knowledge.ui-language";
+// This profile starts independently; old product preferences are never imported.
+export const LANGUAGE_STORAGE_KEY = "mogledge.ui-language";
 
 export const messages: Readonly<Record<string, string>> = {
   ...commonMessages,

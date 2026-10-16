@@ -49,7 +49,7 @@ for (const [language, scheme] of [
   }) => {
     await prepare(page);
     await page.addInitScript(
-      (value) => localStorage.setItem("my-knowledge.ui-language", value),
+      (value) => localStorage.setItem("mogledge.ui-language", value),
       language,
     );
     await page.emulateMedia({ colorScheme: scheme });

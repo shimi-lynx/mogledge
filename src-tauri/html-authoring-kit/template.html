@@ -67,8 +67,13 @@
             throw new StorageError("invalid_key");
           if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1)
             throw new StorageError("invalid_schema");
-          const native = "__MY_KNOWLEDGE_STORAGE_V1__" in scope;
-          const descriptor = scope.__MY_KNOWLEDGE_STORAGE_V1__;
+          // A present canonical descriptor is authoritative, including unavailable or
+          // unsupported descriptors. Legacy Native descriptors never enable fallback.
+          const canonicalNative = "__MOGLEDGE_STORAGE_V1__" in scope;
+          const native = canonicalNative || "__MY_KNOWLEDGE_STORAGE_V1__" in scope;
+          const descriptor = canonicalNative
+            ? scope.__MOGLEDGE_STORAGE_V1__
+            : scope.__MY_KNOWLEDGE_STORAGE_V1__;
           const jobs = [];
           let running = false;
           let lastFailure = null;
@@ -98,7 +103,7 @@
             const documentUrl = new URL(scope.location.href);
             documentUrl.hash = "";
             documentUrl.search = "";
-            return "my-knowledge:v1:" + encodeURIComponent(documentUrl.href) + ":" + appId;
+            return "mogledge:v1:" + encodeURIComponent(documentUrl.href) + ":" + appId;
           }
 
           async function transport(op, value) {
@@ -238,8 +243,14 @@
           });
         }
 
-        Object.defineProperty(scope, "MyKnowledgeStorage", {
+        Object.defineProperty(scope, "MogledgeStorage", {
           value: Object.freeze({ create, StorageError }),
+          configurable: false,
+          writable: false,
+        });
+        // Existing inline apps keep their API without reading any legacy browser key.
+        Object.defineProperty(scope, "MyKnowledgeStorage", {
+          value: scope.MogledgeStorage,
           configurable: false,
           writable: false,
         });
@@ -248,11 +259,15 @@
     <script>
       (function () {
         "use strict";
-        if (Object.hasOwn(globalThis, "MyKnowledgeExport")) return;
+        if (Object.hasOwn(globalThis, "MogledgeExport")) return;
         const maximum = 5 * 1024 * 1024;
         const formats = { png: "png", jpeg: "jpg", csv: "csv", json: "json", text: "txt" };
-        const descriptorPresent = Object.hasOwn(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__");
-        const descriptor = globalThis.__MY_KNOWLEDGE_EXPORT_V1__;
+        const canonicalNative = Object.hasOwn(globalThis, "__MOGLEDGE_EXPORT_V1__");
+        const descriptorPresent =
+          canonicalNative || Object.hasOwn(globalThis, "__MY_KNOWLEDGE_EXPORT_V1__");
+        const descriptor = canonicalNative
+          ? globalThis.__MOGLEDGE_EXPORT_V1__
+          : globalThis.__MY_KNOWLEDGE_EXPORT_V1__;
         let busy = false;
         let last = -Infinity;
         function failure(code) {
@@ -318,8 +333,13 @@
             busy = false;
           });
         }
-        Object.defineProperty(globalThis, "MyKnowledgeExport", {
+        Object.defineProperty(globalThis, "MogledgeExport", {
           value: Object.freeze({ exportArtifact }),
+          writable: false,
+          configurable: false,
+        });
+        Object.defineProperty(globalThis, "MyKnowledgeExport", {
+          value: globalThis.MogledgeExport,
           writable: false,
           configurable: false,
         });
@@ -328,10 +348,7 @@
     <script>
       (async () => {
         "use strict";
-        const storage = MyKnowledgeStorage.create({
-          appId: "generated-calculator",
-          schemaVersion: 1,
-        });
+        const storage = MogledgeStorage.create({ appId: "generated-calculator", schemaVersion: 1 });
         const amount = document.querySelector("#amount");
         const mode = document.querySelector("#mode");
         const enabled = document.querySelector("#enabled");

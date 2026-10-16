@@ -2,11 +2,13 @@
 
 `git pull` updates source files; it does not replace an installed EXE or `.app`. Updating requires preserving data, building or obtaining the intended ordinary application, and replacing the confirmed installed target.
 
+Current source introduces `com.shimilynx.mogledge` and `mogledge.exe`/`mogledge` with a separate default profile. It does not automatically transfer settings, saved input or WebView data from older identifiers. This change is unreleased, and old-to-new installer/update, login-startup, signature and permission behavior has not been verified on Native Windows, Intel Mac or Apple Silicon. Preserve the previous app and its actual data; do not treat an authenticated update download as proof that this identity transition installs or restarts correctly. See [profile separation and compatibility](identifier-migration.md).
+
 ## AI build and update workflow
 
 For an authorized update of the ordinary app, use this sequence on the machine that owns the installation. Reuse authorization for the confirmed target; clarify only an unknown target, unresolved saved input or a new operation outside that scope.
 
-1. Identify the existing fixed EXE/bundle and its actual shortcut, Dock or login launch target. Record its version/hash and the intended source SHA. Keep the normal identifier and active profile.
+1. Identify the existing fixed EXE/bundle and its actual shortcut, Dock or login launch target. Record its version/hash and the intended source SHA. Ordinary updates preserve identity/profile; this explicitly requested identity transition instead uses the new profile contract above while preserving all old data.
 2. Ensure build/staging output is separate from the active installation and persistent data, then build and verify the new ordinary app with the existing native cache and [commands below](#obtain-and-verify-the-target). A build-only request stops here; report that the installed app has not changed.
 3. Complete pending document saves, Quit normally and confirm exit. Create the independent data backup and one verified previous-app rollback generation as described below.
 4. Replace only the confirmed fixed EXE or whole bundle. Keep the existing pathname, shortcuts and login registration where possible; do not register the build output or create another daily-use trial copy.
@@ -28,19 +30,19 @@ Keep one managed previous-app generation in a rollback location outside the acti
 
 ## What to preserve
 
-The product identifier remains `com.shimilynx.myknowledge`. Windows normally uses `%APPDATA%` for configuration and `%LOCALAPPDATA%` for local data; macOS uses Application Support. Inspect the profile actually selected by startup migration rather than inventing a new location.
+The current-source product identifier is `com.shimilynx.mogledge`. Windows normally uses `%APPDATA%` for configuration and `%LOCALAPPDATA%` for local data; macOS locations come from the OS APIs for that identifier. Back up both the actual older installation's profile and any existing new profile separately. Startup no longer selects or copies an older identifier's profile. The actual older Apple Silicon WebView and configuration locations remain unconfirmed; do not invent them from a display name or a guessed Library path.
 
 | Data                                                                      | Backup scope                                                                                               |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Root, tree order, favorites/recent, workspace sets and number assignments | Entire active config profile, including `settings.json` and root-specific `workspace-settings`             |
 | Residency and authoring preferences                                       | `resident.json` and `html-authoring-settings`; OS startup registration is separate                         |
 | Saved HTML inputs                                                         | Entire `document-state` directory and related database files after normal exit                             |
-| Migrated profile                                                          | Entire `identifier-migration-v1` bundle, including config, document-state and migration metadata           |
+| Previously migrated profile                                               | Entire old `identifier-migration-v1` bundle, including config, document-state and migration metadata       |
 | Language and WebView-side preferences                                     | Existing identifier and WebView profile; backing up only Native SQLite does not cover DOM storage          |
 | HTML, assets and local instructions                                       | Actual user-selected locations, independent of the application                                             |
 | Installed authoring kit                                                   | `.mogledge/html-authoring` and relevant `.agents/skills` / `.claude/skills`, including ownership manifests |
 
-Migrated settings can reside at `identifier-migration-v1/config/settings.json`; do not move them back to a guessed profile location. Search indexes are rebuildable, but do not delete their containing persistent profile or migration leases/journals. See [data management](data-management.md) and [identifier migration](identifier-migration.md).
+Previously migrated settings can reside at `identifier-migration-v1/config/settings.json`; preserve that old bundle without moving it into the new profile. Search indexes are rebuildable, but do not delete their containing persistent profile or migration leases/journals. See [data management](data-management.md) and [profile separation](identifier-migration.md).
 
 Preserve any legacy `.my-knowledge` directory and `my-knowledge-html-authoring` Skills alongside the canonical kit. They may contain customized instructions and recoverable ownership records. Updating to `.mogledge` does not rename or delete those originals; see [dedicated-folder compatibility](registered-folders.md#kit-updates-and-ai-handoff).
 
@@ -55,7 +57,7 @@ Windows x64, from a clean committed Git checkout:
 ```powershell
 node scripts/distribution/build.mjs windows-x64 --app-only
 $buildTarget = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { 'src-tauri/target' }
-$newApp = Join-Path $buildTarget 'release/my-knowledge.exe'
+$newApp = Join-Path $buildTarget 'release/mogledge.exe'
 (Get-Item -LiteralPath $newApp).VersionInfo | Select-Object ProductVersion, FileVersion
 Get-FileHash -Algorithm SHA256 -LiteralPath $newApp
 ```
@@ -71,7 +73,7 @@ npm run tauri -- build --bundles app --config '{"bundle":{"macOS":{"signingIdent
 mogledge_build_target="${CARGO_TARGET_DIR:-src-tauri/target}"
 mogledge_built_app="$mogledge_build_target/release/bundle/macos/Mogledge.app"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mogledge_built_app/Contents/Info.plist"
-shasum -a 256 "$mogledge_built_app/Contents/MacOS/my-knowledge"
+shasum -a 256 "$mogledge_built_app/Contents/MacOS/mogledge"
 ```
 
 Keep the ordinary identifier and feature set. Do not enable test features or use `scripts/build.ps1` for an app-only update. Record source SHA, version, executable hash and verified/unverified operations; a PE version does not reveal its source SHA.
@@ -80,7 +82,7 @@ Keep the ordinary identifier and feature set. Do not enable test features or use
 
 If in-app updating fails, preserve the warning and note the current app version, macOS version, CPU architecture and whether failure occurred at checking, downloading/verifying, applying or restarting. Antivirus product/detection names and the exact warning help distinguish OS trust from update failures. A local running-bundle path can help identify the target, but may contain personal information; inspect it locally and do not publish it in a report. Moving a downloaded bundle alone does not establish that it is trusted, writable or the bundle currently running.
 
-1. Confirm the actual installed bundle and fixed pathname, including its Dock/login launch target. Confirm the active profile selected by startup migration and the actual HTML/assets locations using [What to preserve](#what-to-preserve) and [data management](data-management.md). Do not guess a profile path or treat a second app copy as the installed target.
+1. Confirm the actual installed bundle and fixed pathname, including its Dock/login launch target. Confirm that installation's actual active profile and HTML/assets locations using [What to preserve](#what-to-preserve) and [data management](data-management.md). Preserve it separately from the new identifier's profile. Do not guess a profile path or treat a second app copy as the installed target.
 2. Obtain the intended platform/CPU/version from [official Releases](https://github.com/shimi-lynx/mogledge/releases/latest) into separate staging. Mac first/manual installations use the architecture's application `.zip`; updater `.app.tar.gz` files are for the in-app updater. Verify the published hashes, source/version and applicable updater signatures against the [production verification procedure](production-distribution.md). An updater signature authenticates its corresponding updater payload; it does not authenticate an unrelated ZIP by itself. Verify the extracted complete bundle's code signature and version as described below. Current Mac distributions use ad-hoc signing: neither a passing code-signature check nor an updater signature is Apple Developer ID authentication or notarization, and OS trust warnings may remain. Stop on failed verification rather than bypassing OS protection.
 3. Save pending document input and confirm completion. Quit normally, including a resident app, and confirm the process has exited. If saving or exit is unresolved, stop replacement. After exit, make an independent backup of the complete actual profile, HTML/assets and other data in [What to preserve](#what-to-preserve); do not copy only a live SQLite database or rely on a recovery copy inside the same database.
 4. Preserve the complete previous app as one verified rollback generation outside the active location, recording its version/hash. If a failed updater retained an old bundle, confirm its identity and condition before using it; do not delete it or assume automatic restoration succeeded. Replace only the whole `.app` at the confirmed fixed pathname with the verified new bundle. Do not merge bundle directories, search for a same-named copy to overwrite, move user data or remove DB/settings to make an update work.
@@ -90,9 +92,9 @@ This procedure does not call for disabling security software, clearing quarantin
 
 ## Replace the installed target
 
-On Windows, read the actual shortcut `TargetPath`, arguments and working directory. Preserve the old EXE, then replace only that confirmed application with the verified new binary. Keep nearby user files and executable permissions. Point approved shortcuts to the fixed installed target, not a temporary checkout.
+On Windows, read the actual shortcut `TargetPath`, arguments and working directory. Preserve the old EXE, then replace only the confirmed application through the approved update procedure. New installations use `Mogledge` and `mogledge.exe`; a verified old/custom installation directory may be retained by installer compatibility. An old filename is not the new executable target: reconcile the exact installed product, shortcuts and login registration rather than placing two daily-use executables side by side. Keep nearby user files and executable permissions. Point approved shortcuts to the fixed installed target, not a temporary checkout. Native old-product update and uninstall verification remains required.
 
-On macOS, quit and back up the old bundle, then replace the whole bundle at the user's confirmed fixed pathname. Do not merge bundle directories. Keeping an existing `My Knowledge.app` pathname is compatible with the Mogledge display name. If the pathname changes, turn login startup off using the old app, then explicitly register it using the new installed app; a checkbox alone does not prove that the registered absolute path matches. Check Dock entries and launch targets separately.
+On macOS, quit and back up the old bundle, then replace the whole bundle at the user's confirmed fixed pathname. Do not merge bundle directories. New bundles use `Mogledge.app` with executable `mogledge`; an old bundle pathname is an existing launch reference requiring an explicit decision rather than a new default name. Before an approved pathname/identity transition, turn login startup off using the old app, then explicitly register it using the new installed app if desired; a checkbox alone does not prove that the registered absolute path matches. Check Dock entries and launch targets separately. This procedure has not established the new identifier's permission or updater inheritance on either Mac architecture.
 
 Preserve the complete bundle's permissions/signature metadata and verify the installed bundle with `codesign --verify --deep --strict <fixed-app>`. Confirm its Info.plist version and executable hash match the built bundle. An unchanged pathname/identifier does not establish permission inheritance. If standard recall reports missing Input Monitoring access after an ad-hoc replacement, use the existing app settings-open/recheck route and any requested normal restart; the owner chooses whether to grant access. Follow [the existing permission route](macos-resident-shortcuts-validation.md#existing-routes-and-permissions), without resetting privacy settings or broadening permissions.
 
@@ -100,7 +102,7 @@ Do not move knowledge or profiles with the binary. Preserve OS login registratio
 
 ## Verify and roll back
 
-Before launch, check that the installed EXE version/hash or bundle version/executable hash matches the verified build. Launch the confirmed installed pathname, not the cache output, and confirm the running target and version. Verify startup with disposable data first where the regular profile must remain untouched; when regular-profile use is authorized, check saved inputs, selected root, favorites, workspaces, language and startup registration without unnecessary setting changes. A matching app hash does not establish data restoration or OS permission behavior.
+Before launch, check that the installed EXE version/hash or bundle version/executable hash matches the verified build. Launch the confirmed installed pathname, not the cache output, and confirm the running target and version. Verify startup with disposable data first where the regular profile must remain untouched. For the identity transition, check that the new profile begins with defaults and that old settings, inputs and WebView files stay unchanged; do not expect automatic restoration from the old profile. When subsequent same-identity regular-profile use is authorized, check saved inputs, selected root, favorites, workspaces, language and startup registration without unnecessary setting changes. A matching app hash does not establish data restoration or OS permission behavior.
 
 | Compatibility boundary | Required care                                                                                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

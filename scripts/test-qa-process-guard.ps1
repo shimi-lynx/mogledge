@@ -114,7 +114,7 @@ try {
     if (-not (Test-Path -LiteralPath $shell)) { $shell = Join-Path $PSHOME 'powershell.exe' }
     $helperArguments = @('-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 30')
     $protectedHelper = Start-Process -FilePath $shell -ArgumentList $helperArguments -WindowStyle Hidden -PassThru
-    $protectedHandle = [MyKnowledgeQa.RetainedProcess]::new($protectedHelper)
+    $protectedHandle = [MogledgeQa.RetainedProcess]::new($protectedHelper)
     $nativeGuard = New-QaProcessGuard -EvidencePath (Join-Path $EvidenceDirectory 'native-processes.json') -AdditionalProtectedProcessIds @($protectedHelper.Id)
     $root = Start-QaGuardedProcess -Guard $nativeGuard -FilePath $shell -ArgumentList $helperArguments -WorkingDirectory $repo -StandardOutput (Join-Path $EvidenceDirectory 'helper.stdout.log') -StandardError (Join-Path $EvidenceDirectory 'helper.stderr.log')
     Update-QaProcessGuard $nativeGuard | Out-Null

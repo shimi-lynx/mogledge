@@ -1,7 +1,7 @@
 //! Opt-in real TCP smoke; run alone so Linux RSS belongs to this fixture.
 #![cfg(target_os = "linux")]
 
-use my_knowledge_backend_tests::{core::Core, document_server, knowledge};
+use mogledge_backend_tests::{core::Core, document_server, knowledge};
 use serde_json::{json, Value};
 use std::{
     io::{Read, Write},

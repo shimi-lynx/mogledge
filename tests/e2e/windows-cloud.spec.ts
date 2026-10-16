@@ -15,11 +15,11 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve, toNamespacedPath } from "node:path";
 import type { Snapshot, TreeNode } from "../../src/lib/types";
 
-const configuredRoot = process.env.MY_KNOWLEDGE_CLOUD_FIXTURE_ROOT;
+const configuredRoot = process.env.MOGLEDGE_CLOUD_FIXTURE_ROOT;
 const enabled = process.platform === "win32" && Boolean(configuredRoot);
-const mutations = process.env.MY_KNOWLEDGE_CLOUD_MUTATIONS === "1";
-const markerName = ".my-knowledge-cloud-fixture";
-const markerContent = "MY_KNOWLEDGE_DISPOSABLE_CLOUD_FIXTURE_V1\n";
+const mutations = process.env.MOGLEDGE_CLOUD_MUTATIONS === "1";
+const markerName = ".mogledge-cloud-fixture";
+const markerContent = "MOGLEDGE_DISPOSABLE_CLOUD_FIXTURE_V1\n";
 
 function fixtureRoot() {
   assert.ok(configuredRoot, "An explicitly supplied disposable cloud fixture is required");
@@ -172,7 +172,7 @@ function cleanOwnedDirectory(directory: string, names: string[]) {
 
   it("renders locally resident HTML, CSS, classic JS, Modules, JSON and image assets", async () => {
     fixtureRoot();
-    scratch = mkdtempSync(join(root, "my-knowledge-cloud-qa-"));
+    scratch = mkdtempSync(join(root, "mogledge-cloud-qa-"));
     relative = basename(scratch);
     const files: Record<string, string> = {
       "View.html":
@@ -247,12 +247,12 @@ function cleanOwnedDirectory(directory: string, names: string[]) {
     "excludes a junction and rejects Native tab creation and HTTP asset reads outside the root",
     async () => {
       assert.ok(scratch, "Resident fixture must be created first");
-      const outside = mkdtempSync(join(tmpdir(), "my-knowledge-cloud-outside-"));
+      const outside = mkdtempSync(join(tmpdir(), "mogledge-cloud-outside-"));
       const junction = join(scratch, "Escape");
       let created = false;
       try {
         writeFileSync(join(outside, "Outside.html"), "<h1>outside sentinel</h1>", { flag: "wx" });
-        const sentinel = "MY_KNOWLEDGE_OUTSIDE_CSS_SENTINEL";
+        const sentinel = "MOGLEDGE_OUTSIDE_CSS_SENTINEL";
         writeFileSync(join(outside, "outside.css"), "/* " + sentinel + " */", { flag: "wx" });
         symlinkSync(outside, junction, "junction");
         created = true;

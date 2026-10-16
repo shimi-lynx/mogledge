@@ -832,6 +832,7 @@ fn read_bounded(
 }
 
 pub(crate) fn document_identity(dir: &Dir, file: &fs::File) -> io::Result<String> {
+    // These existing domain bytes define physical identities, not product names or paths.
     #[cfg(all(target_os = "macos", feature = "macos-persistent-storage"))]
     {
         let root = dir.try_clone()?.into_std_file();

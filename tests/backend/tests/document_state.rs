@@ -3,7 +3,7 @@ use axum::{
     http::{header, Method, Request, Response, StatusCode},
 };
 use http_body_util::BodyExt;
-use my_knowledge_backend_tests::{
+use mogledge_backend_tests::{
     core::Core,
     document_server,
     document_state::{self, DocumentState, StateError, StateRequest, StateResponse},
@@ -14,7 +14,7 @@ use std::{fs, sync::Arc};
 use tempfile::TempDir;
 use tower::ServiceExt;
 
-const ENDPOINT: &str = "__my_knowledge_storage_v1__";
+const ENDPOINT: &str = "__mogledge_storage_v1__";
 // Exercise removal of the old transport cap without allocating SQLite's full capacity.
 const LEGACY_REQUEST_FIXTURE_BYTES: usize = 8 * 1024 * 1024 + 1024;
 
@@ -450,13 +450,13 @@ fn index_rebuild_keeps_document_state_and_live_grant() {
     assert!(fixture
         .core
         .index
-        .set(my_knowledge_backend_tests::index::IndexService::new(cache.path().to_owned()).unwrap())
+        .set(mogledge_backend_tests::index::IndexService::new(cache.path().to_owned()).unwrap())
         .is_ok());
     fixture.core.select(fixture.root.path(), false).unwrap();
     fixture.core.watcher.lock().unwrap().take();
     let current = fixture.grant("a.html");
     write(&fixture.core, &current.token, "sample", json!({"data":31}));
-    my_knowledge_backend_tests::index::api::rebuild(&fixture.core, &current.workspace).unwrap();
+    mogledge_backend_tests::index::api::rebuild(&fixture.core, &current.workspace).unwrap();
     assert_eq!(
         read(&fixture.core, &current.token, "sample").value,
         json!({"data":31})
@@ -470,12 +470,12 @@ fn failed_browser_dispatch_revokes_its_grant_and_preserves_ui_state() {
     let ui = fixture.grant("a.html");
     write(&fixture.core, &ui.token, "sample", json!(19));
     let mut browser_token = None;
-    let result = my_knowledge_backend_tests::file_actions::perform(
+    let result = mogledge_backend_tests::file_actions::perform(
         &fixture.core,
         &ui.workspace,
         &ui.view,
         "a.html",
-        my_knowledge_backend_tests::file_actions::FileAction::OpenBrowser,
+        mogledge_backend_tests::file_actions::FileAction::OpenBrowser,
         |target| {
             let path = target.target.strip_prefix(&fixture.core.origin).unwrap();
             browser_token = Some(document_server::decode_path(path).unwrap().0);
@@ -1125,14 +1125,13 @@ async fn served_descriptor_preserves_sandbox_and_original_document() {
     )
     .unwrap();
     assert!(served.starts_with("<!doctype html><script>"));
-    assert!(served.contains("__MY_KNOWLEDGE_STORAGE_V1__"));
+    assert!(served.contains("__MOGLEDGE_STORAGE_V1__"));
     assert!(served.contains("Object.freeze("));
     assert!(served.contains("writable:false,configurable:false"));
     assert!(served.contains("\"available\":true"));
     assert!(served.contains(&endpoint(&current.token)));
     assert!(
-        served.find("__MY_KNOWLEDGE_STORAGE_V1__").unwrap()
-            < served.find("window.example=1").unwrap()
+        served.find("__MOGLEDGE_STORAGE_V1__").unwrap() < served.find("window.example=1").unwrap()
     );
     assert!(!served.contains(fixture.state.path().to_str().unwrap()));
     assert_eq!(

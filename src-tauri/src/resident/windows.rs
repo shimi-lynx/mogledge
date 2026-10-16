@@ -53,7 +53,7 @@ use windows::{
 
 const UNAVAILABLE: &str = "ResidentInputUnavailable";
 const CONFLICT: &str = "ResidentInputConflict";
-const CLASS_NAME: windows::core::PCWSTR = w!("MyKnowledgeResidentInput");
+const CLASS_NAME: windows::core::PCWSTR = w!("MogledgeResidentInput");
 const KEYBOARD_USAGE_PAGE: u16 = 1;
 const KEYBOARD_USAGE: u16 = 6;
 
@@ -353,7 +353,7 @@ impl Drop for ReceiverWindow {
 // Explicit QA opt-in. Never log input events, titles, document data or paths.
 // This API reads this process only; a NULL target is still a registration.
 fn diagnostic(event: &str, error: Option<&str>) {
-    if std::env::var_os("MY_KNOWLEDGE_RESIDENT_DIAGNOSTICS").as_deref()
+    if std::env::var_os("MOGLEDGE_RESIDENT_DIAGNOSTICS").as_deref()
         != Some(std::ffi::OsStr::new("1"))
     {
         return;
@@ -392,7 +392,7 @@ pub(super) fn gesture_diagnostic(
     event: &'static str,
     details: impl FnOnce() -> serde_json::Value,
 ) -> bool {
-    if std::env::var_os("MY_KNOWLEDGE_RESIDENT_GESTURE_DIAGNOSTICS").as_deref()
+    if std::env::var_os("MOGLEDGE_RESIDENT_GESTURE_DIAGNOSTICS").as_deref()
         != Some(std::ffi::OsStr::new("1"))
     {
         return false;

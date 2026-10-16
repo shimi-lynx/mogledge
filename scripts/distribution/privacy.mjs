@@ -82,7 +82,7 @@ export function assertSourceArchivePaths(entries) {
 }
 
 export async function assertCandidateLayout(staging, platform) {
-  const app = platform === "windows-x64" ? "my-knowledge.exe" : "Mogledge.app";
+  const app = platform === "windows-x64" ? "mogledge.exe" : "Mogledge.app";
   const expected = new Set([
     app,
     "manifest.json",

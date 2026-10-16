@@ -495,7 +495,7 @@ mod tests {
                 .unwrap()
                 .file_name()
                 .to_string_lossy()
-                .starts_with(".my-knowledge-")
+                .starts_with(".mogledge-")
         }));
         drop(blocking);
         store.save(&preferences).unwrap();

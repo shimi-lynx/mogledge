@@ -44,8 +44,11 @@ ${StrLoc}
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
-; Keep the existing installation and autostart identities across the display rename.
-!define INSTALLIDENTITY "My Knowledge"
+; Current product writes use only the canonical identity. Legacy names are read
+; solely to recognize and update an owned installation, never to find app data.
+!define INSTALLIDENTITY "Mogledge"
+!define LEGACYIDENTITY "My Knowledge"
+!define LEGACYBINARY "my-knowledge.exe"
 !define VERSION "{{version}}"
 !define VERSIONWITHBUILD "{{version_with_build}}"
 !define HOMEPAGE "{{homepage}}"
@@ -73,6 +76,8 @@ ${StrLoc}
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${INSTALLIDENTITY}"
 !define MANUKEY "Software\${MANUFACTURER}"
 !define MANUPRODUCTKEY "${MANUKEY}\${INSTALLIDENTITY}"
+!define LEGACYUNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${LEGACYIDENTITY}"
+!define LEGACYPRODUCTKEY "${MANUKEY}\${LEGACYIDENTITY}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 !define ESTIMATEDSIZE "{{estimated_size}}"
 !define STARTMENUFOLDER "{{start_menu_folder}}"
@@ -80,23 +85,40 @@ ${StrLoc}
 ; Never rename or overwrite a shortcut belonging to another target. Keep the
 ; original link metadata when moving an owned shortcut to the new display name.
 !macro RenameLegacyShortcut legacy renamed
-!if "${PRODUCTNAME}" != "${INSTALLIDENTITY}"
-  !insertmacro IsShortcutTarget "${legacy}" "$INSTDIR\${MAINBINARYNAME}.exe"
+${If} $LegacyInstall = 1
+  !insertmacro IsShortcutTarget "${legacy}" "$INSTDIR\${LEGACYBINARY}"
   Pop $0
   ${If} $0 = 1
     ${If} ${FileExists} "${renamed}"
       !insertmacro IsShortcutTarget "${renamed}" "$INSTDIR\${MAINBINARYNAME}.exe"
       Pop $0
+      ${If} $0 <> 1
+        ; A new-label shortcut may still point to the verified predecessor.
+        !insertmacro IsShortcutTarget "${renamed}" "$INSTDIR\${LEGACYBINARY}"
+        Pop $0
+        ${If} $0 = 1
+          !insertmacro SetShortcutTarget "${renamed}" "$INSTDIR\${MAINBINARYNAME}.exe"
+          !insertmacro SetLnkAppUserModelId "${renamed}"
+          StrCpy $0 1
+        ${EndIf}
+      ${EndIf}
       ${If} $0 = 1
+        !insertmacro SetLnkAppUserModelId "${renamed}"
         Delete "${legacy}"
       ${EndIf}
     ${Else}
       Rename "${legacy}" "${renamed}"
+      !insertmacro SetShortcutTarget "${renamed}" "$INSTDIR\${MAINBINARYNAME}.exe"
+      !insertmacro SetLnkAppUserModelId "${renamed}"
     ${EndIf}
-    ; A collision or failed rename leaves the owned legacy link usable.
+    ; Preserve a foreign new-name link; an owned legacy link still needs the new target.
+    ${If} ${FileExists} "${legacy}"
+      !insertmacro SetShortcutTarget "${legacy}" "$INSTDIR\${MAINBINARYNAME}.exe"
+      !insertmacro SetLnkAppUserModelId "${legacy}"
+    ${EndIf}
     StrCpy $R0 1
   ${EndIf}
-!endif
+${EndIf}
 !macroend
 
 !macro PreserveForeignShortcut shortcut
@@ -123,6 +145,10 @@ Var UpdateMode
 Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
+Var LegacyInstall
+Var LegacyInstallDir
+Var PreviousUninstKey
+Var PreviousProductKey
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -263,8 +289,8 @@ Function PageReinstall
   wix_loop_done:
 
   ; Check if there is an existing installation, if not, abort the reinstall page
-  ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
-  ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
+  ReadRegStr $R0 SHCTX "$PreviousUninstKey" ""
+  ReadRegStr $R1 SHCTX "$PreviousUninstKey" "UninstallString"
   ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
 
   ; Compare this installar version with the existing installation
@@ -274,7 +300,7 @@ Function PageReinstall
   ${If} $WixMode = 1
     ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
   ${Else}
-    ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+    ReadRegStr $R0 SHCTX "$PreviousUninstKey" "DisplayVersion"
   ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
@@ -400,8 +426,8 @@ Function PageLeaveReinstall
       ReadRegStr $R1 HKLM "$R6" "UninstallString"
       ExecWait '$R1' $0
     ${Else}
-      ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-      ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
+      ReadRegStr $4 SHCTX "$PreviousProductKey" ""
+      ReadRegStr $R1 SHCTX "$PreviousUninstKey" "UninstallString"
       ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|} ; append /UPDATE
       ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|} ; append /P
       StrCpy $R1 "$R1 _?=$4" ; append uninstall directory
@@ -562,9 +588,9 @@ Function .onInit
       StrCpy $INSTDIR "$LOCALAPPDATA\${INSTALLIDENTITY}"
     !endif
 
-    Call RestorePreviousInstallLocation
   ${EndIf}
 
+  Call RestorePreviousInstallLocation
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_INIT
@@ -684,6 +710,10 @@ Section WebView2
 SectionEnd
 
 Section Install
+  ${If} $LegacyInstall = 1
+  ${AndIf} $INSTDIR != $LegacyInstallDir
+    Abort "An existing installation must be updated at its verified location. Uninstall it separately before choosing a different location."
+  ${EndIf}
   SetOutPath $INSTDIR
 
   !ifmacrodef NSIS_HOOK_PREINSTALL
@@ -691,6 +721,9 @@ Section Install
   !endif
 
   !insertmacro CheckIfAppIsRunning "$INSTDIR\${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+  ${If} $LegacyInstall = 1
+    !insertmacro CheckIfAppIsRunning "$INSTDIR\${LEGACYBINARY}" "${LEGACYIDENTITY}"
+  ${EndIf}
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
@@ -736,10 +769,17 @@ Section Install
   !endif
 
   ; Remove old main binary if it doesn't match new main binary name
-  ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
+  ReadRegStr $OldMainBinaryName SHCTX "$PreviousUninstKey" "MainBinaryName"
   ${If} $OldMainBinaryName != ""
   ${AndIf} $OldMainBinaryName != "${MAINBINARYNAME}.exe"
     Delete "$INSTDIR\$OldMainBinaryName"
+  ${EndIf}
+
+  ${If} $LegacyInstall = 1
+    Call UpdateLegacyAutostart
+    ; All current registration writes below use Mogledge. Old app data is untouched.
+    DeleteRegKey SHCTX "${LEGACYUNINSTKEY}"
+    DeleteRegKey SHCTX "${LEGACYPRODUCTKEY}"
   ${EndIf}
 
   ; Save current MAINBINARYNAME for future updates
@@ -908,7 +948,7 @@ Section Uninstall
     DeleteRegKey HKCU "${UNINSTKEY}"
   !endif
 
-  ; Autostart keeps its original registration name. Only remove the known
+  ; Only remove the current product registration with a known
   ; no-argument command for this installation, preserving it during updates.
   ${If} $UpdateMode <> 1
     ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${INSTALLIDENTITY}"
@@ -950,9 +990,64 @@ Section Uninstall
 SectionEnd
 
 Function RestorePreviousInstallLocation
+  StrCpy $LegacyInstall 0
+  StrCpy $PreviousUninstKey "${UNINSTKEY}"
+  StrCpy $PreviousProductKey "${MANUPRODUCTKEY}"
   ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-  StrCmp $4 "" +2 0
+  ${If} $4 != ""
     StrCpy $INSTDIR $4
+    Return
+  ${EndIf}
+
+  ; A registry display name alone is insufficient ownership evidence. Recognize
+  ; only the exact predecessor's publisher, binary and uninstaller at its recorded path.
+  ReadRegStr $4 SHCTX "${LEGACYPRODUCTKEY}" ""
+  ${If} $4 == ""
+    Return
+  ${EndIf}
+  ReadRegStr $0 SHCTX "${LEGACYUNINSTKEY}" "Publisher"
+  ReadRegStr $1 SHCTX "${LEGACYUNINSTKEY}" "MainBinaryName"
+  ReadRegStr $2 SHCTX "${LEGACYUNINSTKEY}" "UninstallString"
+  ${If} $0 != "${MANUFACTURER}"
+  ${OrIf} $1 != "${LEGACYBINARY}"
+  ${OrIf} $2 != "$\"$4\uninstall.exe$\""
+    Abort "The legacy installation identity could not be verified. No installation was changed."
+  ${EndIf}
+  ${IfNot} ${FileExists} "$4\${LEGACYBINARY}"
+    Abort "The legacy executable is missing. Repair or uninstall that installation first."
+  ${EndIf}
+  ${IfNot} ${FileExists} "$4\uninstall.exe"
+    Abort "The legacy uninstaller is missing. Repair that installation first."
+  ${EndIf}
+  ; Preserve an existing custom/fixed installation location during an overwrite update.
+  ; New installations use Mogledge directories. No profile directory is inspected.
+  StrCpy $INSTDIR $4
+  StrCpy $LegacyInstall 1
+  StrCpy $LegacyInstallDir $4
+  StrCpy $PreviousUninstKey "${LEGACYUNINSTKEY}"
+  StrCpy $PreviousProductKey "${LEGACYPRODUCTKEY}"
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${LEGACYIDENTITY}"
+  ${If} $0 == "$INSTDIR\${LEGACYBINARY} "
+  ${OrIf} $0 == "$INSTDIR\${LEGACYBINARY}"
+  ${OrIf} $0 == "$\"$INSTDIR\${LEGACYBINARY}$\" "
+  ${OrIf} $0 == "$\"$INSTDIR\${LEGACYBINARY}$\""
+    ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${INSTALLIDENTITY}"
+    ${If} $1 != ""
+    ${AndIf} $1 != "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
+      Abort "The Mogledge startup registration belongs to a different command. No installation was changed."
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
+Function UpdateLegacyAutostart
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${LEGACYIDENTITY}"
+  ${If} $0 == "$INSTDIR\${LEGACYBINARY} "
+  ${OrIf} $0 == "$INSTDIR\${LEGACYBINARY}"
+  ${OrIf} $0 == "$\"$INSTDIR\${LEGACYBINARY}$\" "
+  ${OrIf} $0 == "$\"$INSTDIR\${LEGACYBINARY}$\""
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${INSTALLIDENTITY}" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${LEGACYIDENTITY}"
+  ${EndIf}
 FunctionEnd
 
 Function Skip
@@ -970,16 +1065,14 @@ Function CreateOrUpdateStartMenuShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
   StrCpy $R0 0
-  !insertmacro RenameLegacyShortcut "$SMPROGRAMS\$AppStartMenuFolder\${INSTALLIDENTITY}.lnk" "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-  !insertmacro RenameLegacyShortcut "$SMPROGRAMS\${INSTALLIDENTITY}.lnk" "$SMPROGRAMS\${PRODUCTNAME}.lnk"
-  ${If} $R0 = 1
-    Return
-  ${EndIf}
+  !insertmacro RenameLegacyShortcut "$SMPROGRAMS\$AppStartMenuFolder\${LEGACYIDENTITY}.lnk" "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+  !insertmacro RenameLegacyShortcut "$SMPROGRAMS\${LEGACYIDENTITY}.lnk" "$SMPROGRAMS\${PRODUCTNAME}.lnk"
 
   !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\$OldMainBinaryName"
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     StrCpy $R0 1
   ${EndIf}
 
@@ -987,6 +1080,7 @@ Function CreateOrUpdateStartMenuShortcut
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     StrCpy $R0 1
   ${EndIf}
 
@@ -1017,16 +1111,18 @@ FunctionEnd
 
 Function CreateOrUpdateDesktopShortcut
   StrCpy $R0 0
-  !insertmacro RenameLegacyShortcut "$DESKTOP\${INSTALLIDENTITY}.lnk" "$DESKTOP\${PRODUCTNAME}.lnk"
-  ${If} $R0 = 1
-    Return
-  ${EndIf}
+  !insertmacro RenameLegacyShortcut "$DESKTOP\${LEGACYIDENTITY}.lnk" "$DESKTOP\${PRODUCTNAME}.lnk"
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
   !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\$OldMainBinaryName"
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
+    Return
+  ${EndIf}
+
+  ${If} $R0 = 1
     Return
   ${EndIf}
 

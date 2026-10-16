@@ -8,16 +8,13 @@ import type { Snapshot, MutationResult } from "../../src/lib/types";
 // It does not empty the bin, restore arbitrary items, or delete user documents.
 describe("Disposable Windows OS recycle fixture", () => {
   it("recycles a newly created folder recursively, preserving unrelated originals", async function () {
-    if (process.platform !== "win32" || process.env.MY_KNOWLEDGE_E2E_TRASH !== "1") this.skip();
-    assert.ok(
-      process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE,
-      "requires ordinary disposable fixture run",
-    );
-    assert.equal(process.env.MY_KNOWLEDGE_CLOUD_FIXTURE_ROOT, undefined);
-    assert.equal(process.env.MY_KNOWLEDGE_BENCH_ROOT, undefined);
-    assert.equal(process.env.MY_KNOWLEDGE_TEST_BINARY, undefined);
+    if (process.platform !== "win32" || process.env.MOGLEDGE_E2E_TRASH !== "1") this.skip();
+    assert.ok(process.env.MOGLEDGE_E2E_ACTION_CAPTURE, "requires ordinary disposable fixture run");
+    assert.equal(process.env.MOGLEDGE_CLOUD_FIXTURE_ROOT, undefined);
+    assert.equal(process.env.MOGLEDGE_BENCH_ROOT, undefined);
+    assert.equal(process.env.MOGLEDGE_TEST_BINARY, undefined);
     const root = resolve(".tools/e2e-knowledge");
-    assert.equal(resolve(process.env.MY_KNOWLEDGE_E2E_ROOT!), root);
+    assert.equal(resolve(process.env.MOGLEDGE_E2E_ROOT!), root);
     const name = "TrashFixture-" + Date.now();
     assert.equal(existsSync(resolve(root, name)), false);
     const unrelated = readFileSync(resolve(root, "01-Welcome.html"));

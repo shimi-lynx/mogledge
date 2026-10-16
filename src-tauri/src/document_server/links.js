@@ -1,5 +1,5 @@
 (() => {
-  const token = __MY_KNOWLEDGE_LINK_TOKEN__;
+  const token = __MOGLEDGE_LINK_TOKEN__;
   const preventDefault = Object.getOwnPropertyDescriptor(Event.prototype, "preventDefault").value;
   const returnValue = Object.getOwnPropertyDescriptor(Event.prototype, "returnValue");
   function afterClick(event, route) {
@@ -80,7 +80,7 @@
     const success = anchor(data.fragment);
     if (Number.isSafeInteger(data.request))
       parent.postMessage(
-        { type: "my-knowledge-anchor-result-v1", token, request: data.request, success },
+        { type: "mogledge-anchor-result-v1", token, request: data.request, success },
         "*",
       );
   }
@@ -100,7 +100,7 @@
     const data = event.data;
     if (
       event.source === parent &&
-      data?.type === "my-knowledge-anchor-v1" &&
+      (data?.type === "mogledge-anchor-v1" || data?.type === "my-knowledge-anchor-v1") &&
       data.token === token &&
       typeof data.fragment === "string" &&
       data.fragment.length <= 8192
@@ -146,7 +146,7 @@
     afterClick(event, () => {
       // A document can forge this proposal. It is never proof of user intent;
       // only main UI's own confirmation click authorizes external OS dispatch.
-      parent.postMessage({ type: "my-knowledge-link-v1", token, href: url.href }, "*");
+      parent.postMessage({ type: "mogledge-link-v1", token, href: url.href }, "*");
     });
   });
 })();

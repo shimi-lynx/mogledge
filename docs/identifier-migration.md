@@ -1,23 +1,26 @@
-# Identifier migration and startup gate
+# Product identity and profile separation
 
-The ordinary application identifier is `com.shimilynx.myknowledge`. The previous identifier `com.shimilynx.aiwiki` is retained only for compatibility detection/migration. Changing display name to Mogledge does not introduce another profile identifier.
+Current source uses `com.shimilynx.mogledge`, the `mogledge` executable/package, `mogledge_lib` library, and the Mogledge installer and login-startup name. This identity change is unreleased. The published 0.9.1 artifacts retain their recorded identity; source changes do not replace those binaries.
 
-Startup inspects old/current profile state before opening the ordinary window, initializing document-state storage or releasing normal IPC. Old data requires a Native confirmation after the old app has exited. The application preserves the old source and does not overwrite an existing current profile.
+## Profile contract
 
-## Contract
+The new identifier selects a separate configuration, local-data and WebView namespace. A new profile begins with default preferences and no registered folders or saved input. Normal subsequent starts reopen that new profile. Language, search and tree-expansion preferences use `mogledge.*` keys; the browser adapter uses `mogledge:v1:`.
 
-- Use OS configuration/local-data locations and the exact supported identifiers; do not infer ownership from a similarly named directory.
-- Inspect presence, type, links, identity, accessibility and leases. Permission errors or unsupported paths are not treated as an empty profile.
-- Copy supported config and saved document-state data into owned staging, validate it, and atomically publish a complete migration bundle. Search is a rebuildable cache; WebView profile copying is not assumed safe across platforms.
-- Keep unresolved conflict/cancel/error at the startup gate. Do not let ordinary folder selection or document-state initialization bypass a failed migration.
-- Keep the source unchanged. Protect copy/publication against identity changes and concurrent app processes; do not resume a partial state by deleting journals or leases.
+Startup does not discover, copy, merge or delete profiles belonging to `com.shimilynx.myknowledge` or `com.shimilynx.aiwiki`. It does not copy old WebView storage or read old preference keys. Data transfer is outside this rename; preserve the old profile and HTML for a separately requested, explicitly reviewed operation. A matching filename, folder name or document UUID does not authorize copying an old database into the new profile.
 
-Migrated data can live in the current local-data profile's `identifier-migration-v1/config` and `document-state` bundle. Back up the whole bundle and metadata; do not flatten it into guessed ordinary directories.
+OS directory APIs determine the active locations. Windows configuration and local data normally use `%APPDATA%` and `%LOCALAPPDATA%`; macOS uses the locations returned for the new bundle identifier. The actual older Apple Silicon profile and WebView locations have not been established. A guessed `~/Library/WebKit/<identifier>` path or a language surviving reinstallation does not prove where that installation saved its preferences.
 
-## Recovery and QA
+The old `identifier-migration-v1` bundle may exist in a previous profile. Preserve it whole with its metadata and do not flatten it into the new profile. This source does not automatically resume the earlier AIWiki migration gate.
 
-Follow [update/rollback](update-guide.md) and [data management](data-management.md). API v1, DB schema versions and root/file physical identity are separate compatibility checks. An old executable may not read newer saved formats.
+## Compatibility exceptions
 
-Test migration only with dedicated old/new QA identifiers and disposable synthetic profiles. Test old-only/current-only/conflict, cancel, concurrent lease, staging/source replacement, interruption, publication and restart. A QA feature alone does not isolate storage. Do not launch an ordinary-identifier test executable against production data.
+- Old HTML API globals, descriptors and transport routes remain compatibility aliases to the same document-scoped storage/export authority. New templates use the Mogledge names. Aliases do not discover old profiles or read old browser-localStorage keys.
+- Windows installer compatibility identifies the exact old product registration to handle an existing installation. It does not infer ownership from a similarly named directory or authorize deleting user data.
+- Legacy dedicated-folder kit markers and edited instructions remain protected at their existing paths. This folder-resource compatibility is separate from application-profile transfer.
+- Historical release receipts, source identities and third-party attribution retain the names that were actually used.
 
-Windows fixture evidence does not establish macOS migration, WKWebView profile behavior, every crash/disk-full case or installer update. Preserve these [known limitations](known-limitations.md) instead of reclassifying them as passed when docs are consolidated.
+## Update and verification boundaries
+
+Changing a bundle identifier can change OS permissions, login registration and app identity. Retaining the updater signing key authenticates an artifact; it does not prove that replacing an old installed product with the new identity works. Check [updating and rollback](update-guide.md) before replacement and preserve the old app and all old data independently.
+
+Required device checks include fresh-profile startup without old-data changes, Windows old-product detection and installed update/uninstall registration, custom install locations, shortcuts and login startup, and Intel/Apple Silicon bundle replacement, updater apply/restart, signature and permission behavior. Targeted source/mock tests do not establish these Native results. This rename has no completed Native update verification or new release.

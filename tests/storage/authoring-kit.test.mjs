@@ -56,7 +56,7 @@ function nativeFixture({
   const calls = [];
   return {
     setup: (window) => {
-      window.__MY_KNOWLEDGE_STORAGE_V1__ = Object.freeze({
+      window.__MOGLEDGE_STORAGE_V1__ = Object.freeze({
         version: 1,
         available: true,
         endpoint: "https://example.test/native-fixture",
@@ -254,7 +254,7 @@ test("initial Native read/schema/data failure cannot overwrite original state or
 test("Native descriptor unavailable and write failure never access localStorage", async () => {
   let accesses = 0;
   const unavailable = await open((window) => {
-    window.__MY_KNOWLEDGE_STORAGE_V1__ = Object.freeze({ version: 1, available: false });
+    window.__MOGLEDGE_STORAGE_V1__ = Object.freeze({ version: 1, available: false });
     Object.defineProperty(window, "localStorage", {
       get() {
         accesses++;
@@ -293,8 +293,7 @@ test("Native descriptor unavailable and write failure never access localStorage"
 test("normal browser quota failure retains previous value and current unsaved input", async () => {
   let previous;
   const dom = await open((window) => {
-    const key =
-      "my-knowledge:v1:" + encodeURIComponent(window.location.href) + ":generated-calculator";
+    const key = "mogledge:v1:" + encodeURIComponent(window.location.href) + ":generated-calculator";
     previous = JSON.stringify({
       version: 1,
       revision: 1,

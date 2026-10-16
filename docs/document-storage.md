@@ -24,12 +24,14 @@ For user-requested export of generated images, tables or text, use the separate 
 ## JavaScript API
 
 ```js
-const storage = MyKnowledgeStorage.create({ appId: "calculator", schemaVersion: 1 });
+const storage = MogledgeStorage.create({ appId: "calculator", schemaVersion: 1 });
 const saved = await storage.read(); // JSON data, or null if no value is saved
 // Validate and restore before calculating or enabling event-driven saves.
 await storage.write({ amount: 12, mode: "double", enabled: true });
 await storage.flush(); // Confirm completion before reporting a save or reloading.
 ```
+
+New templates use `MogledgeStorage`. `MyKnowledgeStorage` remains an alias for existing inline HTML; it does not import an old profile or browser key. Preserve the document UUID, appId and schema when updating an existing file, and verify restoration before enabling saves.
 
 | Method                             | Contract                                                                                                                                                                                                          |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,7 +51,9 @@ Adapter codes include `storage_unavailable`, `quota_exceeded`, `invalid_key`, `i
 
 ## Native transport
 
-Mogledge injects a frozen `globalThis.__MY_KNOWLEDGE_STORAGE_V1__` before original scripts, without changing the source HTML.
+Mogledge injects a frozen `globalThis.__MOGLEDGE_STORAGE_V1__` before original scripts, without changing the source HTML.
+
+The old `__MY_KNOWLEDGE_STORAGE_V1__` descriptor and `__my_knowledge_storage_v1__` route are compatibility aliases to the same frozen grant and validated endpoint. They do not widen authority or select an old database. Authors use the canonical adapter instead of naming either route directly.
 
 ```js
 // Injected by the app; authors do not construct URLs or tokens.
@@ -158,7 +162,7 @@ Transfer exports one HTML's committed app map and imports into an explicitly sel
 
 ## Ordinary browsers
 
-Only an absent Native descriptor permits localStorage. The key is `my-knowledge:v1:<encodeURIComponent of document URL without query/hash>:<appId>`. Native/browser stores are independent. Origin, profile or URL changes change the namespace; URL rename/move creates a new key. Multiple tabs use the last localStorage write, without Native document-wide revision ordering.
+Only an absent Native descriptor permits localStorage. The key is `mogledge:v1:<encodeURIComponent of document URL without query/hash>:<appId>`. The new adapter neither reads nor rewrites the old `my-knowledge:v1:` namespace; an existing HTML with an old inline adapter retains its original browser behavior until explicitly changed. Native/browser stores are independent. Origin, profile or URL changes change the namespace; URL rename/move creates a new key. Multiple tabs use the last localStorage write, without Native document-wide revision ordering.
 
 localStorage's typical 5 MiB origin allowance counts UTF-16 keys/values, unlike Native UTF-8 map accounting. Other documents, URL keys and version/revision wrapping consume it; the adapter's 5 MiB precheck can still pass before `QuotaExceededError`. Private mode, policy, disabled storage or opaque origin can also deny access. Retain saved values/current input and report errors without changing stores. `file:` behavior depends on browser and needs separate verification from HTTP. Mogledge-served sandbox URLs and standalone files outside the repo are separate cases.
 

@@ -75,7 +75,7 @@ if (!sourcePath || !outputPath || process.argv.length !== 4) {
     SCRIPT: inlineScript(source.script),
   };
   const html = template.replace(
-    /(?:<!--MY_KNOWLEDGE_(TITLE|BODY|DOCUMENT_ID)-->|\/\*MY_KNOWLEDGE_(STYLE|ADAPTER|EXPORT|SCRIPT)\*\/)/g,
+    /(?:<!--MOGLEDGE_(TITLE|BODY|DOCUMENT_ID)-->|\/\*MOGLEDGE_(STYLE|ADAPTER|EXPORT|SCRIPT)\*\/)/g,
     (_, htmlName, scriptName) => values[htmlName || scriptName],
   );
   // Validate the complete author-supplied body too, before touching an existing output.

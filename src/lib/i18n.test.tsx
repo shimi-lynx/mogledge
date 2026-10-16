@@ -37,6 +37,17 @@ test("restores only supported locale values and safely defaults missing, corrupt
   ).toBe("en");
 });
 
+test("starts independently of old product language keys and preserves them", () => {
+  const oldKey = "my-knowledge.ui-language";
+  localStorage.setItem(oldKey, "ja");
+  localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+  expect(readStoredLanguage()).toBe("en");
+  expect(setLanguage("en")).toBe(true);
+  expect(localStorage.getItem("mogledge.ui-language")).toBe("en");
+  expect(localStorage.getItem(oldKey)).toBe("ja");
+  localStorage.removeItem(oldKey);
+});
+
 test("updates translated controls immediately without replacing input or iframe state, and persists the selection", async () => {
   function Editor() {
     const t = useT();

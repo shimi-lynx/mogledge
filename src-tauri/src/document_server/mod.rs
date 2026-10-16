@@ -602,9 +602,9 @@ mod tests {
             .unwrap();
         let delivered = std::str::from_utf8(&body).unwrap();
         let (token, _) = decode_path(path).unwrap();
-        assert!(delivered.contains("my-knowledge-move-tab-v1"));
+        assert!(delivered.contains("mogledge-move-tab-v1"));
         assert!(delivered.contains(&format!("const token = \"{token}\";")));
-        assert!(!delivered.contains("__MY_KNOWLEDGE_KEYBOARD_TOKEN__"));
+        assert!(!delivered.contains("__MOGLEDGE_KEYBOARD_TOKEN__"));
         assert!(delivered.ends_with("<h1>ok</h1>"));
         assert_eq!(
             std::fs::read_to_string(tmp.path().join("index.html")).unwrap(),

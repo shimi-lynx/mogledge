@@ -43,7 +43,7 @@ Windows, release executable only:
 ```powershell
 npm run tauri -- build --no-bundle -- --locked --jobs 1
 # Default output when CARGO_TARGET_DIR is unset:
-& './src-tauri/target/release/my-knowledge.exe'
+& './src-tauri/target/release/mogledge.exe'
 ```
 
 macOS, application only with ad-hoc signing:

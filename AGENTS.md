@@ -22,7 +22,7 @@ Before creating, changing or converting HTML storage logic, read the [HTML skill
 ## Build and update an existing app
 
 - For an authorized build-and-update request, follow the [existing-app workflow](docs/update-guide.md#ai-build-and-update-workflow) through replacement at the confirmed fixed location and verification of the running app. Reuse authorization already given for that target; a build-only request ends with a verified artifact and its installation status.
-- Save pending document input before normal Quit; unresolved saving or an active process stops replacement. Preserve the identifier, active profile, HTML/assets, local instructions, shortcuts and login registration.
+- Save pending document input before normal Quit; unresolved saving or an active process stops replacement. Preserve the identifier, active profile, HTML/assets, local instructions, shortcuts and login registration during ordinary updates. An explicitly authorized identity transition needs its own update-compatibility checks; it never authorizes copying or deleting old profile data.
 - Reuse the existing build/cache and update procedures. Keep one managed previous-app rollback generation and verify the installed version/hash and launch target. Additional trial copies or registrations are not the default; independent QA remains a separately scoped use.
 - Run device operations only on an accessible, authorized target OS. Report build, fixed-location update and launch verification separately, including any blocked step; do not report build success as an installed update.
 

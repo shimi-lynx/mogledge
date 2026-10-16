@@ -100,7 +100,7 @@ function setup() {
         origin: "null",
         source: frame.contentWindow,
         data: {
-          type: "my-knowledge-artifact-export-v1",
+          type: "mogledge-artifact-export-v1",
           token,
           id,
           format: "text",
@@ -140,7 +140,7 @@ it("requires exact focused opaque/current source and main confirmation, preserve
   });
   expect(f.reply).toHaveBeenCalledWith(
     {
-      type: "my-knowledge-artifact-result-v1",
+      type: "mogledge-artifact-result-v1",
       token,
       id,
       result: { status: "saved", name: "report.txt", bytes: 1 },
@@ -148,6 +148,18 @@ it("requires exact focused opaque/current source and main confirmation, preserve
     "*",
   );
   expect(document.activeElement).toBe(f.frame);
+});
+it("legacy protocol retains token checks and replies in its requested namespace", () => {
+  const f = setup();
+  f.send({ type: "my-knowledge-artifact-export-v1", token: "b".repeat(64) });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  f.send({ type: "my-knowledge-artifact-export-v1" });
+  fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+  expect(f.api).not.toHaveBeenCalled();
+  expect(f.reply).toHaveBeenCalledWith(
+    { type: "my-knowledge-artifact-result-v1", token, id, result: { status: "cancelled" } },
+    "*",
+  );
 });
 it("cancel never dispatches and immediate next requests are throttled", () => {
   const f = setup();

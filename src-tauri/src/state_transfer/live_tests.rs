@@ -732,7 +732,7 @@ fn rejected_input_alias_fds_outlive_live_transaction_and_keep_writer_fenced() {
                 "state_transfer::tests::fixture_child_probes_transfer_writer",
                 "--ignored",
             ])
-            .env("MY_KNOWLEDGE_TRANSFER_FIXTURE_DB", &database)
+            .env("MOGLEDGE_TRANSFER_FIXTURE_DB", &database)
             .stdout(std::process::Stdio::null())
             .fixture_status()
             .unwrap()
@@ -818,7 +818,7 @@ async fn body_pending_old_write_is_rejected_after_import_without_overwriting_new
     };
     let request = Request::builder()
         .method("POST")
-        .uri(format!("/s/{token}/{}", "__my_knowledge_storage_v1__"))
+        .uri(format!("/s/{token}/{}", "__mogledge_storage_v1__"))
         .header("Host", f.core.origin.strip_prefix("http://").unwrap())
         .header("Content-Type", "application/json")
         .body(Body::new(body))
