@@ -349,7 +349,17 @@ try {
   }
   $checks.Add('ordinary-candidate-native-window-current-profile-no-legacy-copy')
   $stage = 'owned-normal-exit'
-  if (-not $ownedProcess.CloseMainWindow() -or -not $ownedProcess.WaitForExit(15000)) { throw 'Owned candidate did not exit normally' }
+  # The native window/database can precede the renderer's session-flush listener.
+  # Retry only normal close within the same 15-second bound, preserving failed
+  # save behavior and the exact owned process identity on every request.
+  for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    $ownedProcess.Refresh()
+    if ($ownedProcess.HasExited) { break }
+    if ($ownedProcess.Path -cne $ownedExecutable -or $ownedProcess.StartTime.ToUniversalTime() -ne $ownedStarted) { throw 'Owned close identity changed' }
+    if (-not $ownedProcess.CloseMainWindow()) { throw 'Owned normal close request was refused' }
+    if ($ownedProcess.WaitForExit(5000)) { break }
+  }
+  if (-not $ownedProcess.HasExited) { throw 'Owned candidate did not exit normally' }
   $checks.Add('owned-normal-window-close')
   @{ status = 'passed'; checks = $checks.ToArray() } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $fixture 'windows-result.json') -Encoding utf8
   Write-Output 'Disposable Windows Native probe passed'
@@ -359,6 +369,8 @@ try {
     'Unexpected owned installer result' { 'installer-exit' }
     'Preexisting formal product registration; probe refused' { 'product-registration-present' }
     'Owned fresh uninstall left its executable' { 'uninstall-executable-present' }
+    'Owned normal close request was refused' { 'window-close-refused' }
+    'Owned candidate did not exit normally' { 'window-close-timeout' }
     default { 'command-failure' }
   }
   $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
