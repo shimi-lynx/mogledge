@@ -25,7 +25,9 @@ if ($fixture -cne $expectedFixture -or -not (Test-Path -LiteralPath $fixture -Pa
   throw 'An exclusive ordinary runner temporary fixture is required'
 }
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-if ([IO.Path]::GetFullPath($OutputDirectory) -cne (Join-Path $repo '.tools/distribution/output')) {
+if (-not [StringComparer]::OrdinalIgnoreCase.Equals(
+    [IO.Path]::GetFullPath($OutputDirectory),
+    [IO.Path]::GetFullPath((Join-Path $repo '.tools/distribution/output')))) {
   throw 'Only the current candidate output is accepted'
 }
 $manifest = Get-Content -LiteralPath (Join-Path $OutputDirectory 'manifest.json') -Raw | ConvertFrom-Json
