@@ -40,7 +40,6 @@ jobs:
     timeout-minutes: 30
     env:
       EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
-      CARGO_TARGET_DIR: ${{ runner.temp }}/mogledge-focused-target
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "1"
     steps:
@@ -54,6 +53,8 @@ jobs:
         run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
       - name: Prepare exact platform/compiler dependency cache key
         id: cache-plan
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/mogledge-focused-target
         run: node scripts/verify-changes.mjs cache
       - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         id: rust-cache
@@ -69,6 +70,8 @@ jobs:
       - name: Check verification gates without Rust execution
         run: node --test scripts/verify-changes.test.mjs
       - name: Verify focused backend changes
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/mogledge-focused-target
         run: node scripts/verify-changes.mjs backend
       - name: Save successful main dependency cache only
         if: success() && github.ref == 'refs/heads/main' && steps.rust-cache.outputs.cache-hit != 'true'
