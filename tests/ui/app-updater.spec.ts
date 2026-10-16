@@ -8,7 +8,7 @@ for (const variant of [
     page,
   }) => {
     await page.addInitScript(
-      (language) => localStorage.setItem("my-knowledge.ui-language", language),
+      (language) => localStorage.setItem("mogledge.ui-language", language),
       variant.language,
     );
     await page.route("**/src/app/App.tsx", async (route) => {

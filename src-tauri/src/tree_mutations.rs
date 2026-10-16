@@ -1190,7 +1190,7 @@ mod tests {
                 .unwrap()
                 .file_name()
                 .to_string_lossy()
-                .starts_with(".my-knowledge-")));
+                .starts_with(".mogledge-")));
     }
     #[cfg(windows)]
     #[test]
@@ -1686,7 +1686,7 @@ mod tests {
         for name in [
             "",
             ".hidden",
-            ".my-knowledge-0123456789abcdef.tmp",
+            ".mogledge-0123456789abcdef.tmp",
             "../outside",
             "a/b",
             "a\\b",

@@ -38,15 +38,12 @@ test("settings uses English for missing or invalid preferences on a Japanese nav
   await page.getByRole("button", { name: "設定", exact: true }).click();
   await expect(dialog.getByRole("combobox")).toHaveValue("ja");
   for (const invalid of ["invalid", ""]) {
-    await page.evaluate(
-      (value) => localStorage.setItem("my-knowledge.ui-language", value),
-      invalid,
-    );
+    await page.evaluate((value) => localStorage.setItem("mogledge.ui-language", value), invalid);
     await page.reload();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(dialog.getByRole("combobox")).toHaveValue("en");
   }
-  await page.evaluate(() => localStorage.removeItem("my-knowledge.ui-language"));
+  await page.evaluate(() => localStorage.removeItem("mogledge.ui-language"));
   await page.reload();
   expect(await page.evaluate(() => navigator.language)).toBe("ja-JP");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -61,7 +58,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.emulateMedia({ colorScheme: scheme });
     await page.goto("/");
-    await page.evaluate(() => localStorage.removeItem("my-knowledge.ui-language"));
+    await page.evaluate(() => localStorage.removeItem("mogledge.ui-language"));
     await page.reload();
     const input = page.getByRole("textbox", { name: "利用者入力" });
     await input.fill("日本語の入力 $& {path}");

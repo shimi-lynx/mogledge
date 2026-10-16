@@ -8,6 +8,82 @@ use serde_json::{json, Value};
 use std::fs;
 use tempfile::TempDir;
 
+#[test]
+fn current_profile_never_inspects_or_imports_legacy_siblings_and_holds_its_lease() {
+    let temp = TempDir::new().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    // Non-directory old identifiers would fail legacy probing; the current-only path ignores them.
+    for identifier in [LEGACY_IDENTIFIER, LEGACY_PRODUCT_IDENTIFIER] {
+        fs::write(base.join(identifier), b"untouched old profile sentinel").unwrap();
+    }
+    let current = base.join(CURRENT_IDENTIFIER);
+    let profile = prepare_current(&current, &current).unwrap();
+    assert_eq!(profile.paths.settings, current.join("settings.json"));
+    assert!(!profile.paths.settings.exists());
+    assert!(!profile.paths.document_state.exists());
+    assert!(matches!(
+        prepare_current(&current, &current),
+        Err(MigrationError::Busy)
+    ));
+    drop(profile);
+    for identifier in [LEGACY_IDENTIFIER, LEGACY_PRODUCT_IDENTIFIER] {
+        assert_eq!(
+            fs::read(base.join(identifier)).unwrap(),
+            b"untouched old profile sentinel"
+        );
+    }
+    let profile = prepare_current(&current, &current).unwrap();
+    drop(profile);
+    assert!(!current.join(BUNDLE).exists());
+}
+
+#[test]
+fn current_profile_reopens_its_own_settings_without_replacing_them() {
+    let temp = TempDir::new().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let config = base.join("config").join(CURRENT_IDENTIFIER);
+    let local = base.join("local").join(CURRENT_IDENTIFIER);
+    let knowledge = base.join("knowledge");
+    fs::create_dir_all(&config).unwrap();
+    fs::create_dir(&knowledge).unwrap();
+    // Use the real settings writer: a null knowledgeRoot is invalid saved-root data.
+    let core = Core::new(19074);
+    core.settings_path
+        .set(config.join("settings.json"))
+        .unwrap();
+    core.select(&knowledge, true).unwrap();
+    core.watcher.lock().unwrap().take();
+    drop(core);
+    let settings = fs::read(config.join("settings.json")).unwrap();
+    for _ in 0..2 {
+        let profile = prepare_current(&config, &local).unwrap();
+        assert_eq!(profile.paths.settings, config.join("settings.json"));
+        assert_eq!(fs::read(&profile.paths.settings).unwrap(), settings);
+        assert!(!profile.paths.document_state.exists());
+    }
+}
+
+#[test]
+fn current_profile_rejects_unverified_settings_and_copied_migration_bundles() {
+    let temp = TempDir::new().unwrap();
+    let current = temp.path().canonicalize().unwrap().join(CURRENT_IDENTIFIER);
+    fs::create_dir(&current).unwrap();
+    fs::write(current.join("settings.json"), b"{").unwrap();
+    assert!(matches!(
+        prepare_current(&current, &current),
+        Err(MigrationError::Corrupt)
+    ));
+    assert_eq!(fs::read(current.join("settings.json")).unwrap(), b"{");
+    fs::remove_file(current.join("settings.json")).unwrap();
+    fs::create_dir(current.join(BUNDLE)).unwrap();
+    assert!(matches!(
+        prepare_current(&current, &current),
+        Err(MigrationError::UnsupportedDatabase)
+    ));
+    assert!(current.join(BUNDLE).is_dir());
+    assert!(!current.join("document-state").exists());
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn directory_sync_reopens_an_o_path_capability_without_changing_entries() {
@@ -109,8 +185,7 @@ impl FixtureCommand for std::process::Command {
 #[test]
 #[ignore]
 fn fixture_child_probes_management_writer() {
-    let database =
-        std::env::var_os("MY_KNOWLEDGE_MANAGEMENT_DB").expect("synthetic fixture required");
+    let database = std::env::var_os("MOGLEDGE_MANAGEMENT_DB").expect("synthetic fixture required");
     let connection = Connection::open(PathBuf::from(database)).unwrap();
     connection.busy_timeout(Duration::ZERO).unwrap();
     // A SHARED reader permits another RESERVED writer, but prevents its page
@@ -136,7 +211,7 @@ fn external_management_writer(database: &Path) -> i32 {
             "identifier_migration::tests::fixture_child_probes_management_writer",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_MANAGEMENT_DB", database)
+        .env("MOGLEDGE_MANAGEMENT_DB", database)
         .stdout(std::process::Stdio::null())
         .fixture_status()
         .unwrap()
@@ -205,8 +280,8 @@ fn management_first_page_read_refuses_raced_hot_journal_without_recovery() {
             "identifier_migration::tests::fixture_child_crashes_current_transaction",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", temp.path())
-        .env("MY_KNOWLEDGE_MIGRATION_CURRENT_DB", "state/state.sqlite")
+        .env("MOGLEDGE_MIGRATION_FIXTURE", temp.path())
+        .env("MOGLEDGE_MIGRATION_CURRENT_DB", "state/state.sqlite")
         .stdout(std::process::Stdio::null())
         .fixture_status()
         .unwrap();
@@ -230,7 +305,8 @@ struct Fixture {
 }
 impl Fixture {
     fn new(shared_base: bool) -> Self {
-        let temp = tempfile::tempdir().unwrap();
+        // Native guards reject symlink ancestors, including macOS's /var alias.
+        let temp = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let config = temp.path().join("roaming");
         let local = if shared_base {
             config.clone()
@@ -919,7 +995,7 @@ fn process_exit_during_database_copy_leaves_partial_stage_and_retryable_source()
             "identifier_migration::tests::fixture_child_exits_during_copy",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
+        .env("MOGLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
         .fixture_status()
         .unwrap();
     assert_eq!(status.code(), Some(29));
@@ -954,9 +1030,8 @@ fn process_exit_during_database_copy_leaves_partial_stage_and_retryable_source()
 #[test]
 #[ignore]
 fn fixture_child_exits_during_copy() {
-    let root = PathBuf::from(
-        std::env::var_os("MY_KNOWLEDGE_MIGRATION_FIXTURE").expect("fixture required"),
-    );
+    let root =
+        PathBuf::from(std::env::var_os("MOGLEDGE_MIGRATION_FIXTURE").expect("fixture required"));
     let locations = Locations::new(
         &root.join("roaming"),
         &root.join("local"),
@@ -1013,7 +1088,7 @@ fn source_read_lock_blocks_other_process_commit_until_publication() {
                         "identifier_migration::tests::fixture_child_checks_source_lock",
                         "--ignored",
                     ])
-                    .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
+                    .env("MOGLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
                     .fixture_status()
                     .unwrap();
                 assert_eq!(status.code(), Some(0));
@@ -1035,9 +1110,8 @@ fn source_read_lock_blocks_other_process_commit_until_publication() {
 #[test]
 #[ignore]
 fn fixture_child_checks_source_lock() {
-    let root = PathBuf::from(
-        std::env::var_os("MY_KNOWLEDGE_MIGRATION_FIXTURE").expect("fixture required"),
-    );
+    let root =
+        PathBuf::from(std::env::var_os("MOGLEDGE_MIGRATION_FIXTURE").expect("fixture required"));
     let connection =
         Connection::open(root.join("local/org.fixture.legacy/document-state/state.sqlite"))
             .unwrap();
@@ -1080,7 +1154,7 @@ fn published_profile_hot_journal_preserves_latest_acknowledged_state() {
             "identifier_migration::tests::fixture_child_crashes_current_transaction",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
+        .env("MOGLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
         .fixture_status()
         .unwrap();
     assert_eq!(status.code(), Some(31));
@@ -1113,10 +1187,9 @@ fn published_profile_hot_journal_preserves_latest_acknowledged_state() {
 #[test]
 #[ignore]
 fn fixture_child_crashes_current_transaction() {
-    let root = PathBuf::from(
-        std::env::var_os("MY_KNOWLEDGE_MIGRATION_FIXTURE").expect("fixture required"),
-    );
-    let relative = std::env::var_os("MY_KNOWLEDGE_MIGRATION_CURRENT_DB").unwrap_or_else(|| {
+    let root =
+        PathBuf::from(std::env::var_os("MOGLEDGE_MIGRATION_FIXTURE").expect("fixture required"));
+    let relative = std::env::var_os("MOGLEDGE_MIGRATION_CURRENT_DB").unwrap_or_else(|| {
         "local/org.fixture.current/identifier-migration-v1/document-state/state.sqlite".into()
     });
     let connection = Connection::open(root.join(relative)).unwrap();
@@ -1518,9 +1591,9 @@ fn ordinary_current_hot_journal_recovers_under_the_same_lease() {
             "identifier_migration::tests::fixture_child_crashes_current_transaction",
             "--ignored",
         ])
-        .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
+        .env("MOGLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
         .env(
-            "MY_KNOWLEDGE_MIGRATION_CURRENT_DB",
+            "MOGLEDGE_MIGRATION_CURRENT_DB",
             "local/org.fixture.current/document-state/state.sqlite",
         )
         .fixture_status()
@@ -1554,7 +1627,7 @@ fn current_recovery_rejects_unsafe_journals_and_permission_failure_is_retryable(
                 "identifier_migration::tests::fixture_child_crashes_current_transaction",
                 "--ignored",
             ])
-            .env("MY_KNOWLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
+            .env("MOGLEDGE_MIGRATION_FIXTURE", fixture._temp.path())
             .fixture_status()
             .unwrap();
         assert_eq!(status.code(), Some(31));

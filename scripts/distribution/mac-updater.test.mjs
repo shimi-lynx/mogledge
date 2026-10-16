@@ -31,7 +31,7 @@ test("explicit distribution overlay preserves default disabled identity and vali
   );
   assert.equal(baseline.plugins?.updater, undefined);
   assert.notEqual(baseline.bundle.createUpdaterArtifacts, true);
-  assert.equal(baseline.identifier, "com.shimilynx.myknowledge");
+  assert.equal(baseline.identifier, "com.shimilynx.mogledge");
   for (const mutate of [
     (value) => {
       value.identifier = "com.example.changed";

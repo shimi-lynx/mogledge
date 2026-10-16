@@ -91,6 +91,8 @@ export const residentMessages: Readonly<Record<string, string>> = {
   自動起動の登録と解除は正式な配布アプリで行ってください:
     "Register or remove autostart using the installed distribution app",
   自動起動の登録または解除に失敗しました: "Could not register or remove autostart",
+  "旧版の自動起動登録が残っています。更新前に旧アプリで自動起動を解除し、更新後にMogledgeで有効にしてください。更新済みの場合は旧登録を確認して解除するまで変更しません。":
+    "An earlier autostart registration remains. Disable autostart in the old app before updating, then enable it in Mogledge afterward. If already updated, inspect and remove the old registration yourself before changing this setting.",
   "OSの自動起動登録を元に戻せません。登録状態を再確認してください":
     "Could not restore the OS autostart registration. Check its current state again.",
   OSの自動起動登録状態は不明です: "The OS autostart registration state is unknown",

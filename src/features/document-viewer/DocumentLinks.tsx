@@ -69,9 +69,14 @@ export function DocumentLinks({
       )
         return;
       const message = data as Record<string, unknown>;
+      // Legacy messages share all source, token and payload checks.
+      const messageType =
+        typeof message.type === "string"
+          ? message.type.replace(/^my-knowledge-/, "mogledge-")
+          : message.type;
       if (
         Object.keys(message).length !== 3 ||
-        message.type !== "my-knowledge-link-v1" ||
+        messageType !== "mogledge-link-v1" ||
         typeof message.href !== "string" ||
         message.href.length > 8192
       )

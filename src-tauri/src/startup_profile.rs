@@ -1,10 +1,10 @@
 //! Native startup coordinator: no normal window or app IPC before a profile is ready.
+#[cfg(feature = "e2e")]
+use crate::identifier_migration::{Decision, Locations, Startup};
 use crate::{
     core::Core,
     document_state::DocumentState,
-    identifier_migration::{
-        self as migration, ActivePaths, Decision, Locations, PreparedProfile, Startup,
-    },
+    identifier_migration::{self as migration, ActivePaths, PreparedProfile},
     index::IndexService,
 };
 #[cfg(feature = "e2e")]
@@ -58,6 +58,7 @@ struct FixtureMarker {
 impl Runtime {
     pub(crate) fn configured(identifier: &str) -> Result<Self, String> {
         if identifier.eq_ignore_ascii_case(migration::LEGACY_IDENTIFIER)
+            || identifier.eq_ignore_ascii_case(migration::LEGACY_PRODUCT_IDENTIFIER)
             || (identifier.eq_ignore_ascii_case(migration::CURRENT_IDENTIFIER)
                 && identifier != migration::CURRENT_IDENTIFIER)
         {
@@ -70,16 +71,17 @@ impl Runtime {
         };
         #[cfg(feature = "e2e")]
         let mode = {
-            let root = std::env::var_os("MY_KNOWLEDGE_MIGRATION_QA_ROOT");
-            let old = std::env::var("MY_KNOWLEDGE_MIGRATION_QA_OLD_ID").ok();
-            let new = std::env::var("MY_KNOWLEDGE_MIGRATION_QA_NEW_ID").ok();
-            let token = std::env::var("MY_KNOWLEDGE_MIGRATION_QA_TOKEN").ok();
+            let root = std::env::var_os("MOGLEDGE_MIGRATION_QA_ROOT");
+            let old = std::env::var("MOGLEDGE_MIGRATION_QA_OLD_ID").ok();
+            let new = std::env::var("MOGLEDGE_MIGRATION_QA_NEW_ID").ok();
+            let token = std::env::var("MOGLEDGE_MIGRATION_QA_TOKEN").ok();
             if root.is_some() || old.is_some() || new.is_some() || token.is_some() {
                 let old = old.ok_or("専用QAの旧識別子が必要です")?;
                 let new = new.ok_or("専用QAの新識別子が必要です")?;
-                // Reject both formal IDs in either argument before any filesystem access.
+                // Reject all formal IDs in either argument before any filesystem access.
                 let formal = |id: &str| {
                     id.eq_ignore_ascii_case(migration::LEGACY_IDENTIFIER)
+                        || id.eq_ignore_ascii_case(migration::LEGACY_PRODUCT_IDENTIFIER)
                         || id.eq_ignore_ascii_case(migration::CURRENT_IDENTIFIER)
                 };
                 if formal(&old)
@@ -90,7 +92,7 @@ impl Runtime {
                 {
                     return Err("専用QAでは正式識別子を使用できません".into());
                 }
-                if std::env::var_os("MY_KNOWLEDGE_E2E_ROOT").is_some() {
+                if std::env::var_os("MOGLEDGE_E2E_ROOT").is_some() {
                     return Err("移行QAは既存設定から復元します。bootstrapは使用できません".into());
                 }
                 let root = PathBuf::from(root.ok_or("専用QAの保存先が必要です")?);
@@ -130,7 +132,7 @@ impl Runtime {
                 {
                     return Err("専用QA fixtureの識別が一致しません".into());
                 }
-                let fail = std::env::var("MY_KNOWLEDGE_MIGRATION_QA_FAIL").ok();
+                let fail = std::env::var("MOGLEDGE_MIGRATION_QA_FAIL").ok();
                 if fail.as_deref().is_some_and(|value| {
                     !matches!(value, "settings-once" | "state-once" | "restore")
                 }) {
@@ -189,27 +191,40 @@ impl Runtime {
             self.set_phase(READY);
             return Ok(());
         }
-        let locations = match &self.0.mode {
-            Mode::Product => Locations::new(
-                &app.path()
-                    .config_dir()
-                    .map_err(|_| "設定保存先を取得できません")?,
-                &app.path()
-                    .local_data_dir()
-                    .map_err(|_| "保存先を取得できません")?,
-                migration::LEGACY_IDENTIFIER,
-                migration::CURRENT_IDENTIFIER,
-            ),
+        match &self.0.mode {
+            Mode::Product => {
+                let config = app
+                    .path()
+                    .app_config_dir()
+                    .map_err(|_| "設定保存先を取得できません")?;
+                let local = app
+                    .path()
+                    .app_local_data_dir()
+                    .map_err(|_| "保存先を取得できません")?;
+                self.0
+                    .phase
+                    .compare_exchange(WAITING, PREPARING, Ordering::AcqRel, Ordering::Acquire)
+                    .map_err(|_| "保存領域を重複して初期化できません")?;
+                let runtime = self.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    match migration::prepare_current(&config, &local) {
+                        Ok(profile) => runtime.ready(app, core, profile),
+                        Err(error) => runtime.fail(app, error.message()),
+                    }
+                });
+                Ok(())
+            }
             #[cfg(feature = "e2e")]
             Mode::MigrationQa { root, old, new, .. } => {
-                Locations::new(&root.join("config"), &root.join("local"), old, new)
+                let locations = Locations::new(&root.join("config"), &root.join("local"), old, new)
+                    .map_err(|error| error.message().to_owned())?;
+                self.prepare(app, core, locations, Decision::Inspect);
+                Ok(())
             }
             Mode::ExistingQa => unreachable!(),
         }
-        .map_err(|error| error.message().to_owned())?;
-        self.prepare(app, core, locations, Decision::Inspect);
-        Ok(())
     }
+    #[cfg(feature = "e2e")]
     fn prepare(&self, app: AppHandle, core: Arc<Core>, locations: Locations, decision: Decision) {
         if self
             .0
@@ -235,6 +250,7 @@ impl Runtime {
             }
         });
     }
+    #[cfg(feature = "e2e")]
     fn confirm(&self, app: AppHandle, core: Arc<Core>, locations: Locations, legacy: bool) {
         self.set_phase(WAITING);
         let runtime = self.clone();
@@ -386,7 +402,7 @@ fn initialize(
     }));
     #[cfg(feature = "e2e")]
     let bootstrap = (!strict)
-        .then(|| std::env::var_os("MY_KNOWLEDGE_E2E_ROOT"))
+        .then(|| std::env::var_os("MOGLEDGE_E2E_ROOT"))
         .flatten()
         .map(PathBuf::from);
     #[cfg(not(feature = "e2e"))]

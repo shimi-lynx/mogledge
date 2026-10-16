@@ -224,6 +224,41 @@ test("current product manifests agree; ad-hoc config is explicit", async () => {
   assert.equal((await identity(repo)).productName, "Mogledge");
 });
 
+test("distribution identity rejects stale package, executable and profile names", async (t) => {
+  const repo = await fixture(t);
+  const files = [
+    "package.json",
+    "package-lock.json",
+    "src-tauri/tauri.conf.json",
+    "src-tauri/Cargo.toml",
+    "src-tauri/Cargo.lock",
+  ];
+  const original = new Map();
+  await mkdir(path.join(repo, "src-tauri"), { recursive: true });
+  for (const file of files) {
+    const text = await readFile(new URL(`../../${file}`, import.meta.url), "utf8");
+    original.set(file, text);
+    await writeFile(path.join(repo, file), text);
+  }
+  assert.equal((await identity(repo)).identifier, "com.shimilynx.mogledge");
+  for (const [file, current, stale] of [
+    ["package.json", '"name": "mogledge"', '"name": "my-knowledge"'],
+    ["package-lock.json", '"name": "mogledge"', '"name": "my-knowledge"'],
+    [
+      "src-tauri/tauri.conf.json",
+      '"mainBinaryName": "mogledge"',
+      '"mainBinaryName": "my-knowledge"',
+    ],
+    ["src-tauri/tauri.conf.json", "com.shimilynx.mogledge", "com.shimilynx.myknowledge"],
+    ["src-tauri/Cargo.toml", 'name = "mogledge_lib"', 'name = "my_knowledge_lib"'],
+    ["src-tauri/Cargo.lock", 'name = "mogledge"', 'name = "my-knowledge"'],
+  ]) {
+    await writeFile(path.join(repo, file), original.get(file).replace(current, stale));
+    await assert.rejects(identity(repo), /identity|mismatch/);
+    await writeFile(path.join(repo, file), original.get(file));
+  }
+});
+
 test("OR chooses a complete branch, AND preserves every obligation and precedence", () => {
   const mit = mitText;
   const bsd =
@@ -522,7 +557,7 @@ test("final binary privacy rejects local roots and unknown personal paths withou
 test("candidate root rejects launchers and nested debug/log/private output", async (t) => {
   const root = await fixture(t);
   for (const name of [
-    "my-knowledge.exe",
+    "mogledge.exe",
     "manifest.json",
     "LICENSE",
     "BINARY-DISTRIBUTION.md",

@@ -9,7 +9,7 @@ async function prepare(page: Page) {
       body: `
       import React from ${JSON.stringify(react)};
       import AiHandoffDialog from '/src/app/AiHandoffDialog.tsx';
-      const guide='Before creating HTML read .my-knowledge/html-authoring/GUIDE.md.';
+      const guide='Before creating HTML read .mogledge/html-authoring/GUIDE.md.';
       window.kitCalls={status:[],preview:[],install:[],cancel:[],prefs:[],ai:[]};
       const states={};const state=context=>states[context.workspaceId] ||= {rootIdentity:context.workspaceId,enabled:true,preferenceHash:null,readOnly:false,guideAvailable:true,error:null};
       const kitApi={

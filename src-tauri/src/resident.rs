@@ -447,7 +447,7 @@ pub fn initialize(app: &AppHandle, core: &Core) {
         }
     }
     publish_recall_gate(&state, &runtime);
-    runtime.startup_registered = startup_registered(app).ok();
+    refresh_startup_status(app, &mut runtime);
 }
 pub fn close_to_tray(window: &WebviewWindow) -> bool {
     let state = window.state::<ResidentState>();
@@ -524,6 +524,8 @@ pub enum Action {
     },
 }
 fn startup_registered(app: &AppHandle) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    check_legacy_startup(app)?;
     #[cfg(any(windows, target_os = "macos"))]
     {
         use tauri_plugin_autostart::ManagerExt;
@@ -535,6 +537,35 @@ fn startup_registered(app: &AppHandle) -> Result<bool, String> {
     {
         let _ = app;
         Err("ResidentUnsupportedPlatform".into())
+    }
+}
+#[cfg(target_os = "macos")]
+fn check_legacy_startup(app: &AppHandle) -> Result<(), String> {
+    // QA/development/nonformal apps must never inspect the ordinary login registration.
+    if startup_app(app).is_err() {
+        return Ok(());
+    }
+    let launch_agents = app
+        .path()
+        .home_dir()
+        .map_err(|_| "ResidentStartupUnavailable".to_owned())?
+        .join("Library/LaunchAgents");
+    let executable = std::env::current_exe()
+        .and_then(|path| path.canonicalize())
+        .map_err(|_| "ResidentStartupUnavailable".to_owned())?;
+    startup_transaction::check_legacy_launch_agent(&launch_agents, &executable)
+        .map_err(String::from)
+}
+fn refresh_startup_status(app: &AppHandle, runtime: &mut Runtime) {
+    match startup_registered(app) {
+        Ok(actual) => runtime.startup_registered = Some(actual),
+        Err(_error) => {
+            runtime.startup_registered = None;
+            #[cfg(target_os = "macos")]
+            if startup_app(app).is_ok() && runtime.error.is_none() {
+                runtime.error = Some(_error);
+            }
+        }
     }
 }
 fn startup_app(app: &AppHandle) -> Result<(), String> {
@@ -551,6 +582,8 @@ fn startup(enabled: bool, app: &AppHandle) -> Result<(), String> {
     {
         use tauri_plugin_autostart::ManagerExt;
         startup_app(app)?;
+        #[cfg(target_os = "macos")]
+        check_legacy_startup(app)?;
         let manager = app.autolaunch();
         if enabled {
             manager.enable()
@@ -574,7 +607,7 @@ pub fn get_resident_status(
         return Err("ResidentMainWindowRequired".into());
     }
     let mut runtime = state.runtime.lock().map_err(|_| "ResidentUnavailable")?;
-    runtime.startup_registered = startup_registered(window.app_handle()).ok();
+    refresh_startup_status(window.app_handle(), &mut runtime);
     if runtime.monitor.is_some()
         && ((matches!(runtime.preferences.shortcut, Shortcut::Standard) && !platform::permitted())
             || runtime

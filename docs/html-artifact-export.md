@@ -6,10 +6,12 @@ HTML mini apps can export generated images, tables and text through a user actio
 
 Use the [HTML authoring skill](../.agents/skills/mogledge-html/SKILL.md), canonical `assets/export.js` and complete template. The generator inlines both storage and export adapters. Do not hand-copy another transport into individual HTML files. Existing HTML is not automatically rewritten: regenerate its source JSON to a new output and verify it first.
 
+New HTML uses `MogledgeExport` and the `__MOGLEDGE_EXPORT_V1__` descriptor. Existing `MyKnowledgeExport`, old descriptor names and transport messages remain compatibility aliases through the same validated export grant, user-activation check and confirmation flow. They do not add filesystem access or transfer old data.
+
 ```js
 exportButton.addEventListener("click", () => {
   const blob = new Blob(["item,value\nresult,42\n"], { type: "text/csv;charset=utf-8" });
-  MyKnowledgeExport.exportArtifact({ blob, name: "result", format: "csv" })
+  MogledgeExport.exportArtifact({ blob, name: "result", format: "csv" })
     .then((result) => {
       status.textContent =
         result.status === "saved"

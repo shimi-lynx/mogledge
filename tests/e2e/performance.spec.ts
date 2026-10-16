@@ -69,7 +69,7 @@ describe("Native viewer performance", () => {
       });
     });
     writeFileSync(
-      resolve(process.env.MY_KNOWLEDGE_BENCH_ROOT!, "Benchmark.html"),
+      resolve(process.env.MOGLEDGE_BENCH_ROOT!, "Benchmark.html"),
       "<h1 id=ready>Saved</h1><!--" + "x".repeat(100000) + "-->",
     );
     await browser.waitUntil(

@@ -1,7 +1,7 @@
 # Windows QA only. Product code must not import this module.
 Set-StrictMode -Version Latest
 
-if (-not ('MyKnowledgeQa.RetainedProcess' -as [type])) {
+if (-not ('MogledgeQa.RetainedProcess' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
 using System.ComponentModel;
@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace MyKnowledgeQa {
+namespace MogledgeQa {
     public sealed class RetainedProcess : IDisposable {
         private readonly SafeProcessHandle handle;
         public int ProcessId { get; private set; }
@@ -128,7 +128,7 @@ function New-QaProcessGuard {
     param([Parameter(Mandatory)][string]$EvidencePath, [int[]]$AdditionalProtectedProcessIds = @(), [string]$SourceCommit)
     if ($env:OS -ne 'Windows_NT') { throw 'This QA guard requires Windows.' }
     $all = @(Get-CimInstance Win32_Process -ErrorAction Stop | ForEach-Object { ConvertTo-QaProcessIdentity $_ })
-    $before = @($all | Where-Object { $_.Name -eq 'my-knowledge.exe' -or $_.ProcessId -in $AdditionalProtectedProcessIds })
+    $before = @($all | Where-Object { $_.Name -in @('mogledge.exe', 'my-knowledge.exe') -or $_.ProcessId -in $AdditionalProtectedProcessIds })
     if (@($before | Where-Object { -not $_.CreatedUtc -or -not $_.ExecutablePath }).Count) { throw 'Protected application identity unavailable; do not launch.' }
     $directory = Split-Path -Parent ([IO.Path]::GetFullPath($EvidencePath))
     $snapshotDirectory = [IO.Path]::GetFullPath($EvidencePath) + '.snapshots'
@@ -165,7 +165,7 @@ function Start-QaGuardedProcess {
     $launched = Start-Process @launch
     $Guard.RootProcess = $launched
     try {
-        $Guard.Handle = [MyKnowledgeQa.RetainedProcess]::new($launched)
+        $Guard.Handle = [MogledgeQa.RetainedProcess]::new($launched)
         $Guard.RootIdentity = [pscustomobject]@{
             ProcessId = $Guard.Handle.ProcessId
             CreatedUtc = $Guard.Handle.CreatedUtc

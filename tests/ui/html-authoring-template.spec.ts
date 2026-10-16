@@ -39,7 +39,7 @@ test("complete HTML fake Native waits for restore and preserves values on read/w
   });
   const calls: string[] = [];
   await page.addInitScript(() => {
-    Object.defineProperty(window, "__MY_KNOWLEDGE_STORAGE_V1__", {
+    Object.defineProperty(window, "__MOGLEDGE_STORAGE_V1__", {
       value: Object.freeze({
         version: 1,
         available: true,

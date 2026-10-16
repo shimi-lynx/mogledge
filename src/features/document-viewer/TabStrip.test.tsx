@@ -119,7 +119,7 @@ it("admits quick-open only from a focused live frame with an exact scoped payloa
   const view = render(<DocumentDeck state={state([a])} controller={api} onQuickOpen={open} />);
   const frame = view.container.querySelector("iframe")!;
   frame.focus();
-  const data = { type: "my-knowledge-quick-open-v1", token: "a".repeat(64) };
+  const data = { type: "mogledge-quick-open-v1", token: "a".repeat(64) };
   const send = (payload: unknown = data, source = frame.contentWindow, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { source, data: payload, origin }));
   send({ ...data, token: "b".repeat(64) });
@@ -155,7 +155,7 @@ it("admits sidebar toggle only from an exact focused current opaque document", (
   const current = state([a]);
   const view = render(<DocumentDeck state={current} controller={api} onToggleSidebar={toggle} />);
   const frame = view.container.querySelector("iframe")!;
-  const data = { type: "my-knowledge-sidebar-toggle-v1", token: "a".repeat(64) };
+  const data = { type: "mogledge-sidebar-toggle-v1", token: "a".repeat(64) };
   const send = (payload: unknown = data, source = frame.contentWindow, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { source, data: payload, origin }));
   frame.focus();
@@ -195,7 +195,7 @@ it("admits settings only from an exact focused current frame and returns that DO
   const view = render(<DocumentDeck state={current} controller={api} onOpenSettings={open} />);
   let frame = view.container.querySelector("iframe")!;
   frame.focus();
-  const data = { type: "my-knowledge-settings-open-v1", token: "a".repeat(64) };
+  const data = { type: "mogledge-settings-open-v1", token: "a".repeat(64) };
   const send = (payload: unknown = data, source = frame.contentWindow, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { data: payload, source, origin }));
   send({ ...data, token: "b".repeat(64) });
@@ -243,7 +243,7 @@ it("admits AI confirmation only from the exact focused live HTML and rejects sta
   const view = render(<DocumentDeck state={current} controller={api} onAiHandoff={open} />);
   const frame = view.container.querySelector("iframe")!;
   frame.focus();
-  const data = { type: "my-knowledge-ai-handoff-v1", token: "a".repeat(64) };
+  const data = { type: "mogledge-ai-handoff-v1", token: "a".repeat(64) };
   const send = (payload: unknown = data, source = frame.contentWindow, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { source, data: payload, origin }));
   send({ ...data, token: "b".repeat(64) });
@@ -288,7 +288,7 @@ it("zooms only the focused visible frame and rejects stale, foreign and modal pr
   const view = render(<DocumentDeck state={current} controller={api} />);
   const frames = Array.from(view.container.querySelectorAll("iframe"));
   frames[1]!.focus();
-  const data = { type: "my-knowledge-document-zoom-v1", token: "b".repeat(64), change: "in" };
+  const data = { type: "mogledge-document-zoom-v1", token: "b".repeat(64), change: "in" };
   const send = (source: Window | null, payload: unknown = data, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { source, data: payload, origin }));
   send(frames[0]!.contentWindow);
@@ -329,7 +329,7 @@ it("bounds pinch proposals and keeps their token, source, focus and visible-view
   const frames = Array.from(view.container.querySelectorAll("iframe"));
   frames[1]!.focus();
   const data = {
-    type: "my-knowledge-document-pinch-v1",
+    type: "mogledge-document-pinch-v1",
     token: "b".repeat(64),
     factor: 1.0137,
     x: 0.3,
@@ -630,7 +630,7 @@ it("accepts only the focused live visible frame's scoped column move and rejects
   const view = render(<DocumentDeck state={current} controller={api} />);
   const frames = Array.from(view.container.querySelectorAll("iframe"));
   frames[1].focus();
-  const data = { type: "my-knowledge-move-tab-v1", token: "b".repeat(64), direction: 0 };
+  const data = { type: "mogledge-move-tab-v1", token: "b".repeat(64), direction: 0 };
   const send = (source: Window | null, payload: unknown = data, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { source, data: payload, origin }));
   send(frames[0].contentWindow);
@@ -799,7 +799,7 @@ it("admits Show Files only from an exact focused current opaque document", () =>
   const view = render(<DocumentDeck state={state([a])} controller={api} onShowFiles={show} />);
   const frame = view.container.querySelector("iframe")!;
   frame.focus();
-  const data = { type: "my-knowledge-files-show-v1", token: "a".repeat(64) };
+  const data = { type: "mogledge-files-show-v1", token: "a".repeat(64) };
   const send = (payload: unknown = data, source = frame.contentWindow, origin = "null") =>
     fireEvent(window, new MessageEvent("message", { data: payload, source, origin }));
   send({ ...data, token: "b".repeat(64) });

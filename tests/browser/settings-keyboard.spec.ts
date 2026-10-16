@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const token = "a".repeat(64);
 const keyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8").replace(
-  "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+  "__MOGLEDGE_KEYBOARD_TOKEN__",
   JSON.stringify(token),
 );
 for (const [platform, primary, other] of [
@@ -14,7 +14,7 @@ for (const [platform, primary, other] of [
     page,
   }) => {
     await page.setContent(`<script>window.settings=[];addEventListener('message',event=>{
-      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='my-knowledge-settings-open-v1')window.settings.push(event.data);
+      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='mogledge-settings-open-v1')window.settings.push(event.data);
     });</script><iframe sandbox="allow-scripts"></iframe>`);
     await page.locator("iframe").evaluate(
       (element, { keyboard, platform }) => {
@@ -33,7 +33,7 @@ for (const [platform, primary, other] of [
     await plain.press(primary + "+,");
     await expect.poll(() => page.evaluate("window.settings.length")).toBe(1);
     expect(await page.evaluate("window.settings[0]")).toEqual({
-      type: "my-knowledge-settings-open-v1",
+      type: "mogledge-settings-open-v1",
       token,
     });
     for (const key of [other + "+,", primary + "+Shift+,", primary + "+Alt+,", "Control+Meta+,"])

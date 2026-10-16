@@ -40,7 +40,7 @@ test("application updater commands stay local to main; plugin update/process gra
   const config = JSON.parse(
     await readFile(new URL("../../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
   );
-  assert.equal(config.identifier, "com.shimilynx.myknowledge");
+  assert.equal(config.identifier, "com.shimilynx.mogledge");
   assert.equal(config.plugins?.updater, undefined);
   assert.notEqual(config.bundle.createUpdaterArtifacts, true);
 });

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const token = "a".repeat(64);
 const keyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8").replace(
-  "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+  "__MOGLEDGE_KEYBOARD_TOKEN__",
   JSON.stringify(token),
 );
 
@@ -15,7 +15,7 @@ for (const [platform, primary, other] of [
     page,
   }) => {
     await page.setContent(`<script>window.slots=[];addEventListener('message',event=>{
-      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='my-knowledge-workspace-set-v1')window.slots.push(event.data);
+      if(event.source===document.querySelector('iframe').contentWindow&&event.data.type==='mogledge-workspace-set-v1')window.slots.push(event.data);
     });</script><iframe sandbox="allow-scripts"></iframe>`);
     await page.locator("iframe").evaluate(
       (frame, { keyboard, platform }) => {
@@ -37,7 +37,7 @@ for (const [platform, primary, other] of [
     await expect.poll(() => page.evaluate("window.slots.length")).toBe(10);
     expect(await page.evaluate("window.slots")).toEqual(
       Array.from({ length: 10 }, (_, index) => ({
-        type: "my-knowledge-workspace-set-v1",
+        type: "mogledge-workspace-set-v1",
         token,
         slot: index + 1,
       })),

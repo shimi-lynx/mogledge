@@ -83,7 +83,7 @@ function type(value: string) {
 
 describe("SearchPanel", () => {
   beforeEach(() => {
-    localStorage.removeItem("my-knowledge.search-preferences");
+    localStorage.removeItem("mogledge.search-preferences");
     vi.useFakeTimers();
   });
   afterEach(() => {

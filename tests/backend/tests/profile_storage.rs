@@ -1,4 +1,4 @@
-use my_knowledge_backend_tests::{core::Core, document_state::DocumentState, knowledge};
+use mogledge_backend_tests::{core::Core, document_state::DocumentState, knowledge};
 
 #[test]
 fn fresh_profile_can_persist_and_replace_chosen_root() {

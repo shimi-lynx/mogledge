@@ -97,10 +97,10 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             resident::restore(app, false)
         }))
-        // Keep the existing OS registration identity across the display-name change.
+        // New registrations use the product name; installer compatibility handles owned old entries.
         .plugin(
             tauri_plugin_autostart::Builder::new()
-                .app_name("My Knowledge")
+                .app_name("Mogledge")
                 .build(),
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build());

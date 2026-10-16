@@ -97,7 +97,7 @@ const snapshot: Snapshot = {
   ],
 };
 beforeEach(() => {
-  localStorage.removeItem("my-knowledge.search-preferences");
+  localStorage.removeItem("mogledge.search-preferences");
   localStorage.removeItem(TREE_EXPANSION_KEY + snapshot.rootPath);
   setLanguage("ja");
   vi.clearAllMocks();

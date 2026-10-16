@@ -178,7 +178,7 @@ fn open(target: &str) -> Result<(), String> {
 // clipboard/default browser. The output is local test evidence, never app logs.
 #[cfg(feature = "e2e")]
 pub fn prepare_capture() -> Result<(), std::io::Error> {
-    if let Some(path) = std::env::var_os("MY_KNOWLEDGE_E2E_ACTION_CAPTURE") {
+    if let Some(path) = std::env::var_os("MOGLEDGE_E2E_ACTION_CAPTURE") {
         // The driver removes the old file before launch. Its presence proves
         // this binary supports capture before any side-effect test is allowed.
         std::fs::write(path, [])?;
@@ -189,7 +189,7 @@ pub fn prepare_capture() -> Result<(), std::io::Error> {
 #[cfg(feature = "e2e")]
 pub fn capture(target: &ActionTarget) -> Option<Result<(), String>> {
     use std::{fs::OpenOptions, io::Write};
-    let path = std::env::var_os("MY_KNOWLEDGE_E2E_ACTION_CAPTURE")?;
+    let path = std::env::var_os("MOGLEDGE_E2E_ACTION_CAPTURE")?;
     Some((|| {
         let mut file = OpenOptions::new()
             .create(true)

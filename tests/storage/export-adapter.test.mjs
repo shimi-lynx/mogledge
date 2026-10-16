@@ -4,11 +4,11 @@ import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 const adapterSource = await readFile(".agents/skills/mogledge-html/assets/export.js", "utf8");
 const bridgeSource = (await readFile("src-tauri/src/document_server/export.js", "utf8")).replace(
-  "__MY_KNOWLEDGE_EXPORT_TOKEN__",
+  "__MOGLEDGE_EXPORT_TOKEN__",
   JSON.stringify("a".repeat(64)),
 );
 const rejectCode = (operation, code) => assert.rejects(operation, (error) => error.code === code);
-function setup({ native = false, descriptor, gesture = true } = {}) {
+function setup({ native = false, descriptor, legacyDescriptor, gesture = true } = {}) {
   const messages = [],
     downloads = [],
     timers = new Map();
@@ -49,7 +49,8 @@ function setup({ native = false, descriptor, gesture = true } = {}) {
   scope.addEventListener = (_, receive) => {
     listener = receive;
   };
-  if (descriptor !== undefined) scope.__MY_KNOWLEDGE_EXPORT_V1__ = descriptor;
+  if (descriptor !== undefined) scope.__MOGLEDGE_EXPORT_V1__ = descriptor;
+  if (legacyDescriptor !== undefined) scope.__MY_KNOWLEDGE_EXPORT_V1__ = legacyDescriptor;
   if (native) vm.runInContext(bridgeSource, scope);
   vm.runInContext(adapterSource, scope);
   return {
@@ -61,12 +62,12 @@ function setup({ native = false, descriptor, gesture = true } = {}) {
     advance: () => {
       now += 1000;
     },
-    export: (value) => scope.MyKnowledgeExport.exportArtifact(value),
+    export: (value) => scope.MogledgeExport.exportArtifact(value),
     reply: (result, options = {}) =>
       listener({
         source: parent,
         data: {
-          type: "my-knowledge-artifact-result-v1",
+          type: "mogledge-artifact-result-v1",
           token: "a".repeat(64),
           id: "12345678-1234-1234-1234-123456789abc",
           result,
@@ -76,6 +77,36 @@ function setup({ native = false, descriptor, gesture = true } = {}) {
   };
 }
 const proposal = () => ({ blob: new Blob(["report"]), name: "report", format: "text" });
+test("legacy export aliases share the frozen bridge and never fall back after denial", async () => {
+  const native = setup({ native: true });
+  assert.equal(native.scope.MogledgeExport, native.scope.MyKnowledgeExport);
+  assert.equal(native.scope.__MOGLEDGE_EXPORT_V1__, native.scope.__MY_KNOWLEDGE_EXPORT_V1__);
+  assert.equal(Object.isFrozen(native.scope.__MY_KNOWLEDGE_EXPORT_V1__), true);
+  const operation = native.scope.MyKnowledgeExport.exportArtifact(proposal());
+  await new Promise(setImmediate);
+  assert.equal(native.messages[0].type, "mogledge-artifact-export-v1");
+  native.reply({ error: "ArtifactRevoked" });
+  await rejectCode(operation, "ArtifactRevoked");
+  assert.equal(native.downloads.length, 0);
+  for (const settings of [
+    { legacyDescriptor: { version: 2 } },
+    {
+      legacyDescriptor: {
+        version: 1,
+        exportArtifact: () =>
+          Promise.reject(Object.assign(new Error(), { code: "ArtifactRevoked" })),
+      },
+    },
+    {
+      descriptor: { version: 2 },
+      legacyDescriptor: { version: 1, exportArtifact: () => Promise.resolve({ status: "saved" }) },
+    },
+  ]) {
+    const invalid = setup(settings);
+    await assert.rejects(invalid.export(proposal()));
+    assert.equal(invalid.downloads.length, 0);
+  }
+});
 test("browser-only download is synchronous, gesture-gated, bounded and reports a request rather than saved", async () => {
   const browser = setup();
   const operation = browser.export(proposal());
@@ -131,7 +162,7 @@ test("injected transport snapshots name/format, admits one request and only sett
     { status: "saved", name: "report.txt", bytes: 6 },
     {
       data: {
-        type: "my-knowledge-artifact-result-v1",
+        type: "mogledge-artifact-result-v1",
         token: "wrong",
         id: "12345678-1234-1234-1234-123456789abc",
         result: { status: "cancelled" },

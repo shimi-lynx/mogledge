@@ -1,5 +1,5 @@
 [package]
-name = "my-knowledge-backend-tests"
+name = "mogledge-backend-tests"
 version = "0.0.0"
 edition = "2021"
 publish = false

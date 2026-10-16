@@ -8,11 +8,11 @@ describe("Native standalone storage sample handoff", () => {
     await browser.switchToParentFrame();
   });
   it("keeps a separate root and restores both delivered samples after process restart", async () => {
-    const root = process.env.MY_KNOWLEDGE_STORAGE_SAMPLE_ROOT;
+    const root = process.env.MOGLEDGE_STORAGE_SAMPLE_ROOT;
     assert.ok(root, "Require an explicitly marked sample root");
     assert.equal(
-      readFileSync(resolve(root, ".my-knowledge-storage-sample"), "utf8"),
-      "MY_KNOWLEDGE_DISPOSABLE_STORAGE_SAMPLE_V1\n",
+      readFileSync(resolve(root, ".mogledge-storage-sample"), "utf8"),
+      "MOGLEDGE_DISPOSABLE_STORAGE_SAMPLE_V1\n",
     );
     const actual = await browser.executeAsync((done) => {
       void (
@@ -24,7 +24,7 @@ describe("Native standalone storage sample handoff", () => {
         .then((value) => done(value.rootPath));
     });
     assert.equal(toNamespacedPath(String(actual)), toNamespacedPath(realpathSync.native(root)));
-    const seed = process.env.MY_KNOWLEDGE_STORAGE_RESTART_PHASE === "sample-seed";
+    const seed = process.env.MOGLEDGE_STORAGE_RESTART_PHASE === "sample-seed";
     const folder = $('div[data-path="Storage"]');
     await folder.waitForExist();
     if ((await folder.getAttribute("aria-expanded")) !== "true") await folder.click();

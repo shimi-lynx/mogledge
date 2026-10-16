@@ -116,58 +116,65 @@ test("converted sample explicitly migrates legacy browser fields while retaining
 
 test("Native samples calculate after failed restore, disable saving/migration and never touch localStorage", async () => {
   for (const name of ["Generated", "Converted"]) {
-    let accesses = 0;
-    const dom = await openSample(name, (window) => {
-      window.__MY_KNOWLEDGE_STORAGE_V1__ = Object.freeze({ version: 1, available: false });
-      Object.defineProperty(window, "localStorage", {
-        get() {
-          accesses++;
-          throw new Error("Unexpected fallback");
-        },
+    for (const descriptor of ["__MOGLEDGE_STORAGE_V1__", "__MY_KNOWLEDGE_STORAGE_V1__"]) {
+      let accesses = 0;
+      const dom = await openSample(name, (window) => {
+        window[descriptor] = Object.freeze({ version: 1, available: false });
+        Object.defineProperty(window, "localStorage", {
+          get() {
+            accesses++;
+            throw new Error("Unexpected fallback");
+          },
+        });
       });
-    });
-    try {
-      edit(dom.window, 8, "double", true);
-      assert.equal(dom.window.document.querySelector("#result").value, "16");
-      assert.equal(dom.window.document.querySelector("#save").disabled, true);
-      assert.match(dom.window.document.querySelector("#status").textContent, /storage_unavailable/);
-      assert.equal(accesses, 0);
-      if (name === "Converted")
-        assert.equal(dom.window.document.querySelector("#import-legacy").disabled, true);
-    } finally {
-      dom.window.close();
+      try {
+        edit(dom.window, 8, "double", true);
+        assert.equal(dom.window.document.querySelector("#result").value, "16");
+        assert.equal(dom.window.document.querySelector("#save").disabled, true);
+        assert.match(
+          dom.window.document.querySelector("#status").textContent,
+          /storage_unavailable/,
+        );
+        assert.equal(accesses, 0);
+        if (name === "Converted")
+          assert.equal(dom.window.document.querySelector("#import-legacy").disabled, true);
+      } finally {
+        dom.window.close();
+      }
     }
   }
 });
 
 test("schema mismatch never overwrites persisted state through initialization or an input event", async () => {
-  let writes = 0;
-  const dom = await openSample("Generated", (window) => {
-    window.__MY_KNOWLEDGE_STORAGE_V1__ = Object.freeze({
-      version: 1,
-      available: true,
-      endpoint: "http://127.0.0.1:1234/token/storage",
-    });
-    window.fetch = async (_, options) => {
-      if (JSON.parse(options.body).op === "write") writes++;
-      return {
-        ok: true,
-        json: async () => ({
-          version: 1,
-          value: { schemaVersion: 2, data: { amount: 77 } },
-          revision: 1,
-        }),
+  for (const descriptor of ["__MOGLEDGE_STORAGE_V1__", "__MY_KNOWLEDGE_STORAGE_V1__"]) {
+    let writes = 0;
+    const dom = await openSample("Generated", (window) => {
+      window[descriptor] = Object.freeze({
+        version: 1,
+        available: true,
+        endpoint: "http://127.0.0.1:1234/token/storage",
+      });
+      window.fetch = async (_, options) => {
+        if (JSON.parse(options.body).op === "write") writes++;
+        return {
+          ok: true,
+          json: async () => ({
+            version: 1,
+            value: { schemaVersion: 2, data: { amount: 77 } },
+            revision: 1,
+          }),
+        };
       };
-    };
-  });
-  try {
-    edit(dom.window, 8, "double", true);
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    assert.equal(writes, 0);
-    assert.match(dom.window.document.querySelector("#status").textContent, /schema_mismatch/);
-    assert.equal(dom.window.document.querySelector("#save").disabled, true);
-  } finally {
-    dom.window.close();
+    });
+    try {
+      edit(dom.window, 8, "double", true);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      assert.equal(writes, 0);
+      assert.match(dom.window.document.querySelector("#status").textContent, /schema_mismatch/);
+      assert.equal(dom.window.document.querySelector("#save").disabled, true);
+    } finally {
+      dom.window.close();
+    }
   }
 });
 

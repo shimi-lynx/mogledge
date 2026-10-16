@@ -1,13 +1,13 @@
 [package]
-name = "my-knowledge"
-version = "0.9.1"
+name = "mogledge"
+version = "0.10.0"
 description = "Sandboxed local HTML knowledge viewer"
 edition = "2021"
-default-run = "my-knowledge"
+default-run = "mogledge"
 rust-version = "1.99"
 
 [lib]
-name = "my_knowledge_lib"
+name = "mogledge_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

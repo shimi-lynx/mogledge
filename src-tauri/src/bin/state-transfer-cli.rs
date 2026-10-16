@@ -1,5 +1,5 @@
 fn main() {
-    std::process::exit(my_knowledge_lib::state_transfer::run_cli(
+    std::process::exit(mogledge_lib::state_transfer::run_cli(
         std::env::args_os().skip(1),
         &mut std::io::stdin().lock(),
         &mut std::io::stdout().lock(),

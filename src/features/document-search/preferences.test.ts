@@ -1,6 +1,19 @@
 import { expect, it } from "vite-plus/test";
 import { readSearchPreferences, rememberSearchScope } from "./preferences";
 
+it("never probes old product preferences", () => {
+  const keys: string[] = [];
+  const preferences = readSearchPreferences({
+    getItem: (key) => {
+      keys.push(key);
+      return key === "my-knowledge.search-preferences" ? "{corrupt legacy sentinel" : null;
+    },
+  });
+  expect(keys).toEqual(["mogledge.search-preferences"]);
+  expect(preferences.readOnly).toBe(false);
+  expect(preferences.value.roots).toEqual([]);
+});
+
 it("bounds root history and preserves literal relative paths without a search query", () => {
   let preferences = readSearchPreferences({ getItem: () => null }).value;
   for (let i = 0; i < 10; i++)

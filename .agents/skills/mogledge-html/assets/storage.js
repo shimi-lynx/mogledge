@@ -16,8 +16,13 @@
       throw new StorageError("invalid_key");
     if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1)
       throw new StorageError("invalid_schema");
-    const native = "__MY_KNOWLEDGE_STORAGE_V1__" in scope;
-    const descriptor = scope.__MY_KNOWLEDGE_STORAGE_V1__;
+    // A present canonical descriptor is authoritative, including unavailable or
+    // unsupported descriptors. Legacy Native descriptors never enable fallback.
+    const canonicalNative = "__MOGLEDGE_STORAGE_V1__" in scope;
+    const native = canonicalNative || "__MY_KNOWLEDGE_STORAGE_V1__" in scope;
+    const descriptor = canonicalNative
+      ? scope.__MOGLEDGE_STORAGE_V1__
+      : scope.__MY_KNOWLEDGE_STORAGE_V1__;
     const jobs = [];
     let running = false;
     let lastFailure = null;
@@ -45,7 +50,7 @@
       const documentUrl = new URL(scope.location.href);
       documentUrl.hash = "";
       documentUrl.search = "";
-      return "my-knowledge:v1:" + encodeURIComponent(documentUrl.href) + ":" + appId;
+      return "mogledge:v1:" + encodeURIComponent(documentUrl.href) + ":" + appId;
     }
 
     async function transport(op, value) {
@@ -182,8 +187,14 @@
     });
   }
 
-  Object.defineProperty(scope, "MyKnowledgeStorage", {
+  Object.defineProperty(scope, "MogledgeStorage", {
     value: Object.freeze({ create, StorageError }),
+    configurable: false,
+    writable: false,
+  });
+  // Existing inline apps keep their API without reading any legacy browser key.
+  Object.defineProperty(scope, "MyKnowledgeStorage", {
+    value: scope.MogledgeStorage,
     configurable: false,
     writable: false,
   });

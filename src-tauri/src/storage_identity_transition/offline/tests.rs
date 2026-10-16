@@ -1,8 +1,7 @@
 use super::*;
-use crate::{
-    core::Core,
-    document_state::{self, DocumentState, Operation, StateRequest},
-};
+#[cfg(not(target_os = "macos"))]
+use crate::document_state::{self, Operation, StateRequest};
+use crate::{core::Core, document_state::DocumentState};
 use rusqlite::Connection;
 use std::fs;
 
@@ -491,7 +490,7 @@ async fn unconfirmed_http_read_write_delete_are_held_and_confirmed_copy_survives
         };
         let request = Request::builder()
             .method("POST")
-            .uri(format!("/s/{token}/__my_knowledge_storage_v1__"))
+            .uri(format!("/s/{token}/__mogledge_storage_v1__"))
             .header("Host", "127.0.0.1:19979")
             .header("Origin", "null")
             .header("Content-Type", "application/json")

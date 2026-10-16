@@ -47,7 +47,7 @@ test("recording acquires focus after a pointer click and keeps Cmd distinct from
   page,
 }) => {
   await prepareResidentSettings(page);
-  await page.addInitScript(() => localStorage.setItem("my-knowledge.ui-language", "en"));
+  await page.addInitScript(() => localStorage.setItem("mogledge.ui-language", "en"));
   await page.goto("/");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -86,7 +86,7 @@ for (const language of ["ja", "en"] as const) {
   }) => {
     await prepareResidentSettings(page);
     await page.addInitScript(
-      (value) => localStorage.setItem("my-knowledge.ui-language", value),
+      (value) => localStorage.setItem("mogledge.ui-language", value),
       language,
     );
     await page.setViewportSize({ width: 320, height: 700 });

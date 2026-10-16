@@ -3,7 +3,7 @@ use axum::{
     body::{to_bytes, Body},
     http::{header, Request, StatusCode},
 };
-use my_knowledge_backend_tests::{core::Core, document_server};
+use mogledge_backend_tests::{core::Core, document_server};
 use std::time::Instant;
 use tower::ServiceExt;
 

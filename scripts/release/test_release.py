@@ -32,12 +32,14 @@ def fixture():
     config = copy.deepcopy(release.policy())
     config["approval"]["enabled"] = True
     config["source_sha"] = "a" * 40
+    config["version"] = "0.10.0"
+    config["publication"]["tag"] = "v0.10.0"
     config["candidates"] = []
     config["publication"]["enabled"] = False
     for index, (platform, (target, signature, _)) in enumerate(release.PLATFORMS.items()):
         candidate = copy.deepcopy(release.signing.policy()["candidate"])
-        prefix = f"Mogledge_0.9.1_{platform}_{signature}_updater_{config['source_sha'][:12]}"
-        candidate.update(source_sha=config["source_sha"], version="0.9.1", platform=platform, target=target, signature=signature, architecture="arm64" if platform == "macos-arm64" else "x64", run_id=100 + index, artifact_id=200 + index, expires_at="2099-01-01T00:00:00Z", update_archive=prefix + ("-setup.exe" if platform == "windows-x64" else ".app.tar.gz"), initial_archive=prefix + ".zip", artifact_name=f"Mogledge-{platform}-{config['source_sha']}")
+        prefix = f"Mogledge_0.10.0_{platform}_{signature}_updater_{config['source_sha'][:12]}"
+        candidate.update(source_sha=config["source_sha"], version="0.10.0", identifier="com.shimilynx.mogledge", platform=platform, target=target, signature=signature, architecture="arm64" if platform == "macos-arm64" else "x64", run_id=100 + index, artifact_id=200 + index, expires_at="2099-01-01T00:00:00Z", update_archive=prefix + ("-setup.exe" if platform == "windows-x64" else ".app.tar.gz"), initial_archive=prefix + ".zip", artifact_name=f"Mogledge-{platform}-{config['source_sha']}")
         config["candidates"].append(candidate)
     return config
 
@@ -71,7 +73,7 @@ def verified_fixture(root):
         release.verify(source, signatures, root / "public-verifier", output)
         assert verifier.call_count == 3
     files = {entry.name: entry.read_bytes() for entry in output.iterdir()}
-    config["publication"].update(enabled=True, verification_run_id=300, verification_tooling_sha="b" * 40, artifact_id=400, artifact_name="production-verified-0.8.2-300-1", expires_at="2099-01-01T00:00:00Z")
+    config["publication"].update(enabled=True, verification_run_id=300, verification_tooling_sha="b" * 40, artifact_id=400, artifact_name="production-verified-0.10.0-300-1", expires_at="2099-01-01T00:00:00Z")
     return config, files
 
 
@@ -148,15 +150,46 @@ class PolicyTests(unittest.TestCase):
             release.candidate_policy(config)
 
     def test_only_reviewed_release_version_and_tag_are_accepted(self):
-        for version in ("0.8.3", "0.8.5"):
+        for version in ("0.8.3", "0.8.5", "0.9.1", "0.10.1"):
             config = fixture()
             config["version"] = version
             with self.subTest(version=version), self.assertRaisesRegex(ValueError, "version/schema"):
                 release.candidate_policy(config)
+        for tag in ("v0.8.2", "v0.9.1", "v0.10.1"):
+            config = fixture()
+            config["publication"].update(enabled=True, tag=tag)
+            with self.subTest(tag=tag), self.assertRaisesRegex(ValueError, "release tag"):
+                release.publication_policy(config)
+
+    def test_old_schema_and_predecessor_identifier_cannot_enroll(self):
         config = fixture()
-        config["publication"].update(enabled=True, tag="v0.8.2")
-        with self.assertRaisesRegex(ValueError, "release tag"):
-            release.publication_policy(config)
+        config["schema"] = 0
+        with self.assertRaisesRegex(ValueError, "version/schema"):
+            release.candidate_policy(config)
+        for identifier in ("com.shimilynx.myknowledge", "com.shimilynx.mogledge.custom"):
+            config = fixture()
+            for candidate in config["candidates"]:
+                candidate["identifier"] = identifier
+            with self.subTest(identifier=identifier), self.assertRaisesRegex(ValueError, "identifier"):
+                release.candidate_policy(config)
+
+    def test_predecessor_manifest_cannot_be_signed_as_the_new_identity(self):
+        for field, value in (("identifier", "com.shimilynx.myknowledge"), ("version", "0.9.1")):
+            candidate = fixture()["candidates"][0]
+            original = packed(candidate)
+            changed = io.BytesIO()
+            with zipfile.ZipFile(io.BytesIO(original)) as source, zipfile.ZipFile(changed, "w") as destination:
+                for name in source.namelist():
+                    content = source.read(name)
+                    if name == "manifest.json":
+                        manifest = json.loads(content)
+                        manifest[field] = value
+                        content = json.dumps(manifest).encode()
+                    destination.writestr(name, content)
+            raw = changed.getvalue()
+            candidate.update(artifact_size=len(raw), artifact_sha256=release.signing.sha256(raw))
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "Manifest identity mismatch: " + field):
+                release.signing.validated_archive(raw, candidate)
 
     def test_context_pins_each_separate_manual_main_workflow(self):
         for workflow in ("release-signing.yml", "release-publication.yml"):
@@ -197,15 +230,16 @@ class VerificationTests(unittest.TestCase):
                 self.assertEqual(keywords["stdout"], release.subprocess.DEVNULL)
                 self.assertEqual(keywords["stderr"], release.subprocess.DEVNULL)
                 self.assertEqual(keywords["stdin"], release.subprocess.DEVNULL)
-                self.assertIn("0.9.1", args[0])
+                self.assertIn("0.10.0", args[0])
 
     def test_feed_has_exact_platforms_https_asset_urls_and_signature_contents(self):
         config = fixture()
         signatures = {item["update_archive"] + ".sig": base64.b64encode(b"fixture") for item in config["candidates"]}
         feed = release.feed(config, signatures, "2026-10-14T00:00:00Z")
+        self.assertEqual(feed["version"], "0.10.0")
         self.assertEqual(set(feed["platforms"]), {"windows-x86_64", "darwin-x86_64", "darwin-aarch64"})
         for entry in feed["platforms"].values():
-            self.assertTrue(entry["url"].startswith("https://github.com/shimi-lynx/mogledge/releases/download/v0.9.1/"))
+            self.assertTrue(entry["url"].startswith("https://github.com/shimi-lynx/mogledge/releases/download/v0.10.0/"))
             self.assertEqual(entry["signature"], base64.b64encode(b"fixture").decode())
         with self.assertRaises(ValueError):
             release.feed(config, signatures, "2026-10-14T00:00:00+01:00")
@@ -281,25 +315,27 @@ class PublicationTests(unittest.TestCase):
 
     def request(self, path, method="GET", data=None, upload_name=None):
         self.calls.append((path, method))
-        if method == "GET" and path in ("git/ref/tags/v0.9.1", "releases/tags/v0.9.1"):
+        if method == "GET" and path in ("git/ref/tags/v0.10.0", "releases/tags/v0.10.0"):
             if any(verb == "PATCH" for _, verb in self.calls):
                 return {"object": {"type": "commit", "sha": self.config["source_sha"]}}
             raise urllib.error.HTTPError("https://fixture.invalid", 404, "fixture", {}, None)
         if method == "POST" and path == "releases":
+            self.assertEqual(data["tag_name"], "v0.10.0")
+            self.assertEqual(data["name"], "Mogledge 0.10.0")
             self.assertEqual(data["target_commitish"], self.config["source_sha"])
             self.assertIs(data["draft"], True)
-            return {"id": 10, "draft": True, "tag_name": "v0.9.1", "target_commitish": self.config["source_sha"]}
+            return {"id": 10, "draft": True, "tag_name": "v0.10.0", "target_commitish": self.config["source_sha"]}
         if method == "POST" and path == "releases/10/assets":
             asset = {"id": 1000 + len(self.assets), "name": upload_name, "size": len(data), "digest": "sha256:" + release.signing.sha256(data), "state": "uploaded"}
             self.assets.append(asset)
             return asset
         if method == "GET" and path == "releases/10":
-            return {"id": 10, "draft": True, "tag_name": "v0.9.1", "target_commitish": self.config["source_sha"], "assets": self.assets}
+            return {"id": 10, "draft": True, "tag_name": "v0.10.0", "target_commitish": self.config["source_sha"], "assets": self.assets}
         if method == "PATCH" and path == "releases/10":
             self.assertEqual({item["name"] for item in self.assets}, set(self.files))
-            self.assertEqual(data["tag_name"], "v0.9.1")
+            self.assertEqual(data["tag_name"], "v0.10.0")
             self.assertEqual(data["target_commitish"], self.config["source_sha"])
-            return {"draft": False, "tag_name": "v0.9.1"}
+            return {"draft": False, "tag_name": "v0.10.0"}
         raise AssertionError("Unexpected fixture API operation")
 
     def test_stages_all_hash_verified_assets_before_publish_and_checks_tag_source(self):
@@ -323,11 +359,17 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(any(method == "DELETE" for _, method in self.calls))
 
     def test_existing_release_or_tag_stops_without_any_write(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            self.fixture(Path(temporary))
-            with patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "policy", return_value=self.config), patch.object(release, "publication_prepare", side_effect=self.prepare), patch.object(release, "approval"), patch.object(release, "request", return_value={}) as request, self.assertRaisesRegex(ValueError, "no overwrite"):
-                release.publish(self.root / "verifier", self.root / "publication")
-            self.assertEqual(request.call_args.args, ("git/ref/tags/v0.9.1",))
+        for existing in ("git/ref/tags/v0.10.0", "releases/tags/v0.10.0"):
+            with self.subTest(existing=existing), tempfile.TemporaryDirectory() as temporary:
+                self.fixture(Path(temporary))
+                def request(path):
+                    if path == existing:
+                        return {}
+                    raise urllib.error.HTTPError("https://fixture.invalid", 404, "fixture", {}, None)
+                with patch.dict(os.environ, context("release-publication.yml"), clear=True), patch.object(release, "policy", return_value=self.config), patch.object(release, "publication_prepare", side_effect=self.prepare), patch.object(release, "approval"), patch.object(release, "request", side_effect=request) as operation, self.assertRaisesRegex(ValueError, "no overwrite"):
+                    release.publish(self.root / "verifier", self.root / "publication")
+                self.assertEqual(operation.call_args.args, (existing,))
+                self.assertTrue(all(len(call.args) == 1 and not call.kwargs for call in operation.call_args_list))
 
     def test_wrong_uploaded_digest_never_publishes_draft(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -369,6 +411,8 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn("pull_request:", text)
             self.assertNotIn("push:", text)
             self.assertNotIn("cancel-in-progress: true", text)
+        self.assertIn("production-verified-0.10.0-", signing)
+        self.assertIn("reviewed-publication-0.10.0-", publication)
         self.assertEqual(signing.count("secrets."), 2)
         self.assertEqual(signing.count("environment: release"), 1)
         self.assertIn("    environment: release", signing.split("  sign:", 1)[1].split("  verify:", 1)[0])

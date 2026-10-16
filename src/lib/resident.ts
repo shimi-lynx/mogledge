@@ -156,6 +156,8 @@ const diagnosticMessages: Readonly<Record<string, string>> = {
   ResidentRestoreUnavailable: "画面を戻せないため常駐を解除しません",
   ResidentStartupRequiresInstalledApp: "自動起動の登録と解除は正式な配布アプリで行ってください",
   ResidentStartupUnavailable: "自動起動の登録または解除に失敗しました",
+  ResidentStartupLegacyRegistration:
+    "旧版の自動起動登録が残っています。更新前に旧アプリで自動起動を解除し、更新後にMogledgeで有効にしてください。更新済みの場合は旧登録を確認して解除するまで変更しません。",
   ResidentStartupRollbackUnavailable:
     "OSの自動起動登録を元に戻せません。登録状態を再確認してください",
   ResidentSettingsReadOnly: "常駐設定は読み取り専用です。保存内容を保持します",

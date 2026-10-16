@@ -1,4 +1,4 @@
-use my_knowledge_backend_tests::{
+use mogledge_backend_tests::{
     core::Core,
     document_server,
     document_state::{self, DocumentState, StateError, StateRequest, StateResponse},

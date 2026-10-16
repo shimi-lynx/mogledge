@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SearchMode } from "./types";
 
-// Preserve saved search preferences across the app rename.
-export const SEARCH_PREFERENCES_KEY = "my-knowledge.search-preferences";
+// New product preferences never read the old product's storage namespace.
+export const SEARCH_PREFERENCES_KEY = "mogledge.search-preferences";
 const MAX_STORAGE_CHARACTERS = 65_536;
 const MAX_ROOTS = 8;
 export interface SearchPreferences {

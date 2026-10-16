@@ -57,7 +57,9 @@ macOS, application only with ad-hoc signing:
 npm run tauri -- build --bundles app --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}' -- --locked --jobs 1
 ```
 
-Default outputs are `src-tauri/target/release/my-knowledge.exe` and `src-tauri/target/release/bundle/macos/Mogledge.app`. The technical package and executable name remains `my-knowledge`.
+Default outputs are `src-tauri/target/release/mogledge.exe` and `src-tauri/target/release/bundle/macos/Mogledge.app`. The technical package and executable name is `mogledge`.
+
+Current source changes the application identifier to `com.shimilynx.mogledge` and starts a separate profile without automatically transferring old settings, saved input or WebView data. Old data stays intact. This identity change is unreleased; the published 0.9.1 binaries and their verification record are unchanged. Existing-installation update, login registration and OS permission behavior require separate Native checks before distribution; see the [profile and compatibility contract](docs/identifier-migration.md).
 
 See [first build and local instructions](docs/first-run.md) before preparing a new machine, and [updating and rollback](docs/update-guide.md) before replacing an existing app. Preserve custom `AGENTS.md`, `AGENTS.local.md`, `CLAUDE.md`, skills, HTML and profiles. `npm run build` creates only the frontend, not a complete desktop application.
 
@@ -79,7 +81,7 @@ npm run check
 npm test
 ```
 
-See [CONTRIBUTING](CONTRIBUTING.md) and the [documentation index](docs/README.md) for architecture, security and targeted verification. The existing manual macOS validation workflow is for Native QA. The separately prepared distribution workflow supports Windows and both Mac architectures; it does not replace Native QA or run on pushes, pull requests or tags. Actions execution requires a separate cost/policy check and explicit run approval.
+See [CONTRIBUTING](CONTRIBUTING.md) and the [documentation index](docs/README.md) for architecture, security and targeted verification. **Desktop validation (manual)** requires an exact `expected_source_sha` and `cost_confirmed` approval. Its default `focused` scope runs fixed backend tests, Rust formatting and harness Clippy on selected Windows x64, Intel Mac and Apple Silicon runners, using an isolated hosted target with one Rust job and incremental compilation disabled. It does not build or exercise the Native application. The separate `full` scope retains the existing macOS application/E2E suite; see [manual validation scope](docs/testing.md#manual-actions-and-macos). The distribution workflow remains separate, and none of these workflows runs on pushes, pull requests or tags. Actions execution requires a separate cost/policy check and explicit run approval.
 
 ## License
 

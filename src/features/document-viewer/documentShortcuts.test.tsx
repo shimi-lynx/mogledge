@@ -150,7 +150,7 @@ it("accepts only an exact slot proposal from the current focused live frame", ()
   const ctx = setup();
   const frame = ctx.container.querySelector("iframe")!;
   frame.focus();
-  const data = { type: "my-knowledge-workspace-set-v1", token, slot: 10 };
+  const data = { type: "mogledge-workspace-set-v1", token, slot: 10 };
   const send = (
     payload: unknown = data,
     source: Window | null = frame.contentWindow,
@@ -245,7 +245,7 @@ it("accepts only a current visible focused frame close proposal and rejects busy
   const ctx = setup();
   const frame = ctx.getByTitle("document") as HTMLIFrameElement;
   frame.focus();
-  const payload = { type: "my-knowledge-close-tab-v1", token };
+  const payload = { type: "mogledge-close-tab-v1", token };
   const send = (
     data: unknown = payload,
     source: MessageEventSource | null = frame.contentWindow,

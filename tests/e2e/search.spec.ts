@@ -16,7 +16,7 @@ import type { MutationResult, Snapshot, TreeMutation, TreeNode } from "../../src
 import type { IndexStatus, SearchPage } from "../../src/features/document-search/types";
 
 const ordinaryFixture =
-  !process.env.MY_KNOWLEDGE_CLOUD_FIXTURE_ROOT && !process.env.MY_KNOWLEDGE_BENCH_ROOT;
+  !process.env.MOGLEDGE_CLOUD_FIXTURE_ROOT && !process.env.MOGLEDGE_BENCH_ROOT;
 const fixture = resolve(".tools/e2e-knowledge");
 const qualityPath = "Search/Quality.html";
 const querySelector = "#document-search-query";
@@ -504,8 +504,7 @@ async function unchangedFrames(before: Awaited<ReturnType<typeof stampFrames>>) 
   });
 
   it("keeps external HTML search results current after Native reorder and move mutations", async function () {
-    if (process.env.MY_KNOWLEDGE_TEST_BINARY || !process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE)
-      this.skip();
+    if (process.env.MOGLEDGE_TEST_BINARY || !process.env.MOGLEDGE_E2E_ACTION_CAPTURE) this.skip();
     const identifier = randomUUID().replaceAll("-", "");
     const rootName = "search-native-mutations-" + identifier;
     await mutate({ kind: "createFolder", parent: "", name: rootName });

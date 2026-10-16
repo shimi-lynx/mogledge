@@ -192,7 +192,7 @@ describe("Native desktop viewer", () => {
     );
   });
   it("dispatches validated file actions without changing the actual clipboard or OS apps", async function () {
-    const capture = process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE;
+    const capture = process.env.MOGLEDGE_E2E_ACTION_CAPTURE;
     if (!capture) this.skip();
     const target = $('div[data-path="Examples/Interactive.html"]');
     const records = () =>
@@ -776,7 +776,7 @@ describe("Native desktop viewer", () => {
     );
   });
   it("creates, reorders and atomically moves fixture folders while following open tabs", async function () {
-    if (!process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE) this.skip();
+    if (!process.env.MOGLEDGE_E2E_ACTION_CAPTURE) this.skip();
     const root = resolve(".tools/e2e-knowledge");
     const invoke = (mutation: unknown) =>
       browser.executeAsync(
@@ -892,7 +892,7 @@ describe("Native desktop viewer", () => {
   });
   for (const sample of ["Generated", "Converted"] as const) {
     it("persists " + sample + " sample inputs across Native reload and close/reopen", async () => {
-      const fixtureRoot = process.env.MY_KNOWLEDGE_E2E_ROOT ?? resolve(".tools/e2e-knowledge");
+      const fixtureRoot = process.env.MOGLEDGE_E2E_ROOT ?? resolve(".tools/e2e-knowledge");
       const current = await snapshot();
       assert.ok(current.rootPath, "Native fixture must have a selected root");
       assert.equal(
@@ -914,13 +914,13 @@ describe("Native desktop viewer", () => {
       const descriptor = await browser.execute(() => {
         const descriptor = (
           window as unknown as {
-            __MY_KNOWLEDGE_STORAGE_V1__?: {
+            __MOGLEDGE_STORAGE_V1__?: {
               version: number;
               endpoint: string;
               available: boolean;
             };
           }
-        ).__MY_KNOWLEDGE_STORAGE_V1__;
+        ).__MOGLEDGE_STORAGE_V1__;
         return {
           version: descriptor?.version,
           available: descriptor?.available,
@@ -978,7 +978,7 @@ describe("Native desktop viewer", () => {
         );
         const closedEndpoint = new URL(beforeClose!);
         closedEndpoint.pathname =
-          closedEndpoint.pathname.split("/").slice(0, 3).join("/") + "/__my_knowledge_storage_v1__";
+          closedEndpoint.pathname.split("/").slice(0, 3).join("/") + "/__mogledge_storage_v1__";
         const revoked = await fetch(closedEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "null" },
@@ -1035,14 +1035,14 @@ async function clearSampleState(appId: string) {
   const result: { ok: boolean } = await browser.executeAsync((appId, done) => {
     const sdk = (
       window as unknown as {
-        MyKnowledgeStorage: {
+        MogledgeStorage: {
           create: (options: { appId: string; schemaVersion: number }) => {
             remove: () => Promise<void>;
             flush: () => Promise<void>;
           };
         };
       }
-    ).MyKnowledgeStorage;
+    ).MogledgeStorage;
     const storage = sdk.create({ appId, schemaVersion: 1 });
     void storage
       .remove()

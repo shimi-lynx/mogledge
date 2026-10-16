@@ -8,7 +8,7 @@ The adjacent `template.html` is a complete example with saved-input restoration.
 
 1. Read this guide and the adjacent [template.html](template.html). Copy the complete HTML into a **new output file chosen by the user**. For a new independent document, replace its `REPLACE_WITH_NEW_UUID` placeholder in the `mogledge-document-id` meta content with a fresh UUID v4 from `crypto.randomUUID()` using an authoring tool; do not add runtime UUID generation to the HTML. Keep the kit template unchanged, so ownership checks remain meaningful. Do not overwrite an existing HTML, instruction file or saved state to get started.
 2. Choose the fields to persist and a stable `appId`. Use ASCII letters, digits, dot, underscore or hyphen, 1–80 characters. The supplied calculator uses `generated-calculator`; give a different app in the same document its own identifier. Keep `appId` and `schemaVersion` unchanged when modifying an existing app unless you design an explicit migration.
-3. Keep the first two inline scripts, which define `MyKnowledgeStorage` and `MyKnowledgeExport`, intact and in order. Change only the last script's UI, validation, restore and calculation functions for the requested app. Do not reimplement the transport or add a CDN, sibling JavaScript dependency, direct Native IPC, parent-window access, filesystem access or sandbox relaxation.
+3. Keep the first two inline scripts, which define `MogledgeStorage` and `MogledgeExport`, intact and in order. Change only the last script's UI, validation, restore and calculation functions for the requested app. Do not reimplement the transport or add a CDN, sibling JavaScript dependency, direct Native IPC, parent-window access, filesystem access or sandbox relaxation.
 4. Restore and validate the saved data **before calculation or event-driven saves**. The template disables editing while restoration is pending. When restoration fails, it permits local calculation but disables saving and does not write defaults. Retain this ordering when changing the UI.
 5. Save into the selected HTML output. The result must run as one complete HTML file without the kit present. Use text labels, status feedback and keyboard-accessible controls. Preserve user-entered text, filenames and paths as data; do not evaluate them as code or insert them with `innerHTML`.
 
@@ -25,7 +25,7 @@ HTML without metadata remains viewable, but Native saving requires the main app'
 ## Storage API
 
 ```js
-const storage = MyKnowledgeStorage.create({ appId: "my-mini-app", schemaVersion: 1 });
+const storage = MogledgeStorage.create({ appId: "my-mini-app", schemaVersion: 1 });
 const saved = await storage.read(); // JSON data, or null when no state is saved
 // Validate the application's own data shape and restore it before calculations.
 await storage.write({ amount: 12, mode: "double", enabled: true });
@@ -58,12 +58,12 @@ Reading defaults or applying unchanged limits preserves the existing table forma
 
 ## Export generated files separately from saved input
 
-`MyKnowledgeStorage` persists the mini app's input JSON. To write a generated image, table or text file, use the separate `MyKnowledgeExport.exportArtifact({ blob, name, format })` API from the second canonical adapter. It does not export the input-state database or HTML original. Keep both adapters intact; do not copy their transport into the final UI script.
+`MogledgeStorage` persists the mini app's input JSON. To write a generated image, table or text file, use the separate `MogledgeExport.exportArtifact({ blob, name, format })` API from the second canonical adapter. It does not export the input-state database or HTML original. Keep both adapters intact; do not copy their transport into the final UI script.
 
 ```js
 exportButton.addEventListener("click", () => {
   const blob = new Blob(["item,value\nresult,42\n"], { type: "text/csv;charset=utf-8" });
-  MyKnowledgeExport.exportArtifact({ blob, name: "result", format: "csv" })
+  MogledgeExport.exportArtifact({ blob, name: "result", format: "csv" })
     .then((result) => {
       status.textContent =
         result.status === "saved"
@@ -94,6 +94,8 @@ Mogledge serves media files up to **1 GiB (1,073,741,824 bytes)** with bounded s
 MP3/MP4 MIME and bounded HTTP delivery do not guarantee a codec or successful playback. Windows WebView2 / macOS WKWebView codecs, audio devices and real Native playback remain unverified until tested there. Do not loosen CSP, sandbox, root/path or permission boundaries, auto-fetch unavailable cloud files, or claim a Chromium check proves Native support. YouTube and other external pages remain external-browser-only; do not add an embedded iframe or remote media/CDN exception. Verify click playback, seeking, HTTP errors and the same relative assets in an isolated normal-browser fixture and record actual Native checks separately.
 
 ## Editing an existing HTML
+
+New adapters expose `MogledgeStorage` and `MogledgeExport`. The main app retains old `MyKnowledgeStorage`/`MyKnowledgeExport` globals, descriptors and transport aliases for existing HTML through the same guarded authority. New browser persistence uses `mogledge:v1:` and does not read old browser keys. The `com.shimilynx.mogledge` app profile is separate from older identifiers; API compatibility does not transfer settings or saved input between profiles. Preserve old data for a separately requested transfer instead of assuming a missing new-profile value proves that no old data exists.
 
 Preserve the original HTML, its document UUID and saved data before changing its save schema. An editor's atomic save preserves logical identity when the static UUID remains unchanged. Rename/move and root switching also preserve that UUID. A new independent copy needs a fresh UUID; a deliberate shared copy needs the main app's sharing choice. Avoid startup default writes and do not infer ownership of old input from a matching filename or physical identity. Do not bypass access checks or silently rotate IDs.
 
@@ -132,4 +134,4 @@ Codex's official skill roots implementation scans project `.agents/skills` folde
 - [Codex skills documentation](https://developers.openai.com/codex/skills/)
 - [Claude Code skills documentation](https://code.claude.com/docs/en/skills)
 
-<!-- Generated kitVersion=3 storageAPI=1 adapterSHA256=003ee32cb366f035c37671786e44fba9419d4f19e94838ef3e4f77d36d8c4a6c canonicalTemplateSHA256=f8fb038fd52f9ec8d4dcbdfc9b7d0298832d49b8ea32d7698f6e2574c59bf901 apiSpecSHA256=6a65753de61e8bfa1fb4347d28f9b32235b90e5d5c34c575374206bbb260c044 exportAPI=1 exportAdapterSHA256=25f6f49f857ecba33873ec6b85c4d6b5296f227270029a7a668738dbc578eed7 exportApiSpecSHA256=f5ce7175475d77b35d481440c9d78aca991752a26f453d595b6f407ebe26d0a0 -->
+<!-- Generated kitVersion=3 storageAPI=1 adapterSHA256=c2bfae0c1cbe1a7b69ab26db41d1c683e5ba85902a4522804b8af39d676a8f90 canonicalTemplateSHA256=0aa018bb2a1158c55500c74d4bbe7b35581f03b184f71be5e6423df99291fa31 apiSpecSHA256=0127b29cd8325c7b981534745c4c623d23d3408ba944f159bd1f272a9f14ee9e exportAPI=1 exportAdapterSHA256=eac02f7dc2164efb93c80ff6d2465417ebc127378c91235a2fac629a39b80f90 exportApiSpecSHA256=c982116914e6ab75a122d9ad044e6d72e1dd86ca9af13e3341a1e18a9dfaf549 -->

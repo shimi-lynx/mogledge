@@ -21,6 +21,16 @@ fn error(value: &Value) -> FormatError {
 }
 
 #[test]
+fn legacy_portable_input_is_explicitly_readable_but_new_exports_use_mogledge() {
+    let mut old = envelope();
+    old["format"] = json!(LEGACY_FORMAT);
+    let parsed = parse_value(&old).unwrap();
+    let exported = from_state("0.9.1", source(), &parsed.canonical_state).unwrap();
+    assert_eq!(exported.file.format, "mogledge-saved-state");
+    assert_eq!(old["format"], "my-knowledge-saved-state");
+}
+
+#[test]
 fn versioned_roundtrip_preserves_values_app_schema_and_provenance() {
     let value = envelope();
     let parsed = parse_value(&value).unwrap();

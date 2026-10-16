@@ -135,7 +135,7 @@ jobs:
         run: python3 scripts/release/release.py verify "$RUNNER_TEMP/production-input" "$RUNNER_TEMP/production-signatures" "$RUNNER_TEMP/verifier/release/mogledge-signature-verifier" "$RUNNER_TEMP/production-verified"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: production-verified-0.8.2-${{ github.run_id }}-${{ github.run_attempt }}
+          name: production-verified-0.10.0-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/production-verified/*
           if-no-files-found: error
           retention-days: 3

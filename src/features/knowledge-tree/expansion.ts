@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import type { TreeNode } from "../../lib/types";
 
-export const TREE_EXPANSION_KEY = "my-knowledge.tree-expansion:";
+export const TREE_EXPANSION_KEY = "mogledge.tree-expansion:";
 const MAX_CHARACTERS = 65_536;
 type Expansion = { scope: string | null; expanded: Set<string>; readOnly: boolean };
 

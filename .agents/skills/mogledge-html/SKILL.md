@@ -11,7 +11,7 @@ This repository-local skill authors HTML; it does not add AI features, external 
 
 1. Keep exactly one static `<meta name="mogledge-document-id" content="UUID">` in the HTML head. Use a canonical non-nil UUID (lowercase preferred); generate a fresh UUID v4 with `crypto.randomUUID()` for a new independent document. Preserve the UUID when editing, renaming, moving or atomically replacing the same logical document. A copied UUID can share saved input after the main app confirms sharing; use a new UUID for an independent copy. Never select a UUID through JavaScript or add one during startup.
 2. Define the persisted inputs/selections/checks, stable `appId` and positive safe-integer `schemaVersion`. An appId identifies an app inside a document, not a path or user-entered value. Use a distinct appId for each different app in the same document.
-3. Start from `assets/generated-sample.json`, containing `title`, `body`, `script` and optional `style`. Use `MyKnowledgeStorage.create({ appId, schemaVersion })`. Await `read()`, validate and restore before calculation or event-driven saves. Disable editing while restore is pending.
+3. Start from `assets/generated-sample.json`, containing `title`, `body`, `script` and optional `style`. Use `MogledgeStorage.create({ appId, schemaVersion })`. Await `read()`, validate and restore before calculation or event-driven saves. Disable editing while restore is pending.
 4. For conversion, inspect existing state and restore/recalculate order first. Read associated JavaScript/shared data as needed to understand initialization, events and state. Follow `assets/legacy-localstorage.html` → `assets/converted-sample.json` to replace direct localStorage with the asynchronous adapter. Old browser keys cannot migrate automatically to Native. If migration is requested, provide explicit browser import/validation/save and preserve old values.
 5. Display save, quota and schema errors while retaining inputs/calculations. Initial read/schema/data failure must disable saving, never write defaults over unverified state. Debounce rapid input as needed. Explicit Save cancels its timer, awaits the latest `write()` and then `flush()`. Disable editing during reload/save, or track input generations so older success cannot mark newer input saved. Unload is not a save guarantee. `remove()` is an explicit deletion, never a restore-error workaround.
 6. Generate from the repository root. Do not hand-copy or modify the transport; inline canonical `assets/storage.js`, `assets/export.js` and `assets/template.html`:
@@ -31,6 +31,8 @@ If API/capacity/identity behavior changes, update canonical assets, specs, examp
 
 ## Storage boundaries
 
+Use `MogledgeStorage` and `MogledgeExport` for new HTML. Old API/descriptor/transport aliases exist for existing inline HTML with the same guarded authority; they do not import older profiles or browser keys. New browser saves use `mogledge:v1:`. The separate `com.shimilynx.mogledge` profile starts with defaults when absent. Preserve older data and handle any requested transfer separately; a missing new-profile value does not prove that older input is absent.
+
 Size is the complete logical document's UTF-8 JSON, including all appIds, keys, schema/data envelopes, syntax and escaping. Native defaults are document 5 MiB / active profile total across all roots 512 MiB. Only trusted main settings can explicitly choose both within 1–8,589,934,591 whole MiB, total at least document. This safe-integer conversion range does not guarantee runtime, disk or memory capacity. See [quotas and compatibility](../../../docs/document-storage.md#quotas-and-capacity).
 
 Descriptor `maximumDocumentBytes` is runtime SQLite capacity, not current quota. The canonical adapter accepts positive safe-integer bytes. Missing fields in older Native and ordinary browsers retain 5 MiB; invalid fields fail closed. Native makes final whole-document/current-quota/capacity/resource decisions. `QuotaExceeded`, `CapacityExceeded` and `ResourceUnavailable` preserve saved values. Do not change quotas from HTML, add quota requests/cache or hide Native failure with fallback, truncation or initialization.
@@ -41,7 +43,7 @@ A single-app precheck can pass before whole-document or browser-origin quota fai
 
 ## Export generated files
 
-Use [the separate export API](../../../docs/html-artifact-export.md), `MyKnowledgeExport.exportArtifact({ blob, name, format })`. The generation CLI inlines canonical `assets/export.js`. Input-state saving and artifact export need separate controls/feedback.
+Use [the separate export API](../../../docs/html-artifact-export.md), `MogledgeExport.exportArtifact({ blob, name, format })`. The generation CLI inlines canonical `assets/export.js`. Input-state saving and artifact export need separate controls/feedback.
 
 Accept only PNG/JPEG/CSV/JSON/text, a non-empty Blob up to 5 MiB and a proposed name up to 1,024 UTF-8 bytes. Pass no URL, path or Native ID. Prepare asynchronous Blobs first and start directly from a real click/key activation, never initialization, timer, automatic save or synthetic click. Each layer admits one operation with a one-second start interval, including cancellation/failure.
 

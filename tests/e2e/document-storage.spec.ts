@@ -13,7 +13,7 @@ import { resolve, toNamespacedPath } from "node:path";
 import { spawn } from "node:child_process";
 
 interface StorageWorld {
-  MyKnowledgeStorage: {
+  MogledgeStorage: {
     create(options: { appId: string; schemaVersion: number }): {
       read(): Promise<unknown>;
       write(value: unknown): Promise<number>;
@@ -21,7 +21,7 @@ interface StorageWorld {
       flush(): Promise<void>;
     };
   };
-  __MY_KNOWLEDGE_STORAGE_V1__: { endpoint: string; available: boolean };
+  __MOGLEDGE_STORAGE_V1__: { endpoint: string; available: boolean };
 }
 const fixture = resolve(".tools/e2e-knowledge");
 const source = resolve("tests/fixtures/knowledge/Storage/Generated.html");
@@ -165,7 +165,7 @@ describe("Native document state lifecycle", () => {
   });
   it("preserves acknowledged state across process restart, rename and move; verifies trusted UI recovery confirmation callbacks", async () => {
     await guardFixture();
-    if (process.env.MY_KNOWLEDGE_STORAGE_RESTART_PHASE === "seed") {
+    if (process.env.MOGLEDGE_STORAGE_RESTART_PHASE === "seed") {
       const disposable = resolve(fixture, "StorageNative");
       assert.equal(disposable, resolve(".tools/e2e-knowledge/StorageNative"));
       rmSync(disposable, { recursive: true, force: true });
@@ -291,7 +291,7 @@ describe("Native document state lifecycle", () => {
     await enter();
     assert.equal(
       await browser.executeAsync((done) => {
-        const sdk = (window as unknown as StorageWorld).MyKnowledgeStorage;
+        const sdk = (window as unknown as StorageWorld).MogledgeStorage;
         void Promise.all(
           ["native-ordered", "filler", "generated-calculator", "native-boundary"].map((appId) =>
             sdk.create({ appId, schemaVersion: 1 }).remove(),
@@ -307,7 +307,7 @@ describe("Native document state lifecycle", () => {
     const result = (await browser.executeAsync((done) => {
       const global = window as unknown as StorageWorld;
       void (async () => {
-        const ordered = global.MyKnowledgeStorage.create({
+        const ordered = global.MogledgeStorage.create({
           appId: "native-ordered",
           schemaVersion: 1,
         });
@@ -336,7 +336,7 @@ describe("Native document state lifecycle", () => {
         };
         const remaining =
           5 * 1024 * 1024 - new TextEncoder().encode(JSON.stringify(current)).byteLength;
-        await global.MyKnowledgeStorage.create({ appId: "filler", schemaVersion: 1 }).write({
+        await global.MogledgeStorage.create({ appId: "filler", schemaVersion: 1 }).write({
           text: "x".repeat(remaining),
         });
         let localStorageBlocked = false;
@@ -350,7 +350,7 @@ describe("Native document state lifecycle", () => {
           quota,
           flush,
           localStorageBlocked,
-          available: global.__MY_KNOWLEDGE_STORAGE_V1__.available,
+          available: global.__MOGLEDGE_STORAGE_V1__.available,
         });
       })().catch((e) =>
         done({
@@ -385,7 +385,7 @@ describe("Native document state lifecycle", () => {
     assert.equal(await $("#result").getText(), "無効");
     await browser.saveScreenshot(resolve(".tools/native-storage-quota.png"));
     const durable = await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 1,
       })
@@ -394,7 +394,7 @@ describe("Native document state lifecycle", () => {
     });
     assert.deepEqual(durable, { amount: 8, mode: "double", enabled: true });
     const clean = await browser.executeAsync((done) => {
-      const sdk = (window as unknown as StorageWorld).MyKnowledgeStorage;
+      const sdk = (window as unknown as StorageWorld).MogledgeStorage;
       void Promise.all(
         ["filler", "native-ordered"].map((appId) =>
           sdk.create({ appId, schemaVersion: 1 }).remove(),
@@ -413,18 +413,18 @@ describe("Native document state lifecycle", () => {
     const firstPanel = await $(".document-pane.active").getAttribute("id");
     await enter();
     const firstEndpoint = await browser.execute(
-      () => (window as unknown as StorageWorld).__MY_KNOWLEDGE_STORAGE_V1__.endpoint,
+      () => (window as unknown as StorageWorld).__MOGLEDGE_STORAGE_V1__.endpoint,
     );
     const boundary = (await browser.executeAsync((done) => {
       void (async () => {
         const world = window as unknown as StorageWorld;
-        const store = world.MyKnowledgeStorage.create({
+        const store = world.MogledgeStorage.create({
           appId: "native-boundary",
           schemaVersion: 1,
         });
         await store.write({ owner: "first" });
         await store.flush();
-        const endpoint = world.__MY_KNOWLEDGE_STORAGE_V1__.endpoint;
+        const endpoint = world.__MOGLEDGE_STORAGE_V1__.endpoint;
         const request = async (body: string, method = "POST", suffix = "") => {
           let response: Response;
           try {
@@ -510,7 +510,7 @@ describe("Native document state lifecycle", () => {
     );
     await enter();
     const second = await browser.executeAsync((done) => {
-      const store = (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      const store = (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "native-boundary",
         schemaVersion: 1,
       });
@@ -526,7 +526,7 @@ describe("Native document state lifecycle", () => {
     await $('button[role="tab"][aria-controls="' + firstPanel + '"]').click();
     await enter();
     const shared = await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "native-boundary",
         schemaVersion: 1,
       })
@@ -539,7 +539,7 @@ describe("Native document state lifecycle", () => {
     await select("StorageNative/Copy.html");
     await enter();
     const other = await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "native-boundary",
         schemaVersion: 1,
       })
@@ -552,7 +552,7 @@ describe("Native document state lifecycle", () => {
     await enter();
     assert.equal(
       await browser.executeAsync((done) => {
-        void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+        void (window as unknown as StorageWorld).MogledgeStorage.create({
           appId: "native-boundary",
           schemaVersion: 1,
         })
@@ -574,7 +574,7 @@ describe("Native document state lifecycle", () => {
       .identifier as string;
     assert.equal(
       identifier,
-      "com.shimilynx.aiwiki.storage-qa-integrated",
+      "com.shimilynx.mogledge.storage-qa-integrated",
       "Fault injection must never target the formal profile",
     );
     assert.ok(process.env.LOCALAPPDATA);
@@ -649,7 +649,7 @@ describe("Native document state lifecycle", () => {
         });
     }
     const durable = await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 1,
       })
@@ -659,7 +659,7 @@ describe("Native document state lifecycle", () => {
     assert.deepEqual(durable, { amount: 13, mode: "double", enabled: true });
     await save("17");
     await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 2,
       })
@@ -683,7 +683,7 @@ describe("Native document state lifecycle", () => {
     });
     assert.equal((await sampleValues()).result, "16");
     const mismatch = await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 2,
       })
@@ -692,7 +692,7 @@ describe("Native document state lifecycle", () => {
     });
     assert.deepEqual(mismatch, { amount: 99, mode: "square", enabled: true });
     await browser.executeAsync((done) => {
-      void (window as unknown as StorageWorld).MyKnowledgeStorage.create({
+      void (window as unknown as StorageWorld).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 2,
       })

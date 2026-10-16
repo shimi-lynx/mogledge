@@ -1,28 +1,108 @@
-name: macOS validation (manual)
+name: Desktop validation (manual)
 on:
   workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Approved full source SHA; checkout and dispatch must match
+        required: true
+        type: string
+      scope:
+        description: Focused backend changes, or the existing full macOS validation
+        required: true
+        type: choice
+        options: [focused, full]
+        default: focused
+      platform:
+        description: Focused runner selection; full scope retains one macOS job
+        required: true
+        type: choice
+        options: [windows-x64, macos-arm64, macos-x64, all]
+        default: all
+      cost_confirmed:
+        description: Existing allowance, budget and execution approval confirmed
+        required: true
+        type: boolean
+        default: false
 concurrency:
-  group: macos-manual-${{ github.ref }}
-  cancel-in-progress: true
+  group: desktop-manual-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
+  focused:
+    if: inputs.cost_confirmed && inputs.scope == 'focused'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["windows-x64","macos-arm64","macos-x64"]' || format('["{0}"]', inputs.platform)) }}
+    runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || matrix.platform == 'macos-arm64' && 'macos-15' || 'macos-15-intel' }}
+    timeout-minutes: 30
+    env:
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify approved source before installing dependencies
+        run: node scripts/verify-changes.mjs source
+      - name: Install pinned Rust validation components
+        shell: bash
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+      - name: Prepare exact platform/compiler dependency cache key
+        id: cache-plan
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/mogledge-focused-target
+        run: node scripts/verify-changes.mjs cache
+      - uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        id: rust-cache
+        with:
+          key: ${{ steps.cache-plan.outputs.key }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/src
+            ${{ runner.temp }}/mogledge-focused-target/debug/deps
+            ${{ runner.temp }}/mogledge-focused-target/debug/build
+            ${{ runner.temp }}/mogledge-focused-target/debug/.fingerprint
+      - name: Check verification gates without Rust execution
+        run: node --test scripts/verify-changes.test.mjs
+      - name: Verify focused backend changes
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/mogledge-focused-target
+        run: node scripts/verify-changes.mjs backend
+      - name: Save successful main dependency cache only
+        if: success() && github.ref == 'refs/heads/main' && steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ steps.cache-plan.outputs.key }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/src
+            ${{ runner.temp }}/mogledge-focused-target/debug/deps
+            ${{ runner.temp }}/mogledge-focused-target/debug/build
+            ${{ runner.temp }}/mogledge-focused-target/debug/.fingerprint
   macos:
+    if: inputs.cost_confirmed && inputs.scope == 'full'
     runs-on: macos-latest
     timeout-minutes: 45
+    env:
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify approved source before installing dependencies
+        run: node scripts/verify-changes.mjs source
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22.18.0
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.99.0
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+      - name: Install pinned Rust validation components
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
       - run: npm ci
       - run: npm run check
       - run: npm test

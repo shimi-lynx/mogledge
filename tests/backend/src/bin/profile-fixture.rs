@@ -1,11 +1,11 @@
 //! Disposable Native migration fixtures. Never resolves APPDATA or user profiles.
-use my_knowledge_backend_tests::{
+use mogledge_backend_tests::{
     core::Core,
     document_server,
     document_state::{self, DocumentState, Operation, StateRequest, MAX_DOCUMENT_BYTES},
     identifier_migration::{
         self as migration, Decision, Locations, MigrationError, Startup, CURRENT_IDENTIFIER,
-        LEGACY_IDENTIFIER,
+        LEGACY_IDENTIFIER, LEGACY_PRODUCT_IDENTIFIER,
     },
     tree_order::{self, Order},
     write_fs,
@@ -45,13 +45,17 @@ struct Marker {
 fn validate_ids(legacy: &str, current: &str, token: &str) -> Result<()> {
     let dedicated = |id: &str| {
         id.len() <= 128
-            && id.starts_with("org.myknowledge.native-qa.")
+            && id.starts_with("org.mogledge.native-qa.")
             && id
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-')
-            && ![LEGACY_IDENTIFIER, CURRENT_IDENTIFIER]
-                .iter()
-                .any(|formal| id.eq_ignore_ascii_case(formal))
+            && ![
+                LEGACY_IDENTIFIER,
+                LEGACY_PRODUCT_IDENTIFIER,
+                CURRENT_IDENTIFIER,
+            ]
+            .iter()
+            .any(|formal| id.eq_ignore_ascii_case(formal))
     };
     // This check precedes ALL filesystem work, including Locations::new preflight.
     if !dedicated(legacy) || !dedicated(current) || legacy.eq_ignore_ascii_case(current) {
@@ -247,7 +251,7 @@ fn seed(root: &Path, legacy: &str, current: &str, token: &str) -> Result<Value> 
     let _locations = Locations::new(&config, &local, legacy, current)?;
     let knowledge = root.join("knowledge");
     fs::create_dir_all(&knowledge)?;
-    let (knowledge, _) = my_knowledge_backend_tests::knowledge::open_root(&knowledge)?;
+    let (knowledge, _) = mogledge_backend_tests::knowledge::open_root(&knowledge)?;
     let old_config = config.join(legacy);
     let old_local = local.join(legacy);
     fs::create_dir_all(&old_config)?;
@@ -595,10 +599,11 @@ mod tests {
     use super::*;
     #[test]
     fn formal_ids_and_ambiguous_identifiers_are_rejected_before_filesystem() {
-        let qa = "org.myknowledge.native-qa.new";
+        let qa = "org.mogledge.native-qa.new";
         let token = "qa-0123456789abcdef0123456789abcdef";
         for formal in [
             LEGACY_IDENTIFIER,
+            LEGACY_PRODUCT_IDENTIFIER,
             CURRENT_IDENTIFIER,
             "COM.SHIMILYNX.AIWIKI",
             "COM.SHIMILYNX.MYKNOWLEDGE",
@@ -607,7 +612,7 @@ mod tests {
             assert!(validate_ids(qa, formal, token).is_err());
         }
         assert!(validate_ids(qa, qa, token).is_err());
-        assert!(validate_ids("org.myknowledge.native-qa.old", qa, token).is_ok());
-        assert!(validate_ids("org.myknowledge.native-qa.old", qa, "incorrect").is_err());
+        assert!(validate_ids("org.mogledge.native-qa.old", qa, token).is_ok());
+        assert!(validate_ids("org.mogledge.native-qa.old", qa, "incorrect").is_err());
     }
 }

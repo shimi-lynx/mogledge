@@ -20,8 +20,8 @@ interface Adapter {
   flush(): Promise<void>;
 }
 interface StorageGlobal {
-  MyKnowledgeStorage: { create(options: { appId: string; schemaVersion: number }): Adapter };
-  __MY_KNOWLEDGE_STORAGE_V1__: {
+  MogledgeStorage: { create(options: { appId: string; schemaVersion: number }): Adapter };
+  __MOGLEDGE_STORAGE_V1__: {
     version: number;
     available: boolean;
     endpoint: string;
@@ -172,7 +172,7 @@ for (const name of ["Generated", "Converted"]) {
         await expect(frame.locator("#save")).toBeEnabled();
         expect(
           await frame.locator("body").evaluate(() => {
-            const api = (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__;
+            const api = (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__;
             let parentAccessible = false;
             try {
               parentAccessible = Boolean(parent.document);
@@ -204,10 +204,10 @@ for (const name of ["Generated", "Converted"]) {
         const endpoint = await frame
           .locator("body")
           .evaluate(
-            () => (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__.endpoint,
+            () => (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__.endpoint,
           );
         const otherApp = await frame.locator("body").evaluate(async () => {
-          const api = (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+          const api = (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
             appId: "second-app",
             schemaVersion: 1,
           });
@@ -284,7 +284,7 @@ for (const name of ["Generated", "Converted"]) {
             );
           throw error;
         }
-        expect(await page.evaluate(() => "__MY_KNOWLEDGE_STORAGE_V1__" in globalThis)).toBe(false);
+        expect(await page.evaluate(() => "__MOGLEDGE_STORAGE_V1__" in globalThis)).toBe(false);
         await save(page, "4.5", "square", true);
         await expect(page.locator("#result")).toHaveText("20.25");
         await page.locator("#reload").click();
@@ -313,7 +313,7 @@ test("Native descriptor precedes source scripts and preserves original doctype m
     ["<?ignored><!bogus><!doctype html>", "CSS1Compat"],
     ["<!--><!---><!doctype html>", "CSS1Compat"],
     [
-      "<!doctype html SYSTEM 'a><script>globalThis.seenEarly=!!globalThis.__MY_KNOWLEDGE_STORAGE_V1__;</script>b'>",
+      "<!doctype html SYSTEM 'a><script>globalThis.seenEarly=!!globalThis.__MOGLEDGE_STORAGE_V1__;</script>b'>",
       "BackCompat",
     ],
   ]) {
@@ -337,7 +337,7 @@ test("Native descriptor precedes source scripts and preserves original doctype m
         await frame
           .locator("body")
           .evaluate(
-            () => (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__.available,
+            () => (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__.available,
           ),
       ).toBe(true);
       await save(frame, "5", "square", true);
@@ -377,7 +377,7 @@ test("ordinary browser explicitly converts legacy data and document/app keys rem
     await page.goto(ordinary.origin + "/Copy.html");
     await expect(page.locator("#status")).toHaveText("保存値なし");
     const full = await page.evaluate(async () => {
-      const api = (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+      const api = (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
         appId: "quota-probe",
         schemaVersion: 1,
       });
@@ -435,7 +435,7 @@ test("Native quota, queued writes and revoked requests preserve calculations and
     const frame = page.frameLocator("#document");
     await expect(frame.locator("#save")).toBeEnabled();
     const result = await frame.locator("body").evaluate(async () => {
-      const api = (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+      const api = (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
         appId: "ordered-app",
         schemaVersion: 1,
       });
@@ -474,7 +474,7 @@ test("Native quota, queued writes and revoked requests preserve calculations and
       };
       const remaining =
         5 * 1024 * 1024 - new TextEncoder().encode(JSON.stringify(empty)).byteLength;
-      await global.MyKnowledgeStorage.create({ appId: "filler", schemaVersion: 1 }).write({
+      await global.MogledgeStorage.create({ appId: "filler", schemaVersion: 1 }).write({
         text: "x".repeat(remaining),
       });
     });
@@ -483,7 +483,7 @@ test("Native quota, queued writes and revoked requests preserve calculations and
     await expect(frame.locator("#status")).toContainText("QuotaExceeded");
     await expect(frame.locator("#result")).toHaveText("無効");
     await frame.locator("body").evaluate(async () => {
-      await (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+      await (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
         appId: "filler",
         schemaVersion: 1,
       }).remove();
@@ -520,7 +520,7 @@ test("unavailable Native storage and schema mismatch retain computation without 
     frame = page.frameLocator("#document");
     await expect(frame.locator("#save")).toBeEnabled();
     await frame.locator("body").evaluate(async () => {
-      const api = (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+      const api = (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
         appId: "generated-calculator",
         schemaVersion: 2,
       });
@@ -535,7 +535,7 @@ test("unavailable Native storage and schema mismatch retain computation without 
     await expect(frame.locator("#result")).toHaveText("16");
     expect(
       await frame.locator("body").evaluate(async () =>
-        (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+        (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
           appId: "generated-calculator",
           schemaVersion: 2,
         }).read(),
@@ -566,7 +566,7 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
     await expect(frame.locator("#save")).toBeEnabled();
     const endpoint = await frame.locator("body").evaluate(() => {
       document.body.dataset.limitsFrame = "original";
-      const descriptor = (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__;
+      const descriptor = (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__;
       return descriptor.endpoint;
     });
     let requests = 0;
@@ -575,7 +575,7 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
     });
     const initial = await frame.locator("body").evaluate(async () => {
       const scope = globalThis as unknown as StorageGlobal & { limitsProbe: Adapter };
-      scope.limitsProbe = scope.MyKnowledgeStorage.create({
+      scope.limitsProbe = scope.MogledgeStorage.create({
         appId: "limits-probe",
         schemaVersion: 1,
       });
@@ -595,8 +595,8 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
       return {
         code,
         saved: await scope.limitsProbe.read(),
-        maximumDocumentBytes: scope.__MY_KNOWLEDGE_STORAGE_V1__.maximumDocumentBytes,
-        frozen: Object.isFrozen(scope.__MY_KNOWLEDGE_STORAGE_V1__),
+        maximumDocumentBytes: scope.__MOGLEDGE_STORAGE_V1__.maximumDocumentBytes,
+        frozen: Object.isFrozen(scope.__MOGLEDGE_STORAGE_V1__),
         parentAccessible,
         nativeIPC: "__TAURI_INTERNALS__" in scope,
       };
@@ -642,9 +642,7 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
     expect(
       await frame
         .locator("body")
-        .evaluate(
-          () => (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__.endpoint,
-        ),
+        .evaluate(() => (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__.endpoint),
     ).toBe(endpoint);
 
     async function measure(views: Page[]) {
@@ -676,7 +674,7 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
                 const scope = globalThis as unknown as StorageGlobal & { limitsProbe?: Adapter };
                 const api =
                   scope.limitsProbe ??
-                  scope.MyKnowledgeStorage.create({ appId: "limits-probe", schemaVersion: 1 });
+                  scope.MogledgeStorage.create({ appId: "limits-probe", schemaVersion: 1 });
                 scope.limitsProbe = api;
                 const encoder = new TextEncoder();
                 const prefix = '日本語\n"\\';
@@ -789,7 +787,7 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
     await expect(frame.locator("#save")).toBeEnabled();
     const afterRestart = await frame.locator("body").evaluate(async () => {
       const scope = globalThis as unknown as StorageGlobal & { limitsProbe: Adapter };
-      scope.limitsProbe = scope.MyKnowledgeStorage.create({
+      scope.limitsProbe = scope.MogledgeStorage.create({
         appId: "limits-probe",
         schemaVersion: 1,
       });
@@ -840,8 +838,8 @@ test("profile limits apply to an existing opaque frame, persist on restart and b
     await expect(frame.locator("body")).toHaveAttribute("data-limits-frame", "restarted");
     expect(await readFile(join(directory, "Generated.html"))).toEqual(original);
     await writeFile(
-      process.env.MY_KNOWLEDGE_LIMITS_STORAGE_REPORT ||
-        join(tmpdir(), "my-knowledge-limits-storage-benchmark.json"),
+      process.env.MOGLEDGE_LIMITS_STORAGE_REPORT ||
+        join(tmpdir(), "mogledge-limits-storage-benchmark.json"),
       JSON.stringify(
         {
           browser: browser.version(),
@@ -880,8 +878,7 @@ async function nativeRevision(page: Page) {
     .frameLocator("#document")
     .locator("body")
     .evaluate(async () => {
-      const endpoint = (globalThis as unknown as StorageGlobal).__MY_KNOWLEDGE_STORAGE_V1__
-        .endpoint;
+      const endpoint = (globalThis as unknown as StorageGlobal).__MOGLEDGE_STORAGE_V1__.endpoint;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1059,7 +1056,7 @@ test("records ordinary, continuous and three-view storage cost against calculati
       }
     }
     await writeFile(
-      join(tmpdir(), "my-knowledge-storage-browser-benchmark.json"),
+      join(tmpdir(), "mogledge-storage-browser-benchmark.json"),
       JSON.stringify(
         {
           browser: browser.version(),
@@ -1172,9 +1169,9 @@ test("large UTF-8 state records one/three-view cost and survives a process resta
                     .locator("body")
                     .evaluate(
                       async (_, options) => {
-                        const api = (
-                          globalThis as unknown as StorageGlobal
-                        ).MyKnowledgeStorage.create({ appId: "large", schemaVersion: 1 });
+                        const api = (globalThis as unknown as StorageGlobal).MogledgeStorage.create(
+                          { appId: "large", schemaVersion: 1 },
+                        );
                         const encoder = new TextEncoder();
                         const overhead = encoder.encode(
                           JSON.stringify({ large: { schemaVersion: 1, data: "" } }),
@@ -1274,7 +1271,7 @@ test("large UTF-8 state records one/three-view cost and survives a process resta
       .frameLocator("#document")
       .locator("body")
       .evaluate(async () => {
-        const data = await (globalThis as unknown as StorageGlobal).MyKnowledgeStorage.create({
+        const data = await (globalThis as unknown as StorageGlobal).MogledgeStorage.create({
           appId: "large",
           schemaVersion: 1,
         }).read();
@@ -1286,8 +1283,8 @@ test("large UTF-8 state records one/three-view cost and survives a process resta
     expect(restored?.first).toEqual({ n: 1, text: "あ" });
     expect(restored?.last).toEqual(restored?.first);
     await writeFile(
-      process.env.MY_KNOWLEDGE_LARGE_STORAGE_REPORT ||
-        join(tmpdir(), "my-knowledge-large-storage-benchmark.json"),
+      process.env.MOGLEDGE_LARGE_STORAGE_REPORT ||
+        join(tmpdir(), "mogledge-large-storage-benchmark.json"),
       JSON.stringify(
         {
           browser: browser.version(),

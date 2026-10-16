@@ -38,6 +38,11 @@ function documentShortcut(event: MessageEvent, frame: HTMLIFrameElement): Docume
   )
     return null;
   const message = data as Record<string, unknown>;
+  // Legacy messages share all source, token and payload checks.
+  const messageType =
+    typeof message.type === "string"
+      ? message.type.replace(/^my-knowledge-/, "mogledge-")
+      : message.type;
   let token: string | undefined;
   try {
     token = new URL(frame.src).pathname.match(/^\/s\/([a-f0-9]{64})\//)?.[1];
@@ -45,20 +50,20 @@ function documentShortcut(event: MessageEvent, frame: HTMLIFrameElement): Docume
     return null;
   }
   if (!token || message.token !== token) return null;
-  if (message.type === "my-knowledge-close-tab-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-close-tab-v1" && Object.keys(message).length === 2)
     return { type: "close-tab" };
-  if (message.type === "my-knowledge-files-show-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-files-show-v1" && Object.keys(message).length === 2)
     return { type: "files-show" };
-  if (message.type === "my-knowledge-sidebar-toggle-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-sidebar-toggle-v1" && Object.keys(message).length === 2)
     return { type: "sidebar-toggle" };
-  if (message.type === "my-knowledge-quick-open-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-quick-open-v1" && Object.keys(message).length === 2)
     return { type: "quick-open" };
-  if (message.type === "my-knowledge-ai-handoff-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-ai-handoff-v1" && Object.keys(message).length === 2)
     return { type: "ai-handoff" };
-  if (message.type === "my-knowledge-settings-open-v1" && Object.keys(message).length === 2)
+  if (messageType === "mogledge-settings-open-v1" && Object.keys(message).length === 2)
     return { type: "settings-open" };
   if (
-    message.type === "my-knowledge-document-pinch-v1" &&
+    messageType === "mogledge-document-pinch-v1" &&
     Object.keys(message).length === 5 &&
     typeof message.factor === "number" &&
     Number.isFinite(message.factor) &&
@@ -76,22 +81,22 @@ function documentShortcut(event: MessageEvent, frame: HTMLIFrameElement): Docume
     return { type: "zoom", change: { factor: message.factor, x: message.x, y: message.y } };
   }
   if (Object.keys(message).length !== 3) return null;
-  if (message.type === "my-knowledge-workspace-set-v1") {
+  if (messageType === "mogledge-workspace-set-v1") {
     const slot = workspaceSetShortcutSlots.find((slot) => slot === message.slot);
     return slot ? { type: "workspace-set", slot } : null;
   }
   if (
-    message.type === "my-knowledge-history-v1" &&
+    messageType === "mogledge-history-v1" &&
     (message.direction === "back" || message.direction === "forward")
   )
     return { type: "history", direction: message.direction };
   if (
-    message.type === "my-knowledge-move-tab-v1" &&
+    messageType === "mogledge-move-tab-v1" &&
     (message.direction === 0 || message.direction === 1)
   )
     return { type: "move", direction: message.direction };
   if (
-    message.type === "my-knowledge-document-zoom-v1" &&
+    messageType === "mogledge-document-zoom-v1" &&
     (message.change === "in" || message.change === "out" || message.change === "reset")
   )
     return { type: "zoom", change: message.change };

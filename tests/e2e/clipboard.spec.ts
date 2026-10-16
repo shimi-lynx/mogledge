@@ -9,18 +9,18 @@ import { createHash } from "node:crypto";
 // Never read or save its previous contents. Use an isolated identifier/profile.
 describe("Windows Unicode clipboard and contextual operation feedback", () => {
   it("copies exact file/folder names, reports API rejection, and retains the document", async function () {
-    if (process.platform !== "win32" || process.env.MY_KNOWLEDGE_E2E_CLIPBOARD !== "1") this.skip();
-    assert.equal(process.env.MY_KNOWLEDGE_E2E_ACTION_CAPTURE, undefined);
-    assert.equal(process.env.MY_KNOWLEDGE_TEST_BINARY, undefined);
-    assert.equal(process.env.MY_KNOWLEDGE_BENCH_ROOT, undefined);
-    assert.equal(process.env.MY_KNOWLEDGE_CLOUD_FIXTURE_ROOT, undefined);
-    const binary = process.env.MY_KNOWLEDGE_E2E_BINARY!;
+    if (process.platform !== "win32" || process.env.MOGLEDGE_E2E_CLIPBOARD !== "1") this.skip();
+    assert.equal(process.env.MOGLEDGE_E2E_ACTION_CAPTURE, undefined);
+    assert.equal(process.env.MOGLEDGE_TEST_BINARY, undefined);
+    assert.equal(process.env.MOGLEDGE_BENCH_ROOT, undefined);
+    assert.equal(process.env.MOGLEDGE_CLOUD_FIXTURE_ROOT, undefined);
+    const binary = process.env.MOGLEDGE_E2E_BINARY!;
     const manifest = JSON.parse(readFileSync(resolve(dirname(binary), "manifest.json"), "utf8"));
     assert.notEqual(manifest.identifier, "com.shimilynx.aiwiki");
     assert.ok(manifest.features.includes("e2e"));
     assert.equal(createHash("sha256").update(readFileSync(binary)).digest("hex"), manifest.sha256);
     const root = resolve(".tools/e2e-knowledge");
-    assert.equal(resolve(process.env.MY_KNOWLEDGE_E2E_ROOT!), root);
+    assert.equal(resolve(process.env.MOGLEDGE_E2E_ROOT!), root);
     const folder = `Clipboard-${Date.now()} 日本語 空白 & # % (é-e\u0301) 😀`;
     const leaf = "日本語 空白 & # % é e\u0301 😀.html";
     const relative = folder + "/" + leaf;

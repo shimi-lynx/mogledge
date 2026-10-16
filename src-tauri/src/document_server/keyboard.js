@@ -1,9 +1,9 @@
 (() => {
   // Observe the document's normal event path. Do not intercept keys before its JS.
-  const token = __MY_KNOWLEDGE_KEYBOARD_TOKEN__;
+  const token = __MOGLEDGE_KEYBOARD_TOKEN__;
   // HTTP error pages do not contain this adapter. The parent additionally checks
   // the current frame/token and whether a user selection requested this display.
-  const ready = () => parent.postMessage({ type: "my-knowledge-document-ready-v1", token }, "*");
+  const ready = () => parent.postMessage({ type: "mogledge-document-ready-v1", token }, "*");
   if (document.readyState === "complete") ready();
   else window.addEventListener("load", ready, { once: true });
   // Closed roots hide their editing descendants. Never try to obtain those roots.
@@ -86,7 +86,7 @@
     }, 0);
   }
   function zoom(change) {
-    parent.postMessage({ type: "my-knowledge-document-zoom-v1", token, change }, "*");
+    parent.postMessage({ type: "mogledge-document-zoom-v1", token, change }, "*");
   }
   function pinch(event, factor) {
     const x = Number.isFinite(event.clientX)
@@ -97,7 +97,7 @@
       : 0.5;
     parent.postMessage(
       {
-        type: "my-knowledge-document-pinch-v1",
+        type: "mogledge-document-pinch-v1",
         token,
         factor: Math.max(0.1, Math.min(10, factor)),
         x,
@@ -250,7 +250,8 @@
       typeof message !== "object" ||
       Array.isArray(message) ||
       Object.keys(message).length !== 4 ||
-      message.type !== "my-knowledge-document-zoom-render-v1" ||
+      (message.type !== "mogledge-document-zoom-render-v1" &&
+        message.type !== "my-knowledge-document-zoom-render-v1") ||
       message.token !== token ||
       !Number.isFinite(message.zoom) ||
       message.zoom < 50 ||
@@ -322,7 +323,7 @@
       return;
     setTimeout(() => {
       if (allowsDocumentInput(event))
-        parent.postMessage({ type: "my-knowledge-history-v1", token, direction }, "*");
+        parent.postMessage({ type: "mogledge-history-v1", token, direction }, "*");
     }, 0);
   });
   let lastKeyZoom = -Infinity;
@@ -344,7 +345,7 @@
       setTimeout(() => {
         if (!allowsDocumentInput(event)) return;
         event.preventDefault();
-        parent.postMessage({ type: "my-knowledge-close-tab-v1", token }, "*");
+        parent.postMessage({ type: "mogledge-close-tab-v1", token }, "*");
       }, 0);
       return;
     }
@@ -361,7 +362,7 @@
       // handlers keep the complete synchronous key path before main switches.
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage({ type: "my-knowledge-files-show-v1", token }, "*");
+          parent.postMessage({ type: "mogledge-files-show-v1", token }, "*");
       }, 0);
       return;
     }
@@ -376,7 +377,7 @@
     ) {
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage({ type: "my-knowledge-settings-open-v1", token }, "*");
+          parent.postMessage({ type: "mogledge-settings-open-v1", token }, "*");
       }, 0);
       return;
     }
@@ -393,7 +394,7 @@
       // Main accepts only a fixed proposal from this focused live token/frame.
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage({ type: "my-knowledge-sidebar-toggle-v1", token }, "*");
+          parent.postMessage({ type: "mogledge-sidebar-toggle-v1", token }, "*");
       }, 0);
       return;
     }
@@ -410,7 +411,7 @@
       // focused-view proposal crosses to main; no Native accelerator consumes P.
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage({ type: "my-knowledge-quick-open-v1", token }, "*");
+          parent.postMessage({ type: "mogledge-quick-open-v1", token }, "*");
       }, 0);
       return;
     }
@@ -427,7 +428,7 @@
       // listeners can cancel synchronously before the deferred proposal runs.
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage({ type: "my-knowledge-ai-handoff-v1", token }, "*");
+          parent.postMessage({ type: "mogledge-ai-handoff-v1", token }, "*");
       }, 0);
       return;
     }
@@ -443,10 +444,7 @@
       const digit = Number(event.code.slice(-1));
       setTimeout(() => {
         if (allowsDocumentInput(event))
-          parent.postMessage(
-            { type: "my-knowledge-workspace-set-v1", token, slot: digit || 10 },
-            "*",
-          );
+          parent.postMessage({ type: "mogledge-workspace-set-v1", token, slot: digit || 10 }, "*");
       }, 0);
       return;
     }
@@ -597,7 +595,7 @@
       )
         return;
       parent.postMessage(
-        { type: "my-knowledge-move-tab-v1", token, direction: event.key === "ArrowLeft" ? 0 : 1 },
+        { type: "mogledge-move-tab-v1", token, direction: event.key === "ArrowLeft" ? 0 : 1 },
         "*",
       );
     }, 0);

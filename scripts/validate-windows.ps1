@@ -45,8 +45,8 @@ try {
         npm = (& npm --version | Out-String).Trim()
         rust = (& rustc --version | Out-String).Trim()
     }
-    if ($env:MY_KNOWLEDGE_TEST_BINARY -or $env:MY_KNOWLEDGE_BENCH_ROOT) {
-        throw 'Clear MY_KNOWLEDGE_TEST_BINARY / MY_KNOWLEDGE_BENCH_ROOT to validate the current application and fixtures.'
+    if ($env:MOGLEDGE_TEST_BINARY -or $env:MOGLEDGE_BENCH_ROOT) {
+        throw 'Clear MOGLEDGE_TEST_BINARY / MOGLEDGE_BENCH_ROOT to validate the current application and fixtures.'
     }
     if (-not (Get-Command tauri-driver -ErrorAction SilentlyContinue)) {
         throw 'Install the Windows driver first: cargo install tauri-driver --locked'

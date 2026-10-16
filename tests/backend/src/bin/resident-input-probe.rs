@@ -15,7 +15,7 @@ fn main() {
             },
         },
     };
-    use my_knowledge_backend_tests::resident::windows;
+    use mogledge_backend_tests::resident::windows;
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},

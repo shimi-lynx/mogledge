@@ -12,7 +12,7 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let temporary = tempfile::tempdir().unwrap();
-        let profile = temporary.path().join("com.shimilynx.myknowledge");
+        let profile = temporary.path().join("com.shimilynx.mogledge");
         let state = profile.join("document-state");
         drop(DocumentState::new(state.clone()).unwrap());
         fs::write(profile.join("identifier-migration.lock"), []).unwrap();

@@ -764,7 +764,7 @@ test("external link proposals require a trusted main UI confirmation", async ({ 
     .locator("body")
     .evaluate((_body, href) => {
       parent.postMessage(
-        { type: "my-knowledge-link-v1", token: location.pathname.split("/")[2], href },
+        { type: "mogledge-link-v1", token: location.pathname.split("/")[2], href },
         "*",
       );
     }, href);
@@ -1461,7 +1461,7 @@ async function prepare(
     if (!valid) return route.fulfill({ status: 403, body: "Expired document grant" });
     return route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html>${keyboard ? `<script>${documentKeyboard.replace("__MY_KNOWLEDGE_KEYBOARD_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}</script>` : ""}${links ? `<script>${documentLinks.replace("__MY_KNOWLEDGE_LINK_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}</script>` : ""}${artifactExport ? `<script>${documentExportBridge.replace("__MY_KNOWLEDGE_EXPORT_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}${documentExportAdapter}</script>` : ""}<html><head><meta charset="utf-8"><style>
+      body: `<!doctype html>${keyboard ? `<script>${documentKeyboard.replace("__MOGLEDGE_KEYBOARD_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}</script>` : ""}${links ? `<script>${documentLinks.replace("__MOGLEDGE_LINK_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}</script>` : ""}${artifactExport ? `<script>${documentExportBridge.replace("__MOGLEDGE_EXPORT_TOKEN__", JSON.stringify(new URL(route.request().url()).pathname.split("/")[2]))}${documentExportAdapter}</script>` : ""}<html><head><meta charset="utf-8"><style>
         body { margin: ${new URL(route.request().url()).pathname.endsWith("/0.html") ? 0 : 32}px; }
         </style></head><body><input aria-label="文書入力" value="initial"><button id="draw">Draw</button><canvas width="10" height="10"></canvas><div style="height:1500px">Document</div>${new URL(route.request().url()).pathname.endsWith("/1.html") ? '<h2 id="section">Anchor</h2>' : ""}<script>
           window.runtimeState = { count: 0 };
@@ -1471,7 +1471,7 @@ async function prepare(
           const exportButton = document.createElement('button'); exportButton.textContent='Export text';
           document.body.prepend(exportButton);
           window.exportResults=[];
-          exportButton.onclick=()=>MyKnowledgeExport.exportArtifact({blob:new Blob(['generated text'],{type:'text/plain'}),name:'generated',format:'text'})
+          exportButton.onclick=()=>MogledgeExport.exportArtifact({blob:new Blob(['generated text'],{type:'text/plain'}),name:'generated',format:'text'})
             .then(result=>window.exportResults.push(result)).catch(error=>window.exportResults.push({error:error.code}));
           `
               : ""
@@ -4499,7 +4499,7 @@ test("App routes focused HTML AI shortcuts, root AI and folder favorites without
   await page.keyboard.press("Escape");
   await expect(input).toHaveValue("日本語の入力を保持");
   await page.screenshot({ path: test.info().outputPath("app-integrated-en.png") });
-  expect(await page.evaluate("localStorage.getItem('my-knowledge.ui-language')")).toBe("en");
+  expect(await page.evaluate("localStorage.getItem('mogledge.ui-language')")).toBe("en");
   await page.reload();
   await expect(page.getByRole("button", { name: "Features and usage", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -4719,7 +4719,7 @@ for (const language of ["ja", "en"] as const) {
   }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     // prepare's tree/search labels are Japanese; switch after initial app setup.
-    await page.addInitScript(() => localStorage.setItem("my-knowledge.ui-language", "ja"));
+    await page.addInitScript(() => localStorage.setItem("mogledge.ui-language", "ja"));
     await prepare(page, false, false, undefined, true, false, false, false, false, true);
     await openDocument(page);
     if (language === "en") {
@@ -4904,9 +4904,7 @@ for (const language of ["ja", "en"] as const) {
     await expect
       .poll(() =>
         page.evaluate(() => {
-          const stored = JSON.parse(
-            localStorage.getItem("my-knowledge.search-preferences") || "{}",
-          );
+          const stored = JSON.parse(localStorage.getItem("mogledge.search-preferences") || "{}");
           return [stored.detailsOpen, stored.mode, stored.roots?.[0]?.path];
         }),
       )

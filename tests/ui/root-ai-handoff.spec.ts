@@ -21,7 +21,7 @@ for (const language of ["ja", "en"] as const) {
             destination: "Destination",
           };
     await page.addInitScript(
-      (value) => localStorage.setItem("my-knowledge.ui-language", value),
+      (value) => localStorage.setItem("mogledge.ui-language", value),
       language,
     );
     await page.route("**/src/app/App.tsx", async (route) => {

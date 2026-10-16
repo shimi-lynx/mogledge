@@ -1073,7 +1073,7 @@ async fn body_pending_save_cannot_revive_a_closed_and_quarantined_record() {
     };
     let request = Request::builder()
         .method("POST")
-        .uri(format!("/s/{token}/__my_knowledge_storage_v1__"))
+        .uri(format!("/s/{token}/__mogledge_storage_v1__"))
         .header("Host", f.core.origin.strip_prefix("http://").unwrap())
         .header("Content-Type", "application/json")
         .body(Body::new(body))
@@ -1159,10 +1159,10 @@ fn management_is_send_sync_main_only_and_rejects_unrecognized_arguments() {
 #[test]
 #[ignore]
 fn fixture_external_writer_holds_database() {
-    let database = std::env::var_os("MY_KNOWLEDGE_LIVE_MANAGEMENT_FIXTURE_DB")
-        .expect("synthetic fixture only");
+    let database =
+        std::env::var_os("MOGLEDGE_LIVE_MANAGEMENT_FIXTURE_DB").expect("synthetic fixture only");
     let marker =
-        PathBuf::from(std::env::var_os("MY_KNOWLEDGE_LIVE_MANAGEMENT_FIXTURE_MARKER").unwrap());
+        PathBuf::from(std::env::var_os("MOGLEDGE_LIVE_MANAGEMENT_FIXTURE_MARKER").unwrap());
     let connection = Connection::open(database).unwrap();
     connection.execute_batch("BEGIN EXCLUSIVE;").unwrap();
     fs::write(&marker, b"ready").unwrap();
@@ -1188,10 +1188,10 @@ fn external_writer_is_busy_and_normal_inspection_recovers_after_release() {
             "--ignored",
         ])
         .env(
-            "MY_KNOWLEDGE_LIVE_MANAGEMENT_FIXTURE_DB",
+            "MOGLEDGE_LIVE_MANAGEMENT_FIXTURE_DB",
             f.profile.join("document-state/state.sqlite"),
         )
-        .env("MY_KNOWLEDGE_LIVE_MANAGEMENT_FIXTURE_MARKER", &marker)
+        .env("MOGLEDGE_LIVE_MANAGEMENT_FIXTURE_MARKER", &marker)
         .stdout(std::process::Stdio::null())
         .spawn()
         .unwrap();

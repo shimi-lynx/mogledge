@@ -32,7 +32,7 @@ function inputFixture(platform = "Win32") {
   };
   runInNewContext(
     readFileSync("src-tauri/src/document_server/keyboard.js", "utf8").replace(
-      "__MY_KNOWLEDGE_KEYBOARD_TOKEN__",
+      "__MOGLEDGE_KEYBOARD_TOKEN__",
       '"test-token"',
     ),
     {
@@ -166,7 +166,7 @@ test("mock Mac pixel pinch has no step threshold and carries a bounded viewport 
     fixture.send("wheel", { ctrlKey: true, deltaY: -2, deltaMode: 0, clientX: 250, clientY: 600 });
   assert.equal(fixture.messages.length, 3);
   for (const message of fixture.messages) {
-    assert.equal(message.type, "my-knowledge-document-pinch-v1");
+    assert.equal(message.type, "mogledge-document-pinch-v1");
     assert.equal(message.factor, Math.exp(0.004));
     assert.equal(message.x, 0.25);
     assert.equal(message.y, 0.75);
