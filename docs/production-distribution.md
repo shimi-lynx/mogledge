@@ -235,3 +235,11 @@ All three first-use cache preparations, successful-main saves and separate redac
 | windows-x64 | 671              | 533.86          | 20.47          | miss  |
 | macos-x64   | 910              | 796.93          | 4.06           | miss  |
 | macos-arm64 | 625              | 524             | 2.05           | miss  |
+
+## Verified 0.9.1 signing and publication activation
+
+[Signing run 38848170136](https://github.com/shimi-lynx/mogledge/actions/runs/38848170136), attempt 1, passed preparation, signing and the separate Secrets-free public-key verification job from tooling main `271fb287d02ee8183892f9b5d457d26bb1c7f747` after [PR #49](https://github.com/shimi-lynx/mogledge/pull/49). The trusted verifier checked all three actual updater signatures and signed version 0.9.1. No key/password was retrieved or displayed.
+
+The exact verified artifact is `12023697887`, 134004153 bytes, SHA-256 `05e834c9ce9937ad2ac4eeb46fb5349ab4688fbd67e0f8f8e4fc87b138a62307`, expiring `2026-10-19T03:59:19Z`. Its name `production-verified-0.8.2-38848170136-1` retains the workflow's historical display label; the pinned product and signed version are 0.9.1. Successful same-source/same-artifact verification is reused without another local archive download, crypto run or application suite. Existing publication preparation and the publish job still independently validate the full artifact, receipt, feed, all signatures and uploaded assets.
+
+Publication activation pins only this successful output and retains binary source `b07f0bab242ae3f8b47f461d4046e4211b91ea81`, candidate pins, notes, public key/feed and protected-main gate. Workflow files remain identical to the binary source. This policy/evidence-only change needs no product bump, rebuild or re-signing. The owner authorized publication through the existing manual workflow; public Release/tag/asset/link/latest readback remains pending at activation. Native and installed-update checks remain explicit in #25/#48/#9/#10/#22/#23.
