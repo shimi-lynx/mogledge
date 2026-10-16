@@ -19,3 +19,19 @@ Targeted regressions cover the folder row geometry and labels, document-find cou
 Browser and mock results do not establish physical Mac Cmd+F, IME, accessibility or WKWebView behavior. Existing-device updater UI, login launch and OS permissions remain distinct from candidate metadata, signatures and bounded synthetic installed-update checks. These device followups remain tracked in #48, #55, #60 and #66. No ordinary user app, settings, HTML or saved input is replaced during release preparation.
 
 For users transitioning from the older My Knowledge identity, preserve the [0.10.0 identity and login-startup precautions](release-0.10.0.md). Windows binaries are not Authenticode-signed. Mac binaries use ad-hoc signing without Developer ID or notarization; updater cryptographic signatures are a separate verification layer.
+
+## 0.10.1 candidate signing activation
+
+[Candidate run 38921366891](https://github.com/shimi-lynx/mogledge/actions/runs/38921366891), attempt 1, completed successfully from main `19f8d035d19838d04574f6a8081a4374b77bdc1c`. Downloaded raw artifact identities, sizes, hashes, expiry, architecture, product version, identifier and embedded source matched the fixed metadata. All three platform Native packaging reports have status `passed` and bind to the same source, version and updater payload bytes. Common embedded source ZIP SHA-256: `e68ccec57a29b97ece919fbc0ffdc75d56fabddad6d44bd8053754619cd41203`.
+
+The Windows executable and NSIS both report FileVersion and ProductVersion `0.10.1`; the installer filename includes `0.10.1`. Both Mac bundles report `0.10.1`, identifier `com.shimilynx.mogledge` and executable `mogledge`, with their expected x64/arm64 Mach-O architecture. Their embedded source contents match the fixed Git source archive.
+
+| Platform    | Artifact ID   | Raw artifact SHA-256                                               | Expiry UTC             |
+| ----------- | ------------- | ------------------------------------------------------------------ | ---------------------- |
+| windows-x64 | `12054872975` | `75e2e424f473e2d49a5b8f1daed9f6e5366c64b600adc56cba6f97035b424bd8` | `2026-10-19T15:19:17Z` |
+| macos-x64   | `12055514741` | `cc25d0fc295b83a7a31d39d18e8e76039212b3ed381a5f892b7105c9212ebcd0` | `2026-10-19T15:29:30Z` |
+| macos-arm64 | `12055521186` | `920d93afae9423f00615d41f0f7594a295cc7fc4303bc21b8847fa0ab82a000a` | `2026-10-19T15:14:42Z` |
+
+These are bounded disposable-runner packaging checks. Existing-device updater UI/signature handoff, login-session, physical keys, accessibility and OS permission acceptance remain separate. No local installed app/profile was accessed by candidate inspection.
+
+Signing pins only these reviewed candidates and the existing protected-main gate. Publication remains disabled until separately verified signature-output pins are reviewed. This policy/evidence activation does not change the fixed binary source. Historical 0.10.0 and earlier release records remain unchanged.
