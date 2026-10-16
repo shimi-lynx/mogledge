@@ -14,13 +14,13 @@ Use the repository PR template. Describe the concrete problem and resulting beha
 
 Review [coding standards](coding-standards.md), `git status --short`, the full diff and staged diff before committing. Stage intended files individually. Do not include caches, credentials, raw logs or `.tools/` output.
 
-Write public-facing prose in English and preserve user text, filenames, Japanese localization/help/tests and upstream license notices. Send multiline GitHub text through a structured argument or UTF-8 `--body-file`, then read back title/body/state. On Windows, use UTF-8 console output before decoding CLI JSON.
+Write public-facing prose, including Issue/PR titles and bodies, in English and preserve user text, filenames, Japanese localization/help/tests and upstream license notices. Send multiline GitHub text through a structured argument or UTF-8 `--body-file`. After every Issue/PR creation or update, read back title/body/state and verify language as well as accuracy. On Windows, use UTF-8 console output before decoding CLI JSON.
 
 ## Issue reconciliation
 
 Before an authorized merge, compare every related issue's acceptance conditions against final implementation and evidence. Use `Closes #number` when implementation is complete. Use `Refs #number` plus the remaining reason and tracking destination when incomplete. Explain why if no related issue exists.
 
-After merging, inspect actual main rather than assuming a PR state proves its content. Close implementation-complete issues and retain incomplete work with the existing `[未完]` prefix, reason and follow-up. Move remaining QA-only work to a QA issue. Preserve mandatory Native/security release conditions and read back the resulting GitHub bodies, titles and states.
+After merging, inspect actual main rather than assuming a PR state proves its content. Close implementation-complete issues and retain incomplete work with the English `[Incomplete]` prefix, reason and follow-up. Move remaining QA-only work to a QA issue. Preserve mandatory Native/security release conditions and read back the resulting GitHub bodies, titles and states.
 
 Human review is not a repository requirement, but that does not authorize an unrequested merge. Draft creation, merge, public repository creation, release publication and installer installation are distinct scopes.
 
