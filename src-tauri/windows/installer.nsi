@@ -564,10 +564,6 @@ Function .onInit
     StrCpy $UpdateMode 1
   ${EndIf}
 
-  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
-    !insertmacro MUI_LANGDLL_DISPLAY
-  !endif
-
   !insertmacro SetContext
 
   ${If} $INSTDIR == "${PLACEHOLDER_INSTALL_DIR}"
@@ -591,6 +587,10 @@ Function .onInit
   ${EndIf}
 
   Call RestorePreviousInstallLocation
+
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_INIT
@@ -1036,6 +1036,9 @@ Function RestorePreviousInstallLocation
     ${AndIf} $1 != "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
       Abort "The Mogledge startup registration belongs to a different command. No installation was changed."
     ${EndIf}
+  ${ElseIf} $0 != ""
+    ; Unknown arguments/targets must never be orphaned by removing the old binary.
+    Abort "The legacy startup registration is not a supported no-argument command. Resolve that registration before updating. No installation was changed."
   ${EndIf}
 FunctionEnd
 

@@ -110,3 +110,30 @@ test("shortcut helpers finish retargeting all current-name links before returnin
     assert.ok(body.indexOf("Return") > body.lastIndexOf("!insertmacro SetShortcutTarget"), name);
   }
 });
+
+test("unsupported legacy startup commands stop preflight before installation writes", () => {
+  const restore = template.match(
+    /Function RestorePreviousInstallLocation\r?\n([\s\S]*?)FunctionEnd/,
+  )[1];
+  const run = restore.slice(restore.lastIndexOf("ReadRegStr $0 HKCU"));
+  assert.match(run, /\$\{ElseIf\} \$0 != ""[\s\S]*?Abort "The legacy startup registration/);
+  assert.doesNotMatch(restore, /^\s*(?:File |Delete |DeleteReg|WriteReg|Exec)/m);
+  const supported = [...run.matchAll(/\$\{(?:If|OrIf)\} \$0 == "(.*)"/g)].map((match) => match[1]);
+  assert.equal(supported.length, 4);
+  for (const unsupported of [
+    supported[1] + " --background",
+    supported[3] + " --background",
+    "foreign.exe",
+  ])
+    assert.ok(
+      !supported.includes(unsupported),
+      "custom/foreign commands must not enter the rewrite branch",
+    );
+  const init = template.match(/Function \.onInit\r?\n([\s\S]*?)FunctionEnd/)[1];
+  assert.ok(init.includes("Call RestorePreviousInstallLocation"));
+  assert.ok(
+    init.indexOf("Call RestorePreviousInstallLocation") <
+      init.indexOf("!insertmacro MUI_LANGDLL_DISPLAY"),
+  );
+  assert.ok(template.indexOf("Function .onInit") < template.indexOf("Section Install"));
+});
