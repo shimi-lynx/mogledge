@@ -28,6 +28,8 @@ pub struct Snapshot {
     pub storage_hold: Option<StorageHold>,
     pub revision: u64,
     pub nodes: Vec<TreeNode>,
+    // Completeness belongs to these nodes; watcher/order warnings do not imply scan failure.
+    pub tree_complete: bool,
     pub watch_error: Option<String>,
     pub scan_duration_ms: f64,
     pub view_id: String,
@@ -272,6 +274,7 @@ impl Core {
             storage_hold,
             revision: 1,
             nodes,
+            tree_complete: true,
             watch_error: error.or(order_error),
             scan_duration_ms: started.elapsed().as_secs_f64() * 1000.0,
             view_id: random_token(),
@@ -770,9 +773,9 @@ impl Core {
             match root.as_deref().map(knowledge::scan) {
                 Some(Ok(mut nodes)) => {
                     crate::tree_order::apply(&mut nodes, &order);
-                    (Some(nodes), error)
+                    (Some((nodes, true)), error)
                 }
-                Some(Err(err)) => (Some(Vec::new()), Some(err)),
+                Some(Err(err)) => (Some((Vec::new(), false)), Some(err)),
                 None => return,
             }
         } else {
@@ -783,7 +786,7 @@ impl Core {
             if state.snapshot.workspace_id.as_deref() != Some(id) {
                 return;
             }
-            if let Some(nodes) = nodes {
+            if let Some((nodes, complete)) = nodes {
                 state.mutation_echoes.clear();
                 for tab in state.tabs.values_mut() {
                     if !knowledge::contains(&nodes, &tab.entry) {
@@ -792,6 +795,7 @@ impl Core {
                     }
                 }
                 state.snapshot.nodes = nodes;
+                state.snapshot.tree_complete = complete;
             }
             let reconcile = structure || error.is_some();
             if error.is_some() {
@@ -862,6 +866,7 @@ impl Core {
                 }
             }
             state.snapshot.nodes = nodes;
+            state.snapshot.tree_complete = true;
             state.mutation_echoes.clear();
             state.snapshot.revision += 1;
             state.snapshot.watch_error = error.or(order_error);
@@ -1247,6 +1252,59 @@ impl Core {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tree_completeness_is_independent_of_order_warnings() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("knowledge");
+        std::fs::create_dir(&root).unwrap();
+        let core = Core::new(19013);
+        core.settings_path
+            .set(tmp.path().join("config/settings.json"))
+            .unwrap();
+        core.select(&root, false).unwrap();
+        core.watcher.lock().unwrap().take();
+        let registered_root = core.workspace.lock().unwrap().root.clone().unwrap();
+        crate::tree_order::save(&core, &registered_root, &Default::default()).unwrap();
+        let order = std::fs::read_dir(tmp.path().join("config/tree-order"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        std::fs::write(order, "{").unwrap();
+        let selected = core.select(&root, false).unwrap();
+        assert!(selected.nodes.is_empty());
+        assert!(selected.watch_error.is_some());
+        assert!(selected.tree_complete);
+        assert_eq!(
+            serde_json::to_value(&selected).unwrap()["treeComplete"],
+            true
+        );
+        let refreshed = core.refresh().unwrap();
+        assert!(refreshed.watch_error.is_some());
+        assert!(refreshed.tree_complete);
+    }
+    #[test]
+    fn tree_completeness_tracks_scan_failure_and_recovery() {
+        let tmp = tempfile::tempdir().unwrap();
+        let core = Core::new(19014);
+        let selected = core.select(tmp.path(), false).unwrap();
+        core.watcher.lock().unwrap().take();
+        let ws = selected.workspace_id.as_ref().unwrap();
+        // Substitute a disposable missing scan path without changing any real root or grants.
+        core.workspace.lock().unwrap().root = Some(tmp.path().join("missing"));
+        core.apply_change(ws, Vec::new(), true, None);
+        assert!(!core.snapshot().tree_complete);
+        assert!(core.snapshot().nodes.is_empty());
+        core.apply_change(ws, Vec::new(), false, None);
+        assert!(!core.snapshot().tree_complete);
+        core.workspace.lock().unwrap().root = Some(tmp.path().to_path_buf());
+        core.apply_change(ws, Vec::new(), true, None);
+        assert!(core.snapshot().tree_complete);
+        assert!(core.snapshot().watch_error.is_some());
+        core.apply_change(ws, Vec::new(), false, None);
+        assert!(core.snapshot().tree_complete);
+    }
     #[test]
     fn close_view_restart_and_root_change_reject_inflight_open() {
         for action in ["close", "view", "root"] {

@@ -577,7 +577,11 @@ export function App() {
               rootPath={state.snapshot.rootPath}
               displayFolder={displayFolder}
               workspaceId={state.snapshot.workspaceId}
-              treeReady={!state.loading && !state.snapshot.startupRecovery}
+              treeReady={
+                !state.loading &&
+                !state.snapshot.startupRecovery &&
+                (state.snapshot.treeComplete ?? !state.snapshot.watchError)
+              }
               viewId={state.snapshot.viewId}
               selected={state.selectedPath}
               hideFiles={sidebarView !== "files"}

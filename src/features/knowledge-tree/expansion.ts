@@ -43,11 +43,12 @@ export function useTreeExpansion(
 ) {
   // workspaceId changes on each selection; only the registered root path is persistent.
   const scope = rootPath ?? workspaceId;
+  const session = useRef(new Map<string, Expansion>());
   const pending = useRef(new Map<string, Set<string>>());
   const [state, setState] = useState(() => readExpansion(scope, !!rootPath));
   if (state.scope !== scope) {
-    const loaded = readExpansion(scope, !!rootPath);
-    if (scope && pending.current.has(scope)) loaded.expanded = pending.current.get(scope)!;
+    const loaded =
+      (scope ? session.current.get(scope) : undefined) ?? readExpansion(scope, !!rootPath);
     setState(loaded);
   }
   const folders = useMemo(() => {
@@ -72,8 +73,11 @@ export function useTreeExpansion(
           [...next].every((path) => previous.expanded.has(path))
         )
           return previous;
+        const updated = { ...previous, expanded: next };
+        // Session choices and read-only protection survive root switches even if storage fails.
+        if (scope) session.current.set(scope, updated);
         if (rootPath && !previous.readOnly) pending.current.set(rootPath, next);
-        return { ...previous, expanded: next };
+        return updated;
       });
     },
     [scope, rootPath],
@@ -87,11 +91,12 @@ export function useTreeExpansion(
         const raw = JSON.stringify({ version: 1, paths: [...expanded] });
         if (raw.length <= MAX_CHARACTERS)
           window.localStorage.setItem(TREE_EXPANSION_KEY + root, raw);
+        // Oversized choices remain in memory until edited down to the persistence limit.
+        pending.current.delete(root);
       } catch {
-        // Expansion still works for this session if local preference storage is unavailable.
+        // Retry the latest queued state on a later normal flush, without a retry timer.
       }
     }
-    pending.current.clear();
   }, []);
   useEffect(() => {
     if (!pending.current.size) return;

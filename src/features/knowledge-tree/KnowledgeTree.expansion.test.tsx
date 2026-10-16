@@ -141,3 +141,82 @@ it("coalesces rapid toggles without reading folder children again", () => {
     vi.useRealTimers();
   }
 });
+
+it("retains failed writes across root switches and retries the latest state", () => {
+  const key = TREE_EXPANSION_KEY + props.rootPath;
+  const saved = JSON.stringify({ version: 1, paths: ["b"] });
+  localStorage.setItem(key, saved);
+  const write = localStorage.setItem.bind(localStorage);
+  const save = vi.spyOn(Storage.prototype, "setItem").mockImplementation((name, value) => {
+    if (name === key) throw new DOMException("Full", "QuotaExceededError");
+    write(name, value);
+  });
+  const view = render(<KnowledgeTree {...props} />);
+  fireEvent.click(view.getByRole("treeitem", { name: "a" }));
+  window.dispatchEvent(new Event("beforeunload"));
+  expect(localStorage.getItem(key)).toBe(saved);
+
+  view.rerender(<KnowledgeTree {...props} rootPath="/fixture/two" workspaceId="other" />);
+  expect(view.getByRole("treeitem", { name: "a" }).getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(view.getByRole("treeitem", { name: "b" }));
+  window.dispatchEvent(new Event("beforeunload"));
+  view.rerender(<KnowledgeTree {...props} workspaceId="returned" />);
+  expect(view.getByRole("treeitem", { name: "a" }).getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(view.getByRole("treeitem", { name: "b" }));
+  window.dispatchEvent(new Event("beforeunload"));
+  expect(localStorage.getItem(key)).toBe(saved);
+
+  save.mockImplementation(write);
+  window.dispatchEvent(new Event("beforeunload"));
+  expect(JSON.parse(localStorage.getItem(key)!).paths).toEqual(["a"]);
+  save.mockClear();
+  window.dispatchEvent(new Event("beforeunload"));
+  expect(save).not.toHaveBeenCalled();
+  view.rerender(<KnowledgeTree {...props} rootPath="/fixture/two" workspaceId="other-again" />);
+  expect(view.getByRole("treeitem", { name: "a" }).getAttribute("aria-expanded")).toBe("false");
+  expect(view.getByRole("treeitem", { name: "b" }).getAttribute("aria-expanded")).toBe("true");
+});
+
+it.each(["corrupt", "future", "unavailable"] as const)(
+  "keeps %s preferences read-only while session choices survive root switches",
+  (mode) => {
+    const key = TREE_EXPANSION_KEY + props.rootPath;
+    const saved =
+      mode === "corrupt" ? "{" : JSON.stringify({ version: mode === "future" ? 2 : 1, paths: [] });
+    localStorage.setItem(key, saved);
+    const read = localStorage.getItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation((name) => {
+      if (mode === "unavailable" && name === key)
+        throw new DOMException("Unavailable", "SecurityError");
+      return read(name);
+    });
+    const save = vi.spyOn(Storage.prototype, "setItem");
+    const view = render(<KnowledgeTree {...props} />);
+    fireEvent.click(view.getByRole("treeitem", { name: "a" }));
+    view.rerender(<KnowledgeTree {...props} rootPath="/fixture/two" workspaceId="other" />);
+    view.rerender(<KnowledgeTree {...props} workspaceId="returned" />);
+    expect(view.getByRole("treeitem", { name: "a" }).getAttribute("aria-expanded")).toBe("true");
+    window.dispatchEvent(new Event("beforeunload"));
+    expect(save).not.toHaveBeenCalled();
+    expect(read(key)).toBe(saved);
+  },
+);
+
+it("retries a failed coalesced write only on a later flush", () => {
+  vi.useFakeTimers();
+  try {
+    const view = render(<KnowledgeTree {...props} />);
+    const save = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Full", "QuotaExceededError");
+    });
+    fireEvent.click(view.getByRole("treeitem", { name: "a" }));
+    vi.advanceTimersByTime(250);
+    expect(save).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(10_000);
+    expect(save).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event("beforeunload"));
+    expect(save).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
