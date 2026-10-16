@@ -37,11 +37,9 @@ export function rustCacheKey({ platform, rust, image, features, remappings, inpu
 }
 
 export function rustCachePaths(cargoHome, targetDirectory, target, nativeTarget) {
-  const paths = [
-    ...["registry/index", "registry/cache", "registry/src", "git/db", "git/checkouts"].map(
-      (relative) => path.join(cargoHome, relative),
-    ),
-  ];
+  const paths = ["registry/index", "registry/cache", "registry/src", "git/db", "git/checkouts"].map(
+    (relative) => path.join(cargoHome, relative),
+  );
   // Host build scripts/proc macros and explicit-target dependencies are distinct.
   // Never cache the whole target, bundles, NSIS, .tools or Cargo credentials.
   for (const release of new Set([
