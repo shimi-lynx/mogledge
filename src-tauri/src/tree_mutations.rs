@@ -12,7 +12,6 @@ mod trash_tests;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
-    io::Write,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
 };
@@ -28,10 +27,6 @@ pub enum Mutation {
     Trash {
         source: String,
         revision: u64,
-    },
-    CreateHtml {
-        parent: String,
-        name: String,
     },
     CreateFolder {
         parent: String,
@@ -66,7 +61,6 @@ pub struct PathMove {
 #[serde(rename_all = "camelCase")]
 pub struct MutationResult {
     pub snapshot: Snapshot,
-    pub created_path: Option<String>,
     pub moves: Vec<PathMove>,
     pub warning: Option<String>,
 }
@@ -305,10 +299,8 @@ fn perform_with_trash(
     if knowledge::validate_cache_path(&root).is_err() {
         return perform_cloud(core, workspace, &root, &dir, snapshot, mutation, before);
     }
-    let creating_html = matches!(&mutation, Mutation::CreateHtml { .. });
     let recycling = matches!(&mutation, Mutation::Trash { .. });
     let mut rescan_needed = !matches!(&mutation, Mutation::Reorder { .. });
-    let mut created = None;
     let mut moves = Vec::new();
     let mut changed = Vec::new();
     let mut warning = None;
@@ -367,62 +359,18 @@ fn perform_with_trash(
             }
             changed.push(source);
         }
-        Mutation::CreateHtml { parent, name } | Mutation::CreateFolder { parent, name } => {
-            // The enum is recorded before matching so HTML extension handling is exact.
-            let html = creating_html;
+        Mutation::CreateFolder { parent, name } => {
             if tree_order::children(&snapshot.nodes, &parent).is_none() {
                 return Err("親フォルダーが見つかりません".into());
             }
-            valid_name(&name)?;
-            let name = if html && !name.to_ascii_lowercase().ends_with(".html") {
-                format!("{name}.html")
-            } else {
-                name
-            };
             valid_name(&name)?;
             let parent_handle = LockedDir::open(&dir, &parent)?;
             no_collision(parent_handle.dir(), &name)?;
             before();
             parent_handle.revalidate(&root, &dir)?;
             no_collision(parent_handle.dir(), &name)?;
-            if html {
-                let (temporary, mut file) = write_fs::create_temporary(parent_handle.dir())
-                    .map_err(|_| "HTMLを作成できません。アクセス権を確認してください")?;
-                let title = name
-                    .trim_end_matches(".html")
-                    .replace('&', "&amp;")
-                    .replace('<', "&lt;")
-                    .replace('>', "&gt;")
-                    .replace('"', "&quot;");
-                let content=format!("<!doctype html>\n<html lang=\"ja\">\n<head>\n<meta charset=\"utf-8\">\n<title>{title}</title>\n</head>\n<body>\n</body>\n</html>\n");
-                let result: Result<(), String> = (|| {
-                    file.write_all(content.as_bytes())
-                        .and_then(|_| file.sync_all())
-                        .map_err(|_| "HTMLを書き込めません")?;
-                    parent_handle.revalidate(&root, &dir)?;
-                    no_collision(parent_handle.dir(), &name)?;
-                    write_fs::rename_noreplace(
-                        parent_handle.dir(),
-                        &temporary,
-                        parent_handle.dir(),
-                        &name,
-                        &file,
-                    )
-                    .map_err(|_| {
-                        "HTMLを公開できません。同名・アクセス権・外部変更を確認してください"
-                            .to_owned()
-                    })
-                })();
-                if result.is_err() {
-                    let _ = write_fs::remove_temporary(parent_handle.dir(), &temporary, &file);
-                }
-                result?;
-                created = Some(join(&parent, &name));
-            } else {
-                write_fs::mkdir(parent_handle.dir(), &name).map_err(|_| {
-                    "フォルダーを作成できません。同名・アクセス権を確認してください"
-                })?;
-            }
+            write_fs::mkdir(parent_handle.dir(), &name)
+                .map_err(|_| "フォルダーを作成できません。同名・アクセス権を確認してください")?;
             changed.push(join(&parent, &name));
         }
         Mutation::RenameHtml { source, name } => {
@@ -463,7 +411,6 @@ fn perform_with_trash(
                 }
                 return Ok(MutationResult {
                     snapshot,
-                    created_path: None,
                     moves: Vec::new(),
                     warning: None,
                 });
@@ -722,7 +669,6 @@ fn perform_with_trash(
     });
     Ok(MutationResult {
         snapshot,
-        created_path: created,
         moves,
         warning,
     })
@@ -738,44 +684,17 @@ fn perform_cloud(
     mutation: Mutation,
     before: impl FnOnce(),
 ) -> Result<MutationResult, String> {
-    let creating_html = matches!(&mutation, Mutation::CreateHtml { .. });
     let (destination, source, kind, outcome) = match mutation {
-        Mutation::CreateHtml { parent, name } | Mutation::CreateFolder { parent, name } => {
-            let html = creating_html;
+        Mutation::CreateFolder { parent, name } => {
             if tree_order::children(&snapshot.nodes, &parent).is_none() {
                 return Err("親フォルダーが見つかりません".into());
             }
             valid_name(&name)?;
-            let name = if html && !name.to_ascii_lowercase().ends_with(".html") {
-                format!("{name}.html")
-            } else {
-                name
-            };
-            valid_name(&name)?;
-            let outcome = if html {
-                let title = name
-                    .trim_end_matches(".html")
-                    .replace('&', "&amp;")
-                    .replace('<', "&lt;")
-                    .replace('>', "&gt;")
-                    .replace('"', "&quot;");
-                let content = format!("<!doctype html>\n<html lang=\"ja\">\n<head>\n<meta charset=\"utf-8\">\n<title>{title}</title>\n</head>\n<body>\n</body>\n</html>\n");
-                knowledge::create_cloud_html(root, dir, &parent, &name, content.as_bytes(), || {
-                    before();
-                    Ok(())
-                })?
-            } else {
-                knowledge::create_cloud_folder(root, dir, &parent, &name, || {
-                    before();
-                    Ok(())
-                })?
-            };
-            (
-                join(&parent, &name),
-                None,
-                if html { "html" } else { "folder" },
-                outcome,
-            )
+            let outcome = knowledge::create_cloud_folder(root, dir, &parent, &name, || {
+                before();
+                Ok(())
+            })?;
+            (join(&parent, &name), None, "folder", outcome)
         }
         Mutation::RenameHtml { source, name } => {
             let (parent, previous) = split(&source);
@@ -802,7 +721,6 @@ fn perform_cloud(
                 })?;
                 return Ok(MutationResult {
                     snapshot,
-                    created_path: None,
                     moves: Vec::new(),
                     warning: None,
                 });
@@ -1006,7 +924,6 @@ fn publish_cloud_change(
     });
     Ok(MutationResult {
         snapshot: published,
-        created_path: (verified && moves.is_empty() && kind == "html").then_some(destination),
         moves,
         warning,
     })
@@ -1134,7 +1051,6 @@ mod tests {
         );
         assert_eq!(fs::read(&profile).unwrap(), b"untouched test sentinel");
         assert!(!root.join("unconfirmed").exists());
-        assert!(result.created_path.is_none());
         assert!(result.moves.is_empty());
         assert!(result.warning.unwrap().contains("再試行や削除をせず"));
         assert_eq!(result.snapshot.revision, snapshot.revision + 1);
@@ -1194,7 +1110,6 @@ mod tests {
         )
         .unwrap();
         assert!(result.moves.is_empty());
-        assert!(result.created_path.is_none());
         assert!(result.warning.is_some());
         assert_eq!(serde_json::to_value(&result.snapshot.nodes).unwrap(), nodes);
         let state = core.workspace.lock().unwrap();
@@ -1281,6 +1196,8 @@ mod tests {
     #[test]
     #[ignore = "creates and moves only new synthetic items in an approved disposable OneDrive fixture"]
     fn disposable_onedrive_product_namespace_writes() {
+        use std::io::Write;
+
         let root = PathBuf::from(
             std::env::var_os("MOGLEDGE_ONEDRIVE_PROBE_FIXTURE").expect("approved fixture required"),
         );
@@ -1322,7 +1239,6 @@ mod tests {
         let name = format!("product-{:016x}", rand::random::<u64>());
         let result = run(&core, &snapshot, folder("", &name)).unwrap();
         assert!(result.warning.is_none(), "{:?}", result.warning);
-        assert!(result.created_path.is_none());
         assert!(result
             .snapshot
             .nodes
@@ -1365,21 +1281,19 @@ mod tests {
         let nested = run(&core, &snapshot, folder(&name, "nested")).unwrap();
         assert!(nested.warning.is_none(), "{:?}", nested.warning);
         let destination = join(&name, "nested");
-        let document = run(&core, &snapshot, html(&name, "Unicode-日本語&title")).unwrap();
-        assert!(document.warning.is_none(), "{:?}", document.warning);
-        let html_path = document.created_path.unwrap();
+        let html_path = join(&name, "Unicode-日本語&title.html");
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(root.join(&html_path))
+            .unwrap()
+            .write_all("<title>Unicode-日本語&amp;title</title>".as_bytes())
+            .unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
         let original =
             knowledge::read_source_with_identity(&selected_root, &selected_dir, &html_path)
                 .unwrap();
-        assert!(original
-            .data
-            .windows(b"Unicode-".len())
-            .any(|bytes| bytes == b"Unicode-"));
-        assert!(original
-            .data
-            .windows(b"&amp;title".len())
-            .any(|bytes| bytes == b"&amp;title"));
-        assert!(run(&core, &snapshot, html(&name, "Unicode-日本語&title")).is_err());
         crate::workspace_settings::favorite(
             &core,
             snapshot.workspace_id.as_ref().unwrap(),
@@ -1426,13 +1340,16 @@ mod tests {
         // A provider-converted resident parent is a distinct case from freshly
         // created ordinary descendants. Touch only this new synthetic leaf.
         let unique = format!("{name}.html");
-        let root_document = run(&core, &snapshot, html("", &unique)).unwrap();
-        assert!(
-            root_document.warning.is_none(),
-            "{:?}",
-            root_document.warning
-        );
-        let root_path = root_document.created_path.unwrap();
+        let root_path = unique;
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(root.join(&root_path))
+            .unwrap()
+            .write_all(b"<title>external fixture</title>")
+            .unwrap();
+        core.refresh().unwrap();
+        core.watcher.lock().unwrap().take();
         let root_source =
             knowledge::read_source_with_identity(&selected_root, &selected_dir, &root_path)
                 .unwrap();
@@ -1504,7 +1421,7 @@ mod tests {
         );
         assert!(knowledge::validate_cache_path(&root).is_err());
         assert!(LockedDir::open(core.workspace.lock().unwrap().dir.as_ref().unwrap(), "").is_err());
-        println!("product nested/HTML creation, rename, HTML/empty-folder move and FileID verified; collision/nonempty/escape rejected; source/profile preserved; subtree {name}");
+        println!("product nested folder creation, external HTML rename, HTML/empty-folder move and FileID verified; collision/nonempty/escape rejected; source/profile preserved; subtree {name}");
     }
     #[test]
     fn ordinary_watch_events_without_matching_echo_do_not_probe_file_metadata() {
@@ -1557,12 +1474,6 @@ mod tests {
             &snapshot.view_id,
             mutation,
         )
-    }
-    fn html(parent: &str, name: &str) -> Mutation {
-        Mutation::CreateHtml {
-            parent: parent.into(),
-            name: name.into(),
-        }
     }
     fn folder(parent: &str, name: &str) -> Mutation {
         Mutation::CreateFolder {
@@ -1752,35 +1663,22 @@ mod tests {
         assert_eq!(fs::read(root.join("saved.html")).unwrap(), original);
     }
     #[test]
-    fn creates_complete_unicode_html_and_folder_without_overwriting() {
+    fn creates_unicode_folders_without_overwriting_existing_html_or_folders() {
         let (_tmp, core, snapshot, root) = fixture();
         let result = run(&core, &snapshot, folder("", "日本語 & folder")).unwrap();
-        assert!(result.created_path.is_none());
-        let result = run(&core, &snapshot, html("日本語 & folder", "My ' title #%")).unwrap();
-        let path = result.created_path.unwrap();
-        assert_eq!(path, "日本語 & folder/My ' title #%.html");
-        let data = fs::read_to_string(root.join(&path)).unwrap();
-        for text in [
-            "<!doctype html>",
-            "charset=\"utf-8\"",
-            "<title>",
-            "<body>",
-            "</html>",
-        ] {
-            assert!(data.contains(text));
-        }
-        assert!(knowledge::contains(&result.snapshot.nodes, &path));
+        assert!(result
+            .snapshot
+            .nodes
+            .iter()
+            .any(|node| { node.kind == "folder" && node.relative_path == "日本語 & folder" }));
         let previous = fs::read(root.join("a.html")).unwrap();
-        assert!(run(&core, &snapshot, html("", "A.HTML")).is_err());
+        assert!(run(&core, &snapshot, folder("", "A.HTML")).is_err());
         assert_eq!(fs::read(root.join("a.html")).unwrap(), previous);
         assert!(run(&core, &snapshot, folder("", "TARGET")).is_err());
-        assert!(!fs::read_dir(root.join("日本語 & folder"))
+        assert!(fs::read_dir(root.join("日本語 & folder"))
             .unwrap()
-            .any(|entry| entry
-                .unwrap()
-                .file_name()
-                .to_string_lossy()
-                .starts_with('.')));
+            .next()
+            .is_none());
     }
     #[test]
     fn invalid_names_extensions_paths_and_old_contexts_cannot_write() {
@@ -1803,18 +1701,18 @@ mod tests {
             "a\0b",
             "line\nend",
         ] {
-            assert!(run(&core, &snapshot, html("", name)).is_err(), "{name}");
+            assert!(run(&core, &snapshot, folder("", name)).is_err(), "{name}");
         }
         for parent in ["../", "/", "file:///", "C:/", "missing"] {
             assert!(run(&core, &snapshot, folder(parent, "New")).is_err());
         }
         let list = fs::read_dir(&root).unwrap().count();
-        assert!(perform(&core, "old", &snapshot.view_id, html("", "New")).is_err());
+        assert!(perform(&core, "old", &snapshot.view_id, folder("", "New")).is_err());
         assert!(perform(
             &core,
             snapshot.workspace_id.as_ref().unwrap(),
             "old",
-            html("", "New")
+            folder("", "New")
         )
         .is_err());
         assert_eq!(fs::read_dir(root).unwrap().count(), list);
@@ -1823,7 +1721,11 @@ mod tests {
                 .is_err()
         );
         assert!(serde_json::from_str::<Mutation>(
-            "{\"kind\":\"createHtml\",\"parent\":\"\",\"name\":\"x\",\"absolutePath\":\"x\"}"
+            "{\"kind\":\"createHtml\",\"parent\":\"\",\"name\":\"x\"}"
+        )
+        .is_err());
+        assert!(serde_json::from_str::<Mutation>(
+            "{\"kind\":\"createFolder\",\"parent\":\"\",\"name\":\"x\",\"absolutePath\":\"x\"}"
         )
         .is_err());
     }
@@ -2187,7 +2089,7 @@ mod tests {
         let (_tmp, core, snapshot, root) = fixture();
         let parent = root.join("Target");
         fs::set_permissions(&parent, fs::Permissions::from_mode(0o500)).unwrap();
-        assert!(run(&core, &snapshot, html("Target", "New")).is_err());
+        assert!(run(&core, &snapshot, folder("Target", "New")).is_err());
         assert!(run(&core, &snapshot, moving("a.html", "Target")).is_err());
         assert!(root.join("a.html").is_file());
         fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
@@ -2249,7 +2151,6 @@ mod tests {
             status.status.success(),
             "cannot create disposable junction fixture"
         );
-        assert!(run(&core, &snapshot, html("Target", "New")).is_err());
         assert!(run(&core, &snapshot, folder("Target", "New")).is_err());
         assert!(run(&core, &snapshot, moving("a.html", "Target")).is_err());
         assert!(root.join("a.html").is_file());

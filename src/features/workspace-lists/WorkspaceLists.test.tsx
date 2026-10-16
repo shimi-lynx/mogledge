@@ -35,7 +35,7 @@ function setup() {
     closeTab: vi.fn(async () => {}),
     openDocument: vi.fn(async () => "http://fixture"),
     listen: vi.fn(async () => vi.fn()),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
   };
   const controller = new KnowledgeController(api);

@@ -12,7 +12,7 @@ In Mogledge 0.9.1, create a dedicated folder or register an existing folder thro
 
 - Open documents in one or two columns; moving a tab keeps its live HTML state.
 - Search static text, use quick open, favorites, recent documents and saved workspaces.
-- Create, rename, move and recycle supported local files through explicit actions.
+- Create folders, and rename, move and recycle supported local files through explicit actions.
 - Enable optional tray residency, recall shortcuts and login startup in Settings.
 - Register multiple dedicated folders with a complete HTML authoring kit, or hand a selected path and request to an external AI tool as an unsent draft.
 
@@ -20,7 +20,7 @@ Read the [user guide](docs/user-guide.md), [data and backup guide](docs/data-man
 
 Settings → **App updates** offers manual checking, release notes, verified downloads and explicit restart for enrolled signed distributions. Ordinary source builds and unenrolled app-only candidates keep this feature disabled. See the [in-app update guide](docs/in-app-updates.md) for saved-input confirmation and the remaining distribution/Native conditions.
 
-Windows supports retained OneDrive reads and a limited writer for new HTML, nested folders, HTML rename and HTML/empty-folder moves. Every affected ancestor and item must have a supported local representation. Items observed as offline/partial and unsupported links remain rejected. Directory enumeration and rename may involve provider communication, population or waits; zero communication is not guaranteed. Unknown outcomes preserve files: refresh before another attempt. Nonempty-folder moves, anchored drops, reorder and trash remain restricted. See [cloud-folder limitations](docs/known-limitations.md#cloud-folders-and-links).
+Windows supports retained OneDrive reads and a limited writer for nested folders, HTML rename and HTML/empty-folder moves. Every affected ancestor and item must have a supported local representation. Items observed as offline/partial and unsupported links remain rejected. Directory enumeration and rename may involve provider communication, population or waits; zero communication is not guaranteed. Unknown outcomes preserve files: refresh before another attempt. Nonempty-folder moves, anchored drops, reorder and trash remain restricted. See [cloud-folder limitations](docs/known-limitations.md#cloud-folders-and-links).
 
 ## Mogledge and a web browser
 

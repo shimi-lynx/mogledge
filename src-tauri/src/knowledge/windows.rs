@@ -6,10 +6,7 @@ use super::reparse::PathInfo;
 mod cloud_write;
 use cap_std::fs::{Dir, File, OpenOptions};
 pub(crate) use cloud_write::CloudWriteOutcome;
-pub(crate) use cloud_write::{
-    create_folder as create_cloud_folder, create_html as create_cloud_html,
-    move_leaf as move_cloud_leaf,
-};
+pub(crate) use cloud_write::{create_folder as create_cloud_folder, move_leaf as move_cloud_leaf};
 use std::{
     ffi::{c_void, OsString},
     fs, io,

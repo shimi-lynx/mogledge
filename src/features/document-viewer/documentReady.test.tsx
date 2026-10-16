@@ -28,7 +28,7 @@ it.each(["mogledge", "my-knowledge"])(
       openDocument: async () => url,
       listen: async () => () => {},
       performFileAction: async () => {},
-      mutateTree: async () => ({ snapshot, createdPath: null, moves: [], warning: null }),
+      mutateTree: async () => ({ snapshot, moves: [], warning: null }),
     };
     const controller = new KnowledgeController(api);
     await controller.start();

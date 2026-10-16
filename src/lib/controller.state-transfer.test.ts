@@ -75,7 +75,7 @@ function setup(set = workingSet()) {
       listener = callback;
       return () => {};
     }),
-    mutateTree: vi.fn(async () => ({ snapshot, moves: [], createdPath: null, warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
     getWorkspaceSets: vi.fn(async () => sets),
     resolveWorkspaceSet: vi.fn(async () => resolved),

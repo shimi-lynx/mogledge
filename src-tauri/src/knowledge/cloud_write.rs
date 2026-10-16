@@ -7,7 +7,7 @@ use super::{
 use cap_std::fs::Dir;
 use std::{
     fs::File,
-    io::{self, Write},
+    io,
     os::windows::{
         fs::OpenOptionsExt,
         io::{AsRawHandle, FromRawHandle},
@@ -298,7 +298,7 @@ fn open_leaf(
             Foundation::{HANDLE, OBJ_CASE_INSENSITIVE, UNICODE_STRING},
             Storage::FileSystem::{
                 DELETE, FILE_ATTRIBUTE_NORMAL, FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES,
-                FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_TRAVERSE, FILE_WRITE_DATA, SYNCHRONIZE,
+                FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_TRAVERSE, SYNCHRONIZE,
             },
             System::IO::IO_STATUS_BLOCK,
         },
@@ -323,14 +323,12 @@ fn open_leaf(
         | SYNCHRONIZE
         | if directory {
             FILE_LIST_DIRECTORY | FILE_TRAVERSE
-        } else if create {
-            FILE_WRITE_DATA
         } else {
             Default::default()
         }
         | if rename { DELETE } else { Default::default() };
     // NO_RECALL is incompatible with DIRECTORY_FILE. Directory operations instead
-    // retain resident list guards; files explicitly request NO_RECALL even at create.
+    // retain resident list guards; opening existing files explicitly requests NO_RECALL.
     let options = FILE_OPEN_REPARSE_POINT
         | FILE_SYNCHRONOUS_IO_NONALERT
         | if directory {
@@ -475,53 +473,6 @@ fn create_folder_with(
     })
 }
 
-pub(crate) fn create_html(
-    root: &Path,
-    dir: &Dir,
-    relative: &str,
-    name: &str,
-    content: &[u8],
-    before: impl FnOnce() -> Result<(), String>,
-) -> Result<CloudWriteOutcome, String> {
-    crate::tree_mutations::valid_name(name)?;
-    let parent = CloudParent::open(root, dir, relative).map_err(|e| error_message(&e))?;
-    parent.no_collision(name)?;
-    before()?;
-    parent.revalidate().map_err(|e| error_message(&e))?;
-    parent.no_collision(name)?;
-    // Reserved internal leaf is generated, never accepted from IPC. A collision
-    // stops the operation rather than retrying at another provider-controlled path.
-    let temporary = format!(".mogledge-{:016x}.tmp", rand::random::<u64>());
-    let Some(mut child) = open_leaf(&parent.dir, &temporary, false, true, true)? else {
-        return Ok(CloudWriteOutcome::Unknown);
-    };
-    let verified = (|| -> io::Result<()> {
-        let identity = handle_identity(child.as_raw_handle())?;
-        parent.verify_leaf(&temporary, &child, &identity, false)?;
-        child.write_all(content)?;
-        child.sync_all()?;
-        parent.verify_leaf(&temporary, &child, &identity, false)?;
-        parent.no_collision(name).map_err(io::Error::other)?;
-        rename_leaf(&parent.dir, name, &child)?;
-        parent.verify_leaf(name, &child, &identity, false)?;
-        if child.metadata()?.len() != content.len() as u64 {
-            return Err(denied(super::UNSUPPORTED));
-        }
-        Ok(())
-    })();
-    // Preserve staging/final leaf after any post-create failure. No cleanup,
-    // overwrite, copy/delete fallback or automatic retry is safe on Unknown.
-    #[cfg(test)]
-    if let Err(error) = &verified {
-        eprintln!("cloud HTML verification: {error}");
-    }
-    Ok(if verified.is_ok() {
-        CloudWriteOutcome::Verified
-    } else {
-        CloudWriteOutcome::Unknown
-    })
-}
-
 pub(crate) fn move_leaf(
     root: &Path,
     dir: &Dir,
@@ -625,12 +576,6 @@ mod tests {
             assert!(!called.get());
         }
         let called = std::cell::Cell::new(false);
-        assert!(create_html(&root, &dir, "", "new.html", b"synthetic", || {
-            called.set(true);
-            Ok(())
-        })
-        .is_err());
-        assert!(!called.get());
         assert_eq!(std::fs::read_dir(tmp.path()).unwrap().count(), 0);
         std::fs::write(tmp.path().join("source.html"), b"preserved").unwrap();
         assert!(

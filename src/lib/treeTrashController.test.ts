@@ -45,7 +45,7 @@ function fixture(failure = false, recreate = false, warning: string | null = nul
           ? snapshot.nodes
           : snapshot.nodes.filter((node) => node.relativePath !== mutation.source),
       };
-      return { snapshot, createdPath: null, moves: [], warning };
+      return { snapshot, moves: [], warning };
     }),
   };
   return {
@@ -77,7 +77,6 @@ it("keeps a committed trash rescan warning after revoking an open victim and rel
 
 it.each([
   { kind: "createFolder", parent: "", name: "unconfirmed" },
-  { kind: "createHtml", parent: "", name: "unconfirmed" },
   { kind: "renameHtml", source: "a.html", name: "unconfirmed" },
   { kind: "move", source: "a.html", parent: "Target" },
 ] as const)(
@@ -92,7 +91,6 @@ it.each([
       "操作が完了した可能性がありますが、確認を完了できませんでした。再試行や削除をせず、再読み込みで状態を確認してください";
     vi.mocked(api.mutateTree).mockResolvedValue({
       snapshot: { ...before.snapshot, revision: before.snapshot.revision + 1 },
-      createdPath: null,
       moves: [],
       warning,
     });
@@ -214,7 +212,6 @@ for (const order of [
     };
     const response = deferred<{
       snapshot: Snapshot;
-      createdPath: null;
       moves: [];
       warning: null;
     }>();
@@ -242,7 +239,7 @@ for (const order of [
       emit(event);
       await flush();
     }
-    response.resolve({ snapshot: next, createdPath: null, moves: [], warning: null });
+    response.resolve({ snapshot: next, moves: [], warning: null });
     if (order === "before-response-inflight") {
       await flush();
       expect(vi.mocked(api.openDocument).mock.calls.slice(before)).toHaveLength(2);

@@ -74,14 +74,12 @@ export type RecoveryCandidate = {
 export type PathMove = { from: string; to: string; revision: number };
 export type TreeMutation =
   | { kind: "trash"; source: string; revision: number }
-  | { kind: "createHtml"; parent: string; name: string }
   | { kind: "createFolder"; parent: string; name: string }
   | { kind: "renameHtml"; source: string; name: string }
   | { kind: "move"; source: string; parent: string; anchor?: string; after?: boolean }
   | { kind: "reorder"; source: string; anchor: string; after: boolean };
 export type MutationResult = {
   snapshot: Snapshot;
-  createdPath: string | null;
   moves: PathMove[];
   warning: string | null;
 };

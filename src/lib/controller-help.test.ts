@@ -30,7 +30,7 @@ function setup() {
     createTab: vi.fn(async () => `native-${++next}`),
     closeTab: vi.fn(async () => {}),
     openDocument: vi.fn(async (_workspace, _view, id) => `http://fixture/${id}`),
-    mutateTree: vi.fn(async () => ({ snapshot, createdPath: null, moves: [], warning: null })),
+    mutateTree: vi.fn(async () => ({ snapshot, moves: [], warning: null })),
     performFileAction: vi.fn(async () => {}),
     captureWorkspaceSet: vi.fn(async (): Promise<WorkspaceSets> => ({
       sets: [],
