@@ -583,7 +583,7 @@ it("retains iframe nodes, their parent, and DOM order when tabs reorder or cross
   expect(view.container.querySelector(".column-controls")).toBeNull();
 });
 
-it("keeps blank titlebar space draggable after either column collapses without marking tabs as caption", () => {
+it("keeps scrollbar input outside window dragging while blank space stays draggable after column collapse", () => {
   const { api } = controller();
   const initial = {
     ...state([tab("a"), tab("b", 1)]),
@@ -591,14 +591,18 @@ it("keeps blank titlebar space draggable after either column collapses without m
     columns: ["a", "b"] as [string, string],
   };
   const view = render(<TabStrip state={initial} controller={api} onEmpty={vi.fn()} />);
-  for (const blank of view.container.querySelectorAll(".tab-group, .tab-group-drop-target"))
+  for (const group of view.container.querySelectorAll(".tab-group"))
+    expect(group.getAttribute("data-tauri-drag-region")).toBe("false");
+  for (const blank of view.container.querySelectorAll(".tab-group-drop-target"))
     expect(blank.hasAttribute("data-tauri-drag-region")).toBe(true);
   expect(view.getByRole("tab", { name: "a.html" }).hasAttribute("data-tauri-drag-region")).toBe(
     false,
   );
   const dataTransfer = transfer();
   drag(view.getByRole("tab", { name: "a.html" }).closest(".tab-item")!, "dragstart", dataTransfer);
-  for (const blank of view.container.querySelectorAll(".tab-group, .tab-group-drop-target"))
+  for (const group of view.container.querySelectorAll(".tab-group"))
+    expect(group.getAttribute("data-tauri-drag-region")).toBe("false");
+  for (const blank of view.container.querySelectorAll(".tab-group-drop-target"))
     expect(blank.hasAttribute("data-tauri-drag-region")).toBe(false);
   for (const remaining of [tab("b"), tab("a")]) {
     view.rerender(

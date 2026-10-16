@@ -1,6 +1,64 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+for (const split of [false, true]) {
+  test(`overflowing tabs remain reachable and scroll independently in ${split ? "both columns" : "one column"}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 900, height: 800 });
+    await prepare(page);
+    for (let index = 0; index < 16; index++) {
+      await openDocument(page, index);
+      if (split && index >= 8) await moveToRight(page, index);
+    }
+    const groups = page.locator(".tab-group");
+    await expect(groups).toHaveCount(split ? 2 : 1);
+    for (const group of await groups.all()) {
+      // Tauri must leave scrollbar presses with the scroller; Native pointer QA is separate.
+      await expect(group).toHaveAttribute("data-tauri-drag-region", "false");
+      expect(await group.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
+        true,
+      );
+      await group.evaluate((element) => {
+        element.scrollLeft = 0;
+      });
+      const column = await group.getAttribute("data-column");
+      const otherColumn = page.locator(`.tab-group[data-column="${column === "0" ? 1 : 0}"]`);
+      const otherScroll = await otherColumn.evaluateAll((elements) =>
+        elements.map((element) => element.scrollLeft),
+      );
+      await group.hover();
+      await page.mouse.wheel(5000, 0);
+      await expect
+        .poll(() =>
+          group.evaluate(
+            (element) => element.scrollWidth - element.clientWidth - element.scrollLeft,
+          ),
+        )
+        .toBeLessThanOrEqual(2);
+      expect(
+        await otherColumn.evaluateAll((elements) => elements.map((element) => element.scrollLeft)),
+      ).toEqual(otherScroll);
+      const last = group.getByRole("tab").last();
+      expect(
+        await last.evaluate((element) => {
+          const tab = element.getBoundingClientRect();
+          const group = element.closest(".tab-group")!.getBoundingClientRect();
+          return tab.left >= group.left && tab.right <= group.right;
+        }),
+      ).toBe(true);
+      await last.click();
+      await expect(last).toHaveAttribute("aria-selected", "true");
+      await page.mouse.wheel(-5000, 0);
+      await expect.poll(() => group.evaluate((element) => element.scrollLeft)).toBe(0);
+      await group.getByRole("tab").first().press("End");
+      await expect(last).toHaveAttribute("aria-selected", "true");
+      await expect.poll(() => group.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    }
+    await page.screenshot({ path: `.tools/tab-overflow-${split ? "split" : "single"}.png` });
+  });
+}
+
 const documentKeyboard = readFileSync("src-tauri/src/document_server/keyboard.js", "utf8");
 const documentExportBridge = readFileSync("src-tauri/src/document_server/export.js", "utf8");
 const documentExportAdapter = readFileSync(".agents/skills/mogledge-html/assets/export.js", "utf8");
@@ -3500,7 +3558,7 @@ test("drag-only split target and cross-column drops preserve live frames without
   const rect = await zeroItem.boundingBox();
   await oneItem.dragTo(zeroItem, { targetPosition: { x: 2, y: rect!.height / 2 } });
   await expect(page.getByRole("tablist")).toHaveCount(1);
-  await expect(page.getByRole("tab")).toHaveText(["1.html", "0.html"]);
+  await expect(page.getByRole("tab")).toHaveText(["1", "0"]);
   expect(
     await zeroFrame!.evaluate(
       (element) => element === document.querySelector('iframe[title="Examples/0.html"]'),
