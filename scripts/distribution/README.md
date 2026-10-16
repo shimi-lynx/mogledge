@@ -37,6 +37,15 @@ builder. It rejects these external overrides instead of silently replacing
 them. The normal three-platform candidate entrypoint still requires its pinned
 Node version and the separately approved manual workflow conditions.
 
+## Candidate CI
+
+The manual candidate workflow uses two Rust jobs and a scoped, exact-key Rust cache;
+local commands retain one job. Source approval precedes cache restore, and only
+successful main builds save. A stable CI temporary directory keeps path-remapping
+flags reusable without accepting external Rust flags. Separate redacted Cargo HTML
+and JSON timings accompany the next normal build; no timing-only run is required.
+See [cache boundaries and comparison evidence](../../docs/binary-distribution.md#ci-compilation-caching-and-timings).
+
 ## Source paths and debugging
 
 The builder derives prefixes at execution time; no local prefix is committed or

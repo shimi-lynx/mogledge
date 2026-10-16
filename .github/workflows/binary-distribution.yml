@@ -74,10 +74,25 @@ jobs:
           rustup toolchain install 1.99.0 --profile minimal
           rustup target add "$BUILD_TARGET" --toolchain 1.99.0
           npm ci
+      - name: Prepare approved Rust cache and stable private build paths
+        id: rust-cache-plan
+        shell: bash
+        run: |
+          args=()
+          if [[ "$UPDATER_APP" == "true" ]]; then args+=(--updater-app); fi
+          node scripts/distribution/ci.mjs ${{ matrix.platform }} "${args[@]}"
+      - name: Restore matching Rust dependencies
+        id: rust-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ steps.rust-cache-plan.outputs.key }}
+          path: ${{ steps.rust-cache-plan.outputs.paths }}
       - name: Test distribution gates
         run: node --test scripts/distribution/*.test.mjs
       - name: Build, verify and package
         shell: bash
+        env:
+          MOGLEDGE_RUST_CACHE_HIT: ${{ steps.rust-cache.outputs.cache-hit == 'true' && 'hit' || 'miss' }}
         run: |
           args=()
           if [[ "$UPDATER_APP" == "true" ]]; then args+=(--updater-app); fi
@@ -90,3 +105,17 @@ jobs:
           if-no-files-found: error
           retention-days: 3
           compression-level: 0
+      - name: Upload redacted build timings separately from candidates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: success()
+        with:
+          name: Mogledge-build-timings-${{ matrix.platform }}-${{ github.sha }}
+          path: .tools/distribution/performance/*
+          if-no-files-found: error
+          retention-days: 3
+      - name: Save successful main Rust dependencies only
+        if: success() && github.ref == 'refs/heads/main' && steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ steps.rust-cache-plan.outputs.key }}
+          path: ${{ steps.rust-cache-plan.outputs.paths }}

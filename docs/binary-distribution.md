@@ -29,11 +29,33 @@ Both `cost_confirmed` and `license_reviewed` default to false; jobs run only whe
 | `macos-x64`             | `macos-15-intel`                     | Intel `Mogledge.app`, with an ad-hoc signature, in a ZIP                        |
 | `all`                   | Three separate runners, concurrently | Three separate artifacts                                                        |
 
-The workflow uses explicit native targets matching the [runner architectures](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). It does not produce a universal Mac binary or validate Rosetta compatibility. Builds use Node 24.11.0, Rust 1.99.0, npm/Cargo lockfiles and Cargo `jobs=1`, without E2E features. The workflow has `contents:read`, retains no checkout credentials, references no secrets and has no push, pull-request or tag trigger. It saves no dependency cache, and artifacts expire after three days. The separate macOS validation workflow is for Native QA.
+The workflow uses explicit native targets matching the [runner architectures](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). It does not produce a universal Mac binary or validate Rosetta compatibility. Builds use Node 24.11.0, Rust 1.99.0, npm/Cargo lockfiles and CI Cargo `jobs=2`, without E2E features. Local distribution commands retain `jobs=1`. The workflow has `contents:read`, retains no checkout credentials, references no secrets and has no push, pull-request or tag trigger. Scoped Rust caching is described below; artifacts expire after three days. The separate macOS validation workflow is unchanged and remains for Native QA.
 
 ZIP names follow `Mogledge_<version>_<platform>_<unsigned|adhoc>_<first 12 source SHA characters>.zip`. Each artifact also contains `SHA256SUMS.txt` and `manifest.json`. The ZIP includes the app, manifest, Mogledge's MIT `LICENSE`, third-party license and NOTICE files, required package sources, a `source.zip` of the exact application revision, and this guide.
 
 The manifest records the complete source SHA, product version, target and architecture, signature type, Node/Rust versions, executable and source ZIP SHA-256 hashes, and pending QA. Use the complete SHA to identify the source; a branch name can change.
+
+## CI compilation, caching and timings
+
+The candidate workflow uses two Cargo jobs within each platform, while `max-parallel: 3` continues to control independent OS jobs. It does not change local build parallelism, product features, signing or publication policy. No product-version increment is needed for this CI-only change.
+
+Cache preparation repeats the approved checkout/event/input SHA check and rejects dirty tracked source and external Rust flags before restore. The pinned GitHub-owned `actions/cache` restore/save actions are separate. Only a successful build dispatched on `refs/heads/main` saves a missing entry; approved non-main runs may restore but never save. Keys have no prefix fallback. They distinguish the platform's OS/architecture and target, complete Rust compiler identity, runner image, Cargo lock/manifest, toolchain and Cargo/Tauri configuration, vendored Wry bytes, distribution scripts/workflow, features and release profile. Build-root remapping inputs are hashed rather than exposed in keys. See the [official cache restore/save guidance](https://github.com/actions/cache/blob/main/restore/README.md).
+
+Only Cargo registry/index/source/git dependencies and the host/selected-target release `deps`, `build` and `.fingerprint` directories are cached. Credentials, the whole Cargo home/target, incremental data, bundles, NSIS, `.tools`, signing keys and separately signed distributions are outside the allowlist. There is no target or dependency staging copy. Cache misses or eviction require ordinary rebuilding; a cache hit is not artifact verification, and existing binary/material/privacy checks still run.
+
+CI sets `TMPDIR`, `TMP` and `TEMP` to a stable child of `RUNNER_TEMP` before constructing the remapping flags. This avoids the per-run macOS temporary path changing `CARGO_ENCODED_RUSTFLAGS` and invalidating otherwise compatible dependencies. The builder still generates its own flags, rejects external overrides and checks final binary paths. Local temporary paths and local caches are unchanged.
+
+The same normal build enables [Cargo `--timings`](https://doc.rust-lang.org/cargo/reference/timings.html). A separate three-day `Mogledge-build-timings-<platform>-<source SHA>` artifact contains a path-redacted `cargo-timing.html` and `build.json`: source, target/features/profile, jobs, cache hit/miss/key, compiler/runtime versions, compile/bundle phase wall times and builder duration. The existing candidate artifact and its three/four-file contract are unchanged. Unknown personal paths in the HTML fail closed rather than being uploaded. Cache/diagnostic outputs are never candidate payloads.
+
+For the next already-authorized normal build, compare each platform's job wall time, cache restore/save overhead and compressed size, Cargo total/critical units/concurrency, and compile/bundle phases. Separate cold from exact-hit runs and compare equivalent source/dependency/features/runner inputs. The earlier 0.9.0 [run 38733858598](https://github.com/shimi-lynx/mogledge/actions/runs/38733858598) provides the starting record:
+
+| Platform      | Job wall time | Rust compilation |
+| ------------- | ------------- | ---------------- |
+| Intel Mac     | 34m 15s       | 30m 20s          |
+| Windows x64   | 17m 55s       | 15m 54s          |
+| Apple Silicon | 13m 06s       | 11m 57s          |
+
+Local focused verification: `node --test scripts/distribution/*.test.mjs` passed 34 tests, with four explicit platform/opt-in skips; changed-file formatting, YAML parsing and diff checks passed. Fixtures cover local/CI job arguments, stable temp roots, cache-key separation, cache boundaries and trust ordering, rejected source/flags and timing-path privacy. No new Actions run, Native build, billing inspection or performance-only benchmark was performed. Actual cache reuse, timings artifacts, memory behavior and speedup on the three hosted runners remain unverified until that next normal build; do not infer a measured improvement from preparation alone.
 
 ## Build and packaging checks
 
