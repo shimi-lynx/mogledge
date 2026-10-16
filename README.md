@@ -6,9 +6,9 @@ Files created by your editor or external AI remain the source of truth. Search u
 
 ## Use Mogledge
 
-Download [Mogledge 0.9.1](https://github.com/shimi-lynx/mogledge/releases/tag/v0.9.1) for Windows x64, Intel Mac or Apple Silicon Mac. For a first Mac installation, choose your architecture's `.zip`; Windows uses the `*-setup.exe` installer. See the [verified distribution record](docs/production-distribution.md#actual-091-publication-and-minimum-verification) for source, hashes, OS trust limits and remaining device checks.
+Download [Mogledge 0.10.0](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.0) for Windows x64, Intel Mac or Apple Silicon Mac. For a first Mac installation, choose your architecture's `.zip`; Windows uses the `*-setup.exe` installer. See the [verified distribution record](docs/production-distribution.md#actual-0100-publication-and-minimum-verification) for source, hashes, OS trust limits and remaining device checks.
 
-In Mogledge 0.9.1, create a dedicated folder or register an existing folder through Settings, then select an HTML file. **Switch displayed folder** shows a child folder while preserving the registered folder used for saved input and tabs. Manage registrations through **Settings → Dedicated folders**. See [registered and displayed folders](docs/registered-folders.md). Use the title-bar **Features and usage** button for bundled offline help. Settings let you switch between English and Japanese; your selected language is preserved.
+In Mogledge 0.10.0, create a dedicated folder or register an existing folder through Settings, then select an HTML file. **Switch displayed folder** shows a child folder while preserving the registered folder used for saved input and tabs. Manage registrations through **Settings → Dedicated folders**. See [registered and displayed folders](docs/registered-folders.md). Use the title-bar **Features and usage** button for bundled offline help. Settings let you switch between English and Japanese; your selected language is preserved.
 
 - Open documents in one or two columns; moving a tab keeps its live HTML state.
 - Search static text, use quick open, favorites, recent documents and saved workspaces.
@@ -59,7 +59,7 @@ npm run tauri -- build --bundles app --config '{"bundle":{"macOS":{"signingIdent
 
 Default outputs are `src-tauri/target/release/mogledge.exe` and `src-tauri/target/release/bundle/macos/Mogledge.app`. The technical package and executable name is `mogledge`.
 
-Current source changes the application identifier to `com.shimilynx.mogledge` and starts a separate profile without automatically transferring old settings, saved input or WebView data. Old data stays intact. This identity change is unreleased; the published 0.9.1 binaries and their verification record are unchanged. Existing-installation update, login registration and OS permission behavior require separate Native checks before distribution; see the [profile and compatibility contract](docs/identifier-migration.md).
+Mogledge 0.10.0 uses `com.shimilynx.mogledge` and starts a separate profile without automatically transferring old settings, saved input or WebView data. Old data stays intact; published 0.9.1 artifacts and their verification record are unchanged. Bounded hosted-runner installation/update checks passed on all three platforms; existing-device updater UI, login-session and OS permission acceptance remain separate. Before updating a Mac with old login startup enabled, disable it in the old app; enable startup in Mogledge afterward. See the [profile and compatibility contract](docs/identifier-migration.md).
 
 See [first build and local instructions](docs/first-run.md) before preparing a new machine, and [updating and rollback](docs/update-guide.md) before replacing an existing app. Preserve custom `AGENTS.md`, `AGENTS.local.md`, `CLAUDE.md`, skills, HTML and profiles. `npm run build` creates only the frontend, not a complete desktop application.
 

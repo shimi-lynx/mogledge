@@ -1,6 +1,6 @@
 # Product identity and profile separation
 
-Current source uses `com.shimilynx.mogledge`, the `mogledge` executable/package, `mogledge_lib` library, and the Mogledge installer and login-startup name. This identity change is unreleased. The published 0.9.1 artifacts retain their recorded identity; source changes do not replace those binaries.
+Current source uses `com.shimilynx.mogledge`, the `mogledge` executable/package, `mogledge_lib` library, and the Mogledge installer and login-startup name. This identity is released in [0.10.0](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.0). Published 0.9.1 artifacts retain their recorded identity and remain unchanged.
 
 ## Profile contract
 
@@ -30,3 +30,5 @@ Required device checks include fresh-profile startup without old-data changes, W
 The first candidate run packaged all three platforms from `69c207b383c4289fa9045af647dcef3020cd37cb`, then failed in verification scripts. Existing pinned artifacts were reused to isolate the failures without rebuilding the application. The Mac window query needed an explicit Core Foundation array bridge. Windows metadata inspection needed to include hidden profile directories, and normal NSIS uninstall intentionally retained the install-location preference. The probe now verifies and resets only its own synthetic preference between independent fixtures. Normal close remains bounded to 15 seconds while allowing the renderer's session-flush listener to initialize. Source, hosted-runner, asset-hash, profile-alias and process-ownership guards remain enforced.
 
 [Apple Silicon run 38903107043](https://github.com/shimi-lynx/mogledge/actions/runs/38903107043) passed same-location bundle replacement, native window/current-profile startup and unchanged synthetic old-data/LaunchAgent checks. [Windows run 38904343608](https://github.com/shimi-lynx/mogledge/actions/runs/38904343608) passed fresh NSIS install/uninstall, exact 0.9.1 same-location update, unsupported-startup-command refusal, owned registry/Run/shortcut/AppUserModelID transitions, foreign-shortcut preservation, old-data preservation, new-profile startup and normal close. These results precede the Cmd+F correction and do not replace the final combined candidate checks. Intel, actual updater UI/signature handoff, physical Cmd+F and existing-device login/permission behavior are not established by these runs.
+
+The [final combined 0.10.0 distribution record](production-distribution.md#actual-0100-publication-and-minimum-verification) records successful Windows, Intel and Apple Silicon candidate checks and updater-signature/publication verification. Physical Mac Cmd+F and existing-device updater/login/permission acceptance remain separate.
