@@ -4,8 +4,8 @@ export const aiMessages: Readonly<Record<string, string>> = {
   ルートフォルダーの操作: "Root folder actions",
   "ファイル内容は添付しません。送信・実行は相手の画面で確認してください。":
     "File contents are not attached. Review the draft in the receiving app before sending or running it.",
-  "専用ルートを作業ディレクトリーにします。子フォルダー・ファイルは対象パスとして依頼文に含めます。依頼文が空でも対象と制作ガイドの案内を渡します。":
-    "The dedicated root is the working directory. Child folders and files are included as task targets. Empty requests still include the target and authoring-guide instructions.",
+  "専用ルートを作業ディレクトリーにします。子フォルダー・ファイルは対象パスとして依頼文に含めます。依頼文が空でも対象パスを渡します。":
+    "The dedicated root is the working directory. Child folders and files are included as task targets, even with an empty request.",
   "コピーには作業ルートと対象を含めます。相手側で作業ルートを選び、AIの入力欄に貼り付けてください。":
     "Copies include the working root and target. Choose that root in the receiving tool and paste into the AI input.",
   連携先: "Destination",

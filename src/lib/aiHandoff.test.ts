@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { aiCopyFailureMessage, aiDraft, type AiHandoffPreview } from "./aiHandoff";
 
-test("root cwd keeps child folders and files as targets with empty requests and guidance", () => {
+test("root cwd keeps child and file targets without appending optional guide metadata", () => {
   const root = "/fixture/日本語 root";
   const guide = "Read `.mogledge/html-authoring/GUIDE.md` and applicable instructions.";
   for (const path of [
@@ -17,11 +17,12 @@ test("root cwd keeps child folders and files as targets with empty requests and 
       revision: 1,
       guideInstruction: guide,
     };
-    for (const request of ["", " 日本語依頼 & ? # \n "]) {
-      const instruction = request ? request + "\n\n" + guide : guide;
-      expect(aiDraft(preview, request)).toBe(
-        path === root ? instruction : path + "\n\n" + instruction,
-      );
+    for (const guideInstruction of [undefined, guide]) {
+      for (const request of ["", " 日本語依頼 & ? # \n "]) {
+        expect(aiDraft({ ...preview, guideInstruction }, request)).toBe(
+          path === root ? request : request ? path + "\n\n" + request : path,
+        );
+      }
     }
   }
 });

@@ -4,13 +4,13 @@
 
 AI handoff uses the selected registered workspace root as the receiving tool's working directory. Child folders, deeper folders and files remain explicit task targets in the draft. The root selection uses the directory parameter without adding a duplicate path. Copy-only handoff states the working directory because the user must select it manually.
 
-Dedicated-folder guide composition also applies to an empty request. It directs the AI to check applicable Codex or Claude instructions from the working root to the target and additional instructions below directories it edits. Existing instruction files are never rewritten. Legacy unregistered folders keep their existing optional-guide behavior. Native path/root guards, preview equality checks, fixed receiving schemes, inert drafts, length checks and copy-error handling remain in place.
+Drafts preserve the user's request and selected target without automatically appending guide-reading or instruction-discovery paragraphs. This also applies when optional guide metadata is enabled. Existing guides, Skills and instruction files are never rewritten. Native path/root guards, preview equality checks, fixed receiving schemes, inert drafts, length checks and copy-error handling remain in place.
 
 The target is a task description, not an OS permission boundary. Root startup does not establish automatic discovery of nested instructions or Skills. No receiver trust or permission prompt is bypassed.
 
-## Focused verification
+## Earlier working-root verification
 
-Checks use Windows x64, current main `d2e6334c920046ae4562c18a8eec3fd86f7c65cc` plus the changes in this PR, existing dependency/build caches and one Cargo job. All paths, HTML and instructions in backend fixtures are synthetic.
+The following records apply to earlier PR source `48641b488ba6ba7b388145f4042c40a8447de0cd`, before automatic prompt paragraphs were removed. Checks used Windows x64, main `d2e6334c920046ae4562c18a8eec3fd86f7c65cc` plus that source, existing dependency/build caches and one Cargo job. All paths, HTML and instructions in backend fixtures are synthetic.
 
 | Scope                                                                                                                                                            | Command                                                                                                                                                                   | Result and limits                                                                                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22,6 +22,17 @@ Checks use Windows x64, current main `d2e6334c920046ae4562c18a8eec3fd86f7c65cc` 
 Receiving-client launch, actual draft receipt, clipboard, trust prompts and automatic instruction/Skill discovery were not exercised. macOS Native and a rebuilt desktop preview were not run. Existing user apps, profiles and authoring files were not changed.
 
 Both affected crates also passed `cargo clippy --lib --locked --offline --jobs 1 -- -D warnings` using their respective manifests. Each local crate was forced to recheck after switching source worktrees while dependency caches were retained.
+
+## Request-only prompt follow-up
+
+The generated preview, copied request and receiving-client draft now omit automatic guide-reading and instruction-discovery paragraphs. Root cwd, child/file targets, empty target requests and exact user text retain their working-root behavior. Optional guide metadata remains verified for preview validation but is not added to the prompt. Guides, Skills, instruction files and receiving-client permissions are unchanged.
+
+- The updated no-append regression failed on the earlier source before the fix.
+- `npm test -- src/lib/aiHandoff.test.ts src/app/AiHandoffDialog.test.tsx`: 24 passed, including optional guide metadata present/absent and Japanese/English dialog hints.
+- The backend command above: 10 passed, including enabled-guide metadata with empty requests to all three link destinations, raw user text and copied file targets. Only the backend test harness was compiled; no Native application was rebuilt.
+- `npm run check`, both Rust crate formatting checks and backend `cargo clippy --lib --locked --offline --jobs 1 -- -D warnings` passed.
+
+Receiving-client/Native UI acceptance remains unrun. The running integrated preview was not changed.
 
 ## Integration references
 

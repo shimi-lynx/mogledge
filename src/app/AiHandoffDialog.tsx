@@ -68,7 +68,7 @@ export default function AiHandoffDialog({
   const instructionHint =
     destination === "codexCli"
       ? "コピーには作業ルートと対象を含めます。相手側で作業ルートを選び、AIの入力欄に貼り付けてください。"
-      : "専用ルートを作業ディレクトリーにします。子フォルダー・ファイルは対象パスとして依頼文に含めます。依頼文が空でも対象と制作ガイドの案内を渡します。";
+      : "専用ルートを作業ディレクトリーにします。子フォルダー・ファイルは対象パスとして依頼文に含めます。依頼文が空でも対象パスを渡します。";
   const perform = async (copy: boolean) => {
     if (!preview || busy || submitting.current || composing.current) return;
     submitting.current = true;
@@ -159,14 +159,6 @@ export default function AiHandoffDialog({
       </label>
       <p className="ai-handoff-hint" id="ai-handoff-instruction-hint">
         {t(instructionHint)}
-        {preview?.guideInstruction && (
-          <span>
-            {" "}
-            {t(
-              "この作業フォルダーの設定に従い、制作ガイドを読む指示を追加します。入力した依頼文は保持します。",
-            )}
-          </span>
-        )}
       </p>
       {tooLong && (
         <p role="alert">

@@ -42,15 +42,7 @@ export const aiDestinations: { value: AiDestination; label: string; hint: string
     hint: "未送信の下書きをターミナルで開きます。確認後にEnterで送信します。本文5,000文字まで。初回の対話CLIで依頼文を送信した後にhandlerが登録されます。",
   },
 ];
-export function aiInstruction(preview: AiHandoffPreview, instruction: string) {
-  return preview.guideInstruction
-    ? instruction
-      ? instruction + "\n\n" + preview.guideInstruction
-      : preview.guideInstruction
-    : instruction;
-}
 export function aiDraft(preview: AiHandoffPreview, instruction: string) {
-  instruction = aiInstruction(preview, instruction);
   if (preview.selectedPath === preview.workingDirectory) return instruction;
   return instruction ? preview.selectedPath + "\n\n" + instruction : preview.selectedPath;
 }

@@ -775,8 +775,8 @@ pub fn set_enabled(
     result?;
     Ok(status_locked(core, &root))
 }
-// Called only inside the existing AI handoff gate. Managed folders always attach
-// the latest verified guide, including an otherwise empty folder prompt.
+// Called only inside the existing AI handoff gate. Keep verified guide metadata
+// in previews for validation; generated handoff text does not append it.
 pub(crate) fn guide_instruction_locked(
     core: &Core,
     workspace: &str,
@@ -1314,7 +1314,7 @@ mod tests {
         );
     }
     #[test]
-    fn trusted_native_guide_composition_preserves_raw_user_text_file_path_and_folder_cwd() {
+    fn trusted_native_guide_metadata_is_not_appended_to_handoff_requests() {
         use crate::ai_handoff::{
             self, Context as AiContext, Destination, DocumentContext, Request, RootContext,
             RootTarget,
@@ -1337,16 +1337,27 @@ mod tests {
             .as_ref()
             .unwrap()
             .contains("`.mogledge/html-authoring/GUIDE.md`"));
-        let guidance = current.guide_instruction.as_ref().unwrap();
-        for instruction in [
-            "AGENTS.override.md",
-            "AGENTS.md",
-            "CLAUDE.md",
-            "CLAUDE.local.md",
-            "additional instructions",
-            "does not grant filesystem access",
+        for destination in [
+            Destination::CodexApp,
+            Destination::ClaudeApp,
+            Destination::ClaudeCli,
         ] {
-            assert!(guidance.contains(instruction));
+            ai_handoff::perform(
+                &f.core,
+                &Request {
+                    context: root(),
+                    preview: current.clone(),
+                    instruction: String::new(),
+                    destination,
+                    copy: false,
+                },
+                |target| {
+                    assert!(!target.target.contains("&prompt="));
+                    assert!(!target.target.contains("&q="));
+                    Ok(())
+                },
+            )
+            .unwrap();
         }
         let raw = " 日本語 / path / $& \n\t ";
         let request = Request {
@@ -1368,10 +1379,7 @@ mod tests {
             let prompt = percent_encoding::percent_decode_str(query["prompt"])
                 .decode_utf8()
                 .unwrap();
-            assert_eq!(
-                prompt,
-                format!("{raw}\n\n{}", current.guide_instruction.as_ref().unwrap())
-            );
+            assert_eq!(prompt, raw);
             assert!(!prompt.starts_with(&current.selected_path));
             Ok(())
         })
@@ -1400,10 +1408,8 @@ mod tests {
                 assert_eq!(
                     target.target,
                     format!(
-                        "Working directory: {}\n\n{}\n\n{raw}\n\n{}",
-                        document.working_directory,
-                        document.selected_path,
-                        document.guide_instruction.as_ref().unwrap()
+                        "Working directory: {}\n\n{}\n\n{raw}",
+                        document.working_directory, document.selected_path,
                     )
                 );
                 Ok(())

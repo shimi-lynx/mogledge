@@ -128,8 +128,8 @@ fn preview_locked(core: &Core, context: &Context) -> Result<(Preview, ReferenceG
         Context::Root(context) => (&context.workspace_id, &context.view_id),
         Context::Document(context) => (&context.workspace_id, &context.view_id),
     };
-    preview.guide_instruction = crate::html_authoring::guide_instruction_locked(core, workspace, view, "")?
-        .map(|guide| format!("{guide}\nBefore starting on the target, check the instructions applicable from this working root to the target: AGENTS.override.md / AGENTS.md and configured fallback files for Codex, or CLAUDE.md / CLAUDE.local.md and applicable rules for Claude Code. Follow additional instructions under any directory you edit. Preserve existing instruction files. The target path describes the task; it does not grant filesystem access or override the AI tool's permissions."));
+    preview.guide_instruction =
+        crate::html_authoring::guide_instruction_locked(core, workspace, view, "")?;
     Ok((preview, guard))
 }
 
@@ -315,20 +315,16 @@ pub fn perform(
     };
     // Retain root or leaf/ancestor metadata handles through dispatch. The
     // workspace root is the cwd, independently of the selected task target.
-    let instruction = match &current.guide_instruction {
-        Some(guide) if request.instruction.is_empty() => guide.clone(),
-        Some(guide) => format!("{}\n\n{}", request.instruction, guide),
-        None => request.instruction.clone(),
-    };
+    let instruction = &request.instruction;
     let (action, target) = if request.copy {
         (
             file_actions::FileAction::CopyPath,
-            draft(&current, &instruction)?,
+            draft(&current, instruction)?,
         )
     } else {
         (
             file_actions::FileAction::OpenFolder,
-            deep_link(&current, &instruction, request.destination)?,
+            deep_link(&current, instruction, request.destination)?,
         )
     };
     path_guard.revalidate(&root, &dir)?;
