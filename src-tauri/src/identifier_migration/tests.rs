@@ -43,9 +43,16 @@ fn current_profile_reopens_its_own_settings_without_replacing_them() {
     let base = temp.path().canonicalize().unwrap();
     let config = base.join("config").join(CURRENT_IDENTIFIER);
     let local = base.join("local").join(CURRENT_IDENTIFIER);
+    let knowledge = base.join("knowledge");
     fs::create_dir_all(&config).unwrap();
-    let settings = b"{\"knowledgeRoot\":null}";
-    fs::write(config.join("settings.json"), settings).unwrap();
+    fs::create_dir(&knowledge).unwrap();
+    // Use the real settings writer: a null knowledgeRoot is invalid saved-root data.
+    let core = Core::new(19074);
+    core.settings_path.set(config.join("settings.json")).unwrap();
+    core.select(&knowledge, true).unwrap();
+    core.watcher.lock().unwrap().take();
+    drop(core);
+    let settings = fs::read(config.join("settings.json")).unwrap();
     for _ in 0..2 {
         let profile = prepare_current(&config, &local).unwrap();
         assert_eq!(profile.paths.settings, config.join("settings.json"));

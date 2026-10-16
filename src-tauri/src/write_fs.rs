@@ -253,7 +253,7 @@ pub fn open_at(
 ) -> io::Result<File> {
     use rustix::fs::{openat, Mode, OFlags};
     let _ = rename;
-    let mut flags = OFlags::NOFOLLOW
+    let flags = OFlags::NOFOLLOW
         | OFlags::CLOEXEC
         | OFlags::NONBLOCK
         | if directory {
@@ -264,9 +264,11 @@ pub fn open_at(
             OFlags::RDONLY
         };
     #[cfg(target_os = "linux")]
-    if !directory && !create {
-        flags |= OFlags::PATH;
-    }
+    let flags = if !directory && !create {
+        flags | OFlags::PATH
+    } else {
+        flags
+    };
     let file = File::from(openat(
         parent,
         name,

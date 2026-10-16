@@ -1,8 +1,7 @@
 use super::*;
-use crate::{
-    core::Core,
-    document_state::{self, DocumentState, Operation, StateRequest},
-};
+#[cfg(not(target_os = "macos"))]
+use crate::document_state::{self, Operation, StateRequest};
+use crate::{core::Core, document_state::DocumentState};
 use rusqlite::Connection;
 use std::fs;
 
