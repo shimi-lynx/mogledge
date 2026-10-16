@@ -90,6 +90,7 @@ jobs:
       - name: Test distribution gates
         run: node --test scripts/distribution/*.test.mjs
       - name: Build, verify and package
+        id: package
         shell: bash
         env:
           MOGLEDGE_RUST_CACHE_HIT: ${{ steps.rust-cache.outputs.cache-hit == 'true' && 'hit' || 'miss' }}
@@ -119,3 +120,16 @@ jobs:
         with:
           key: ${{ steps.rust-cache-plan.outputs.key }}
           path: ${{ steps.rust-cache-plan.outputs.paths }}
+      - name: Verify bounded installed update on the disposable hosted runner
+        if: inputs.updater_app
+        env:
+          EXPECTED_VERSION: "0.10.0"
+        run: node scripts/distribution/native-probe.mjs ${{ matrix.platform }}
+      - name: Upload redacted Native probe evidence separately from candidates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && inputs.updater_app && steps.package.outcome == 'success'
+        with:
+          name: Mogledge-native-probe-${{ matrix.platform }}-${{ github.sha }}
+          path: .tools/distribution/native-probe/*
+          if-no-files-found: error
+          retention-days: 3
