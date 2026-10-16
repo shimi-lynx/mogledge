@@ -282,6 +282,12 @@ pub fn inject(
     let descriptor = serde_json::json!({"version":1,"endpoint":format!("{}/s/{}/{}", core.origin, session.token, ENDPOINT),
         "maximumDocumentBytes":crate::storage_limits::maximum_document_bytes(),
         "available":core.document_state.get().is_some() && session.storage_identity.is_some()});
+    let descriptor = include_str!("storage-descriptor.js")
+        .replace("__MOGLEDGE_STORAGE_DESCRIPTOR__", &descriptor.to_string())
+        .replace(
+            "__MOGLEDGE_STORAGE_TOKEN__",
+            &serde_json::to_string(&session.token).unwrap(),
+        );
     let keyboard = include_str!("keyboard.js").replace(
         "__MOGLEDGE_KEYBOARD_TOKEN__",
         &serde_json::to_string(&session.token).unwrap(),
@@ -295,7 +301,7 @@ pub fn inject(
         &serde_json::to_string(&session.token).unwrap(),
     );
     let export_adapter = include_str!("../../../.agents/skills/mogledge-html/assets/export.js");
-    let script = format!("<script>(()=>{{const descriptor=Object.freeze({descriptor});for(const name of ['__MOGLEDGE_STORAGE_V1__','__MY_KNOWLEDGE_STORAGE_V1__'])Object.defineProperty(globalThis,name,{{value:descriptor,writable:false,configurable:false}});}})();{keyboard}{links}{export}{export_adapter}</script>");
+    let script = format!("<script>{descriptor}{keyboard}{links}{export}{export_adapter}</script>");
     // Preserve the leading doctype and standards mode. No source file is edited.
     let text = std::str::from_utf8(&bytes).unwrap_or_default();
     let offset = insertion_offset(text);

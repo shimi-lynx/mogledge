@@ -167,6 +167,7 @@ export type DocumentTab = {
   missing: boolean;
   error: string | null;
   storageHold?: { reason: string };
+  storageRequested?: boolean;
 };
 export type AppState = {
   stateTransfer?: import("./stateTransfer").TransferView;

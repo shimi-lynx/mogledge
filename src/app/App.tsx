@@ -457,7 +457,9 @@ export function App() {
   const rootName = rootFolderName(state.snapshot.rootPath) ?? t("ルート");
   const rootStorageHold = state.snapshot.storageHold;
   const visibleHeldDocuments = state.tabs.flatMap((tab) =>
-    tab.storageHold && (tab.id === state.columns[0] || (state.split && tab.id === state.columns[1]))
+    tab.storageHold &&
+    tab.storageRequested &&
+    (tab.id === state.columns[0] || (state.split && tab.id === state.columns[1]))
       ? [{ id: tab.id, path: tab.path, reason: tab.storageHold.reason }]
       : [],
   );

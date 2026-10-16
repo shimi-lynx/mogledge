@@ -1871,6 +1871,22 @@ export class KnowledgeController {
     this.finishHistory(id);
     void this.recordDisplay(id);
   }
+  documentStorageRequested(id: string, url: string) {
+    const tab = this.state.tabs.find((tab) => tab.id === id);
+    const record = this.requests.get(id);
+    if (
+      !tab ||
+      !record ||
+      tab.closing ||
+      record.closing ||
+      tab.url !== url ||
+      this.stopped ||
+      record.workspace !== this.state.snapshot.workspaceId ||
+      record.view !== this.state.snapshot.viewId
+    )
+      return;
+    this.updateTab(id, { storageRequested: true });
+  }
   private async recordDisplay(id: string) {
     this.recordHistoryDisplay(id);
     const tab = this.state.tabs.find((tab) => tab.id === id);
@@ -2620,7 +2636,13 @@ export class KnowledgeController {
       record.expectedIdentity = undefined;
       record.lazyDocument = undefined;
       record.sessionAdmitted = true;
-      this.updateTab(id, { url, deferred: false, dirty: this.state.snapshot.revision > revision });
+      this.updateTab(id, {
+        url,
+        deferred: false,
+        dirty: this.state.snapshot.revision > revision,
+        storageRequested: false,
+        storageHold: undefined,
+      });
       void this.checkDocumentStorage(id, record, native, request, url);
     } catch (error) {
       const latest = this.state.tabs.find((item) => item.id === id);

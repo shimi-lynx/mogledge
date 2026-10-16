@@ -55,6 +55,8 @@ vi.mock("../lib/bridge", () => {
     bridge: {
       getDocumentStateRecovery: vi.fn(),
       getDocumentStorageHold: vi.fn(),
+      getDocumentIdentityStatus: vi.fn(),
+      configureDocumentIdentity: vi.fn(async () => {}),
       recoverDocumentState: vi.fn(async () => {}),
       mutateTree: vi.fn(),
       performFileAction: vi.fn(async () => {}),
@@ -141,7 +143,9 @@ beforeEach(() => {
     ],
   });
   vi.mocked(bridge.beginView).mockResolvedValue(snapshot);
-  vi.mocked(bridge.openDocument).mockResolvedValue("http://127.0.0.1:9999/s/test/0.html");
+  vi.mocked(bridge.openDocument).mockResolvedValue(
+    `http://127.0.0.1:9999/s/${"a".repeat(64)}/0.html`,
+  );
   if (bridge.chooseDisplayFolder) vi.mocked(bridge.chooseDisplayFolder).mockResolvedValue(null);
   if (bridge.setDisplayFolder) vi.mocked(bridge.setDisplayFolder).mockResolvedValue(snapshot);
   if (bridge.getDocumentStateRecovery)
@@ -377,13 +381,65 @@ it("keeps the managed folder list open when registration fails", async () => {
   expect(bridge.chooseDisplayFolder).not.toHaveBeenCalled();
 });
 
-it("shows a document-specific storage hold even when the registered folder is confirmed", async () => {
+it.each(["DocumentIdentityMissing", "DocumentIdentityInvalid", "DocumentIdentityDuplicate"])(
+  "does not interrupt read-only HTML with %s guidance before storage is used",
+  async (reason) => {
+    vi.mocked(bridge.getDocumentStorageHold!).mockResolvedValue({ reason });
+    const view = render(<App />);
+    fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+    fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+    await waitFor(() => expect(bridge.getDocumentStorageHold).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(view.container.querySelector("iframe")).not.toBeNull();
+    expect(view.container.querySelector(".storage-hold-notice")).toBeNull();
+    expect(bridge.configureDocumentIdentity).not.toHaveBeenCalled();
+  },
+);
+
+function requestDocumentStorage(container: HTMLElement) {
+  const frame = container.querySelector("iframe")!;
+  const token = new URL(frame.src).pathname.split("/")[2];
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "null",
+        source: frame.contentWindow,
+        data: { type: "mogledge-storage-request-v1", token },
+      }),
+    );
+  });
+}
+
+it.each(["DocumentIdentityMissing", "DocumentIdentityInvalid", "DocumentIdentityDuplicate"])(
+  "shows the existing %s reason and confirmation controls after storage is requested",
+  async (reason) => {
+    vi.mocked(bridge.getDocumentStorageHold!).mockResolvedValue({ reason });
+    const view = render(<App />);
+    fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
+    fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+    await waitFor(() => expect(bridge.getDocumentStorageHold).toHaveBeenCalledOnce());
+    requestDocumentStorage(view.container);
+    const notice = (await view.findByText("保存データの利用を保留しています")).closest(
+      ".storage-hold-notice",
+    )!;
+    expect(notice.textContent).toContain("Examples/0.html");
+    expect(
+      within(notice as HTMLElement).getByRole("button", { name: "文書 ID を確認" }),
+    ).toBeTruthy();
+    expect(bridge.configureDocumentIdentity).not.toHaveBeenCalled();
+    expect(bridge.getDocumentIdentityStatus).not.toHaveBeenCalled();
+  },
+);
+
+it("shows a document-specific storage hold after an API request even when the registered folder is confirmed", async () => {
   vi.mocked(bridge.getDocumentStorageHold!).mockResolvedValue({
     reason: "StorageIdentityConfirmationRequired",
   });
   const view = render(<App />);
   fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
   fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+  await waitFor(() => expect(bridge.getDocumentStorageHold).toHaveBeenCalledOnce());
+  requestDocumentStorage(view.container);
   await view.findByText("保存データの利用を保留しています");
   expect(view.container.querySelector("iframe")).not.toBeNull();
   expect(view.container.querySelector(".storage-hold-notice")?.textContent).toContain(
@@ -399,6 +455,8 @@ it("keeps an inactive visible pane's hold notice scoped to that document when th
   const view = render(<App />);
   fireEvent.click(await view.findByRole("treeitem", { name: "Examples" }));
   fireEvent.click(await view.findByRole("treeitem", { name: "0 HTML" }));
+  await waitFor(() => expect(bridge.getDocumentStorageHold).toHaveBeenCalledOnce());
+  requestDocumentStorage(view.container);
   await view.findByText("保存データの利用を保留しています");
   fireEvent.contextMenu(view.getByRole("treeitem", { name: "1 HTML" }));
   fireEvent.click(view.getByRole("menuitem", { name: "右の列で開く" }));
