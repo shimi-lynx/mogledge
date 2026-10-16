@@ -1,6 +1,6 @@
 # Mogledge 0.10.1
 
-This patch combines three fixes with the dedicated-folder and local AI authoring guidance merged in #67. The product version advances once from 0.10.0 to 0.10.1; the identifier, executable names and existing profile remain unchanged. Candidate, signing and publication evidence will be recorded against their actual source commits. This preparation record does not establish a completed build, publication or installed-app update.
+[Mogledge 0.10.1](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.1) is published for Windows x64, Intel Mac and Apple Silicon from fixed binary source `19f8d035d19838d04574f6a8081a4374b77bdc1c`. This patch combines three fixes with the dedicated-folder and local AI authoring guidance merged in #67. The product version advances once from 0.10.0 to 0.10.1; the identifier, executable names and existing profile remain unchanged. Candidate, signing, publication and public readback evidence is recorded below; publication does not replace an installed user app.
 
 - The two remaining folder-creation buttons fill the sidebar action row in English and Japanese, including narrow sidebars.
 - Mac document find shows current/total counts, all-match and current-match highlights, zero results, bounded partial-result feedback and visibility refresh after resizing. See the [user guide](user-guide.md).
@@ -43,3 +43,25 @@ Signing pins only these reviewed candidates and the existing protected-main gate
 The reviewed verification artifact is `12056167290`, 149256456 bytes, SHA-256 `32161c082465a0abc3a651c8a410587b5099c29a40c8e7c37288673b6da6c037`, name `production-verified-0.10.1-38924844884-1`, expiring `2026-10-19T15:33:56Z`. The successful same-source/same-artifact signature verification is reused; publication independently revalidates the complete artifact, receipt, feed and signatures before writing.
 
 Only these verified-output pins enable publication. Binary source remains `19f8d035d19838d04574f6a8081a4374b77bdc1c`; candidate pins, public key/feed, protected-main gate, previous releases and workflow files are unchanged. This policy/evidence-only change requires no product bump, rebuild or re-signing. Public Release/tag/asset/latest readback remains pending at activation. Existing-device updater, login-session, permission and physical-key acceptance remains separate.
+
+## Actual 0.10.1 publication and minimum verification
+
+[Mogledge 0.10.1](https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.1), Release ID `415118272`, is public and latest with 12 uploaded assets. Its tag points to fixed binary source `19f8d035d19838d04574f6a8081a4374b77bdc1c`. [Publication run 38925277421](https://github.com/shimi-lynx/mogledge/actions/runs/38925277421), attempt 1, passed from tooling main `921409ad372fd9490bdd7b022781302ef5c461ee`. Earlier candidate and signing records bind the actual compiled source; later policy/documentation commits do not change those binaries.
+
+Readback confirmed Release/tag/latest identity, all 12 asset digests, receipt/checksum consistency and unchanged 0.10.0/0.9.1/0.9.0 release asset identities. Anonymous latest-feed SHA-256: `e146e7f8a3cdecf7d26919a2ba277b9f6839132cbf83d8c06938d7715aa33d7a`. The successful publication workflow anonymously downloaded the latest feed and all three updater payloads and compared their bytes with verified output. Post-publication checks confirmed all 12 public asset URLs returned HTTP 200 and the global latest route matched the tagged feed bytes. These checks do not establish an installed-device update.
+
+| Platform    | Published updater payload SHA-256                                  |
+| ----------- | ------------------------------------------------------------------ |
+| windows-x64 | `cbe49ec943f85236d33a1c2ca10aa039b67a5398eb5ad1d337e6956beead2ae6` |
+| macos-x64   | `76d33f0883ba78ab5c55ccdda625958b65f987bd9fe7bfc2860f81b4ad6547a7` |
+| macos-arm64 | `064077b6962a050e4d08192742643a018cc6a6056d51bb7768300e4fb4b32391` |
+
+Initial installation downloads:
+
+- [Mogledge_0.10.1_windows-x64_unsigned_updater_19f8d035d198-setup.exe](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_windows-x64_unsigned_updater_19f8d035d198-setup.exe)
+- [Mogledge_0.10.1_macos-x64_adhoc_updater_19f8d035d198.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_macos-x64_adhoc_updater_19f8d035d198.zip)
+- [Mogledge_0.10.1_macos-arm64_adhoc_updater_19f8d035d198.zip](https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_macos-arm64_adhoc_updater_19f8d035d198.zip)
+
+Windows remains without Authenticode; Mac bundles are ad-hoc signed without Developer ID/notarization. Updater signatures authenticate the reviewed payloads, not OS trust or device acceptance.
+
+The public verification receipt retains its pre-publication fields (`published: false`, `nativeUpdateTested: false`); actual public state and bounded hosted-runner checks are recorded separately. Existing local installations, settings and documents were not changed by these checks. Actual existing-device updater UI/signature handoff, login-session/permission behavior and physical-key/accessibility acceptance remain separate. Historical release records are preserved. Website publication is tracked separately.
