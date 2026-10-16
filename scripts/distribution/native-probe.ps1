@@ -6,17 +6,26 @@ param(
   [Parameter(Mandatory = $true)][string]$ExpectedVersion
 )
 $ErrorActionPreference = 'Stop'
+$stage = 'hosted-source-guard'
+trap {
+  $kind = $_.Exception.GetType().Name
+  $identifier = if ($_.FullyQualifiedErrorId -cmatch '^[A-Za-z0-9_.:,]+$') { $_.FullyQualifiedErrorId } else { 'unclassified' }
+  Write-Output ('MOGLEDGE_PROBE_ERROR=' + (@{ stage = $stage; kind = $kind; errorId = $identifier } | ConvertTo-Json -Compress))
+  exit 1
+}
+$binarySource = if ($env:PROBE_EXISTING_SOURCE_SHA -ceq '69c207b383c4289fa9045af647dcef3020cd37cb') { $env:PROBE_EXISTING_SOURCE_SHA } else { $env:GITHUB_SHA }
 # Refuse before reading a profile or registry. This is not a local test helper.
 if ($env:GITHUB_ACTIONS -cne 'true' -or $env:CI -cne 'true' -or
     $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
     $env:RUNNER_ARCH -cne 'X64' -or $env:GITHUB_REPOSITORY -cne 'shimi-lynx/mogledge' -or
     -not $env:RUNNER_TEMP -or -not $env:RUNNER_NAME -or
     $env:GITHUB_RUN_ID -notmatch '^\d+$' -or $env:GITHUB_RUN_ATTEMPT -notmatch '^\d+$' -or
-    $ExpectedSource -cnotmatch '^[a-f0-9]{40}$' -or $ExpectedSource -cne $env:GITHUB_SHA -or
-    $ExpectedSource -cne $env:EXPECTED_SOURCE_SHA -or $ExpectedVersion -cne $env:EXPECTED_VERSION -or
+    $ExpectedSource -cnotmatch '^[a-f0-9]{40}$' -or $ExpectedSource -cne $binarySource -or
+    $env:GITHUB_SHA -cne $env:EXPECTED_SOURCE_SHA -or $ExpectedVersion -cne $env:EXPECTED_VERSION -or
     $ExpectedVersion -cnotmatch '^0\.\d+\.\d+$' -or $ExpectedVersion -ceq '0.9.1') {
   throw 'Disposable matching approved GitHub-hosted Windows runner required'
 }
+$stage = 'fixture-guard'
 $temporary = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
 $fixture = [IO.Path]::GetFullPath($FixtureRoot)
 $expectedFixture = Join-Path $temporary "mogledge-native-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)-windows-x64"
@@ -24,12 +33,14 @@ if ($fixture -cne $expectedFixture -or -not (Test-Path -LiteralPath $fixture -Pa
     ((Get-Item -LiteralPath $fixture).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
   throw 'An exclusive ordinary runner temporary fixture is required'
 }
+$stage = 'candidate-output-guard'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 if (-not [StringComparer]::OrdinalIgnoreCase.Equals(
     [IO.Path]::GetFullPath($OutputDirectory),
     [IO.Path]::GetFullPath((Join-Path $repo '.tools/distribution/output')))) {
   throw 'Only the current candidate output is accepted'
 }
+$stage = 'candidate-manifest-guard'
 $manifest = Get-Content -LiteralPath (Join-Path $OutputDirectory 'manifest.json') -Raw | ConvertFrom-Json
 $config = Get-Content -LiteralPath (Join-Path $repo 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
 if ($manifest.sourceSha -cne $ExpectedSource -or $manifest.version -cne $ExpectedVersion -or
@@ -42,12 +53,14 @@ if ($manifest.sourceSha -cne $ExpectedSource -or $manifest.version -cne $Expecte
     $manifest.updateArchiveSha256 -cnotmatch '^[a-f0-9]{64}$') {
   throw 'Candidate manifest/configuration mismatch'
 }
+$stage = 'installer-hash-guard'
 $installer = Join-Path $OutputDirectory $manifest.updateArchive
 if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $manifest.updateArchiveSha256 -or
     [IO.Path]::GetFullPath($LegacyInstaller) -cne (Join-Path $fixture 'Mogledge_0.9.1_windows-x64_unsigned_updater_b07f0bab242a-setup.exe') -or
     (Get-FileHash -LiteralPath $LegacyInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne '64e5cce0274d16655ab6f1f263b84739b35fed4ca1e655b006ab78d93c8815ba') {
   throw 'Candidate or pinned legacy installer hash mismatch'
 }
+$stage = 'environment-profile-paths'
 $oldId = 'com.shimilynx.myknowledge'
 $newId = 'com.shimilynx.mogledge'
 $uninstallBase = 'Software\Microsoft\Windows\CurrentVersion\Uninstall'

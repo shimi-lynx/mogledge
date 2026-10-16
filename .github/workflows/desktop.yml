@@ -10,7 +10,7 @@ on:
         description: Focused backend changes, or the existing full macOS validation
         required: true
         type: choice
-        options: [focused, full]
+        options: [focused, full, artifact-probe]
         default: focused
       platform:
         description: Focused runner selection; full scope retains one macOS job
@@ -114,3 +114,40 @@ jobs:
         run: npm run tauri -- build --debug --features e2e-embedded --no-bundle
       - name: Native E2E (macOS)
         run: npm run test:e2e
+  artifact-probe:
+    if: inputs.cost_confirmed && inputs.scope == 'artifact-probe'
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-x64, macos-arm64]
+    runs-on: ${{ matrix.platform == 'windows-x64' && 'windows-2022' || 'macos-15' }}
+    timeout-minutes: 15
+    env:
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      PROBE_EXISTING_SOURCE_SHA: 69c207b383c4289fa9045af647dcef3020cd37cb
+      EXPECTED_VERSION: "0.10.0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify approved diagnostic tooling source
+        run: node scripts/verify-changes.mjs source
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.11.0
+      - name: Download the exact existing candidate without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/distribution/diagnose-existing.mjs ${{ matrix.platform }}
+      - name: Apply only the bounded Native probe
+        run: node scripts/distribution/native-probe.mjs ${{ matrix.platform }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: Native-diagnostic-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tools/distribution/native-probe/*
+          if-no-files-found: error
+          retention-days: 1

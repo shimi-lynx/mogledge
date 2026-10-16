@@ -63,7 +63,7 @@ export function requireCandidate(manifest, config, platform, source, env) {
     manifest.identifier !== CURRENT_ID ||
     manifest.productName !== "Mogledge" ||
     manifest.version !== config.version ||
-    manifest.sourceSha !== source ||
+    manifest.sourceSha !== (env.PROBE_EXISTING_SOURCE_SHA ?? source) ||
     manifest.platform !== platform ||
     manifest.updater !== true ||
     !/^[a-f0-9]{64}$/.test(manifest.executableSha256 ?? "") ||
@@ -146,7 +146,11 @@ async function downloadLegacy(platform, fixture) {
       signal: AbortSignal.timeout(60_000),
     },
   );
-  if (!response.ok) throw new Error("Pinned legacy asset download failed");
+  if (!response.ok) {
+    const error = new Error("Pinned legacy asset download failed");
+    error.code = `LegacyHTTP${response.status}`;
+    throw error;
+  }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (digest(bytes) !== asset.sha256) throw new Error("Pinned legacy asset hash mismatch");
   const destination = path.join(fixture, asset.name);
@@ -346,6 +350,10 @@ async function macProbe(platform, manifest, output, fixture, legacy, checks, rep
     report.processExitCode = child.exitCode;
     if (String(error.message).startsWith("Command failed: /usr/bin/osascript"))
       report.failureKind = "window-observation-command";
+    const detail = String(error.stderr ?? "").match(
+      /execution error: ([A-Za-z0-9_ .,:()'"<>+-]{1,250})/,
+    );
+    if (detail) report.observationDetail = detail[1];
   } finally {
     try {
       const current = child.pid ? macProcess(child.pid) : null;
@@ -377,6 +385,11 @@ async function main(platform) {
   const manifest = JSON.parse(await readFile(path.join(output, "manifest.json"), "utf8"));
   const config = JSON.parse(await readFile(path.join(repo, "src-tauri/tauri.conf.json"), "utf8"));
   requireCandidate(manifest, config, platform, source, process.env);
+  if (
+    process.env.PROBE_EXISTING_SOURCE_SHA &&
+    process.env.PROBE_EXISTING_SOURCE_SHA !== "69c207b383c4289fa9045af647dcef3020cd37cb"
+  )
+    throw new Error("Only the fixed original candidate may be diagnosed");
   await hash(path.join(output, manifest.updateArchive), manifest.updateArchiveSha256);
   const temporary = await realpath(process.env.RUNNER_TEMP);
   if ((await lstat(temporary)).isSymbolicLink())
@@ -393,7 +406,8 @@ async function main(platform) {
   const report = {
     schemaVersion: 1,
     platform,
-    sourceSha: source,
+    sourceSha: manifest.sourceSha,
+    toolingSha: source,
     version: manifest.version,
     legacySourceSha: OLD_SOURCE,
     legacyAssetSha256: legacyAssets[platform].sha256,
@@ -427,13 +441,22 @@ async function main(platform) {
             "-LegacyInstaller",
             legacy,
             "-ExpectedSource",
-            source,
+            manifest.sourceSha,
             "-ExpectedVersion",
             manifest.version,
           ],
           12 * 60_000,
         );
       } catch (error) {
+        const marker = String(error.stdout ?? "")
+          .split(/\r?\n/)
+          .find((line) => line.startsWith("MOGLEDGE_PROBE_ERROR="));
+        if (marker) {
+          const detail = JSON.parse(marker.slice("MOGLEDGE_PROBE_ERROR=".length));
+          if (/^[a-z-]+$/.test(detail.stage)) report.failedStage = detail.stage;
+          if (/^[A-Za-z0-9_.:,]+$/.test(detail.errorId)) report.errorId = detail.errorId;
+          if (/^[A-Za-z]+$/.test(detail.kind)) report.failureKind = detail.kind;
+        }
         const reasons = [
           ["Disposable matching approved", "hosted-source-guard"],
           ["exclusive ordinary runner temporary fixture", "fixture-guard"],
@@ -461,7 +484,9 @@ async function main(platform) {
     } else await macProbe(platform, manifest, output, fixture, legacy, checks, report);
     delete report.failedStage;
     report.status = "passed";
-  } catch {
+  } catch (error) {
+    const code = error.code ?? error.cause?.code;
+    if (/^[A-Za-z0-9_-]+$/.test(code ?? "")) report.failureKind = code;
     throw new Error(`Native ${platform} probe failed; uncompleted checks remain unverified`);
   } finally {
     await writeFile(
