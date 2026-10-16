@@ -79,15 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.10.0",
-    "verification_run_id": null,
-    "verification_tooling_sha": null,
-    "artifact_id": null,
-    "artifact_size": null,
-    "artifact_sha256": null,
-    "artifact_name": null,
-    "expires_at": null,
+    "verification_run_id": 38907799970,
+    "verification_tooling_sha": "d7c8873055e8c0bb50fcda79c108900614429193",
+    "artifact_id": 12049280732,
+    "artifact_size": 134227572,
+    "artifact_sha256": "570d1ae53d348411b358a4f6646356544e6db2b263990a8e4ae4c5e86368c3e0",
+    "artifact_name": "production-verified-0.10.0-38907799970-1",
+    "expires_at": "2026-10-19T13:27:06Z",
     "notes": "Use Mogledge technical identities and a separate new profile without automatically copying or deleting old settings, saved input or WebView data. Retain old HTML API compatibility, remove blank HTML creation from the app, and preserve sidebar expansion after scan or storage failures. Before updating a Mac with old login startup enabled, disable startup in the old app; enable it in Mogledge after updating. Existing OS permissions may require an explicit new grant. Windows is not Authenticode-signed; macOS uses ad-hoc signing without Developer ID or notarization. Full updater-UI and login-session device QA remains distinct from artifact/signature and bounded installed-update verification."
   }
 }
