@@ -1,0 +1,49 @@
+name: Deploy product site (manual)
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.repository == 'shimi-lynx/mogledge' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: site
+      - name: Stage only public site files
+        run: |
+          mkdir -p "$RUNNER_TEMP/pages"
+          cp site/index.html site/styles.css site/site.js site/.nojekyll "$RUNNER_TEMP/pages/"
+          cp -R site/assets "$RUNNER_TEMP/pages/assets"
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: ${{ runner.temp }}/pages
+          retention-days: 1
+
+  deploy:
+    needs: package
+    if: github.repository == 'shimi-lynx/mogledge' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
