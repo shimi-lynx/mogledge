@@ -66,11 +66,9 @@ export default function AiHandoffDialog({
   const draft = preview ? aiDraft(preview, instruction) : "";
   const tooLong = draft.length > aiDraftLimit(destination);
   const instructionHint =
-    preview?.kind === "folder"
-      ? destination === "codexCli"
-        ? "コピーにはフォルダーパスを含めます。作業ディレクトリーは相手側で選んでください。空欄ならパスだけをコピーします。"
-        : "フォルダーは作業ディレクトリーに指定します。本文には依頼文だけを渡し、空欄なら本文なしで開きます。コピーにはフォルダーパスも含めます。"
-      : "選択パスは依頼文に自動で含まれます。空欄ならパスだけを渡します。";
+    destination === "codexCli"
+      ? "コピーには作業ルートと対象を含めます。相手側で作業ルートを選び、AIの入力欄に貼り付けてください。"
+      : "専用ルートを作業ディレクトリーにします。子フォルダー・ファイルは対象パスとして依頼文に含めます。依頼文が空でも対象パスを渡します。";
   const perform = async (copy: boolean) => {
     if (!preview || busy || submitting.current || composing.current) return;
     submitting.current = true;
@@ -161,14 +159,6 @@ export default function AiHandoffDialog({
       </label>
       <p className="ai-handoff-hint" id="ai-handoff-instruction-hint">
         {t(instructionHint)}
-        {preview?.guideInstruction && (
-          <span>
-            {" "}
-            {t(
-              "この作業フォルダーの設定に従い、制作ガイドを読む指示を追加します。入力した依頼文は保持します。",
-            )}
-          </span>
-        )}
       </p>
       {tooLong && (
         <p role="alert">

@@ -43,7 +43,7 @@ test("keeps validated paths hidden and copies the empty request before explicit 
   expect(
     document.getElementById(screen.getByRole("textbox").getAttribute("aria-describedby")!)
       ?.textContent,
-  ).toBe("選択パスは依頼文に自動で含まれます。空欄ならパスだけを渡します。");
+  ).toContain("専用ルートを作業ディレクトリーにします");
   expect(perform).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "依頼文をコピー" }));
   await screen.findByText(/依頼文をコピーしました/);
@@ -231,8 +231,8 @@ test("native folder kind uses an empty or exact instruction draft and explains p
     ),
   );
   const hint = document.getElementById("ai-handoff-instruction-hint")!;
-  expect(hint.textContent).toContain("本文なしで開きます");
-  expect(hint.textContent).toContain("コピーにはフォルダーパスも含めます");
+  expect(hint.textContent).toContain("専用ルートを作業ディレクトリーにします");
+  expect(hint.textContent).toContain("依頼文が空でも対象パス");
   fireEvent.click(screen.getByRole("button", { name: "AIに渡す" }));
   await screen.findByText(/OSに開く操作を依頼しました/);
   expect(perform).toHaveBeenLastCalledWith({
@@ -262,7 +262,7 @@ test("native folder kind uses an empty or exact instruction draft and explains p
   fireEvent.change(screen.getByRole("combobox", { name: "連携先" }), {
     target: { value: "codexCli" },
   });
-  expect(hint.textContent).toContain("作業ディレクトリーは相手側で選んでください");
+  expect(hint.textContent).toContain("相手側で作業ルートを選び");
   fireEvent.change(input, { target: { value: instruction } });
   fireEvent.click(screen.getByRole("button", { name: "依頼文をコピー" }));
   await screen.findByText(/依頼文をコピーしました/);
@@ -276,22 +276,28 @@ test("native folder kind uses an empty or exact instruction draft and explains p
   act(() => {
     setLanguage("en");
   });
-  expect(hint.textContent).toContain("Copies include the folder path");
+  expect(hint.textContent).toContain("Copies include the working root and target");
   expect(
     screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Request (optional)" }).value,
   ).toBe(instruction);
   fireEvent.change(screen.getByRole("combobox", { name: "Destination" }), {
     target: { value: "claudeApp" },
   });
-  expect(hint.textContent).toContain("leave it blank to open an empty draft");
+  expect(hint.textContent).toContain("even with an empty request");
 });
 
-test("optional root guide counts toward the draft while preserving the raw request and unchanged OFF empty prompt", async () => {
+test("optional guide metadata is not appended or advertised in the request draft", async () => {
   const guide = "Before creating HTML read `../.mogledge/html-authoring/GUIDE.md`.";
-  const guided = { ...preview, kind: "folder" as const, guideInstruction: guide };
+  const guided = {
+    ...preview,
+    selectedPath: preview.workingDirectory,
+    kind: "folder" as const,
+    guideInstruction: guide,
+  };
   const api: AiHandoffApi = { prepare: vi.fn(async () => guided), perform: vi.fn(async () => {}) };
   setup(api);
-  await screen.findByText(/この作業フォルダーの設定に従い/);
+  await waitFor(() => expect(api.prepare).toHaveBeenCalled());
+  expect(screen.queryByText(/この作業フォルダーの設定に従い/)).toBeNull();
   const input = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "依頼文（任意）" });
   const raw = " 日本語 / $& / {path}\n\t ";
   fireEvent.change(input, { target: { value: raw } });
@@ -306,11 +312,12 @@ test("optional root guide counts toward the draft while preserving the raw reque
     }),
   );
   expect(input.value).toBe(raw);
-  expect(aiDraft(guided, raw)).toBe(raw + "\n\n" + guide);
+  expect(aiDraft(guided, raw)).toBe(raw);
+  expect(aiDraft(guided, "")).toBe("");
   expect(aiDraft({ ...guided, guideInstruction: undefined }, "")).toBe("");
   await act(() => setLanguage("en"));
   expect(input.value).toBe(raw);
-  expect(screen.getByText(/This folder is set to add an instruction/)).toBeTruthy();
+  expect(screen.queryByText(/This folder is set to add an instruction/)).toBeNull();
 });
 
 test("Codex CLI copy failure reports clipboard failure rather than link registration", async () => {

@@ -1,5 +1,31 @@
 import { expect, test } from "vite-plus/test";
-import { aiCopyFailureMessage } from "./aiHandoff";
+import { aiCopyFailureMessage, aiDraft, type AiHandoffPreview } from "./aiHandoff";
+
+test("root cwd keeps child and file targets without appending optional guide metadata", () => {
+  const root = "/fixture/日本語 root";
+  const guide = "Read `.mogledge/html-authoring/GUIDE.md` and applicable instructions.";
+  for (const path of [
+    root,
+    root + "/子 folder",
+    root + "/子 folder/孫",
+    root + "/子 folder/孫/a.html",
+  ]) {
+    const preview: AiHandoffPreview = {
+      selectedPath: path,
+      workingDirectory: root,
+      kind: path.endsWith(".html") ? "file" : "folder",
+      revision: 1,
+      guideInstruction: guide,
+    };
+    for (const guideInstruction of [undefined, guide]) {
+      for (const request of ["", " 日本語依頼 & ? # \n "]) {
+        expect(aiDraft({ ...preview, guideInstruction }, request)).toBe(
+          path === root ? request : request ? path + "\n\n" + request : path,
+        );
+      }
+    }
+  }
+});
 
 const clipboardFailure =
   "クリップボードにコピーできませんでした。入力した依頼文は保持しています。もう一度コピーしてください。";
