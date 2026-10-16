@@ -47,7 +47,7 @@ def source_context(workflow):
 
 
 def candidate_policy(config):
-    require(config["schema"] == 1 and config["version"] == "0.9.0", "Unexpected release version/schema")
+    require(config["schema"] == 1 and config["version"] == "0.9.1", "Unexpected release version/schema")
     require(config["approval"]["enabled"] is True, "Production signing disabled pending reviewed candidate pins")
     source = config["source_sha"]
     require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source) is not None, "Pinned binary source SHA required")
@@ -220,7 +220,7 @@ def publication_policy(config):
     candidate_policy(config)
     publication = config["publication"]
     require(publication["enabled"] is True, "Publication disabled pending reviewed verification artifact pins")
-    require(publication["tag"] == "v0.9.0", "Unexpected release tag")
+    require(publication["tag"] == "v0.9.1", "Unexpected release tag")
     require(type(publication["verification_run_id"]) is int and publication["verification_run_id"] > 0 and type(publication["artifact_id"]) is int and publication["artifact_id"] > 0 and type(publication["artifact_size"]) is int and 0 < publication["artifact_size"] <= signing.MAX_ARCHIVE, "Pinned verification run/artifact required")
     require(isinstance(publication["verification_tooling_sha"], str) and re.fullmatch(r"[0-9a-f]{40}", publication["verification_tooling_sha"]) is not None, "Pinned verification tooling SHA required")
     require(isinstance(publication["artifact_sha256"], str) and re.fullmatch(r"[0-9a-f]{64}", publication["artifact_sha256"]) is not None, "Pinned verification digest required")
@@ -309,7 +309,7 @@ def publish(verifier, destination):
     # Repeat artifact, crypto and signing-Environment protection checks before writes.
     publication_prepare(verifier, destination)
     approval(config)
-    for endpoint in ("git/ref/tags/v0.9.0", "releases/tags/v0.9.0"):
+    for endpoint in ("git/ref/tags/v0.9.1", "releases/tags/v0.9.1"):
         try:
             request(endpoint)
         except urllib.error.HTTPError as error:
@@ -317,8 +317,8 @@ def publish(verifier, destination):
             require(error.code == 404, "Unable to establish release/tag absence")
         else:
             require(False, "Existing release/tag requires separate review; no overwrite")
-    release = request("releases", "POST", {"tag_name": "v0.9.0", "target_commitish": config["source_sha"], "name": "Mogledge 0.9.0", "body": config["publication"]["notes"], "draft": True, "prerelease": False})
-    require(release["draft"] is True and release["tag_name"] == "v0.9.0" and release["target_commitish"] == config["source_sha"], "Unexpected draft release response")
+    release = request("releases", "POST", {"tag_name": "v0.9.1", "target_commitish": config["source_sha"], "name": "Mogledge 0.9.1", "body": config["publication"]["notes"], "draft": True, "prerelease": False})
+    require(release["draft"] is True and release["tag_name"] == "v0.9.1" and release["target_commitish"] == config["source_sha"], "Unexpected draft release response")
     release_id = release["id"]
     require(type(release_id) is int and release_id > 0, "Unexpected draft release identity")
     expected_names = {entry.name for entry in destination.iterdir()}
@@ -329,22 +329,22 @@ def publish(verifier, destination):
         require(uploaded["name"] == entry.name and uploaded["size"] == entry.stat().st_size and uploaded.get("digest") == digest and uploaded["state"] == "uploaded" and type(uploaded["id"]) is int, "Uploaded asset digest/size mismatch")
         expected_assets[entry.name] = (uploaded["id"], entry.stat().st_size, digest)
     draft = request(f"releases/{release_id}")
-    require(draft["id"] == release_id and draft["draft"] is True and draft["tag_name"] == "v0.9.0" and draft["target_commitish"] == config["source_sha"], "Draft release identity changed before publication")
+    require(draft["id"] == release_id and draft["draft"] is True and draft["tag_name"] == "v0.9.1" and draft["target_commitish"] == config["source_sha"], "Draft release identity changed before publication")
     assets = draft["assets"]
     require({asset["name"] for asset in assets} == expected_names and len(assets) == len(expected_names), "Draft asset scope mismatch")
     for asset in assets:
         require((asset["id"], asset["size"], asset.get("digest")) == expected_assets[asset["name"]] and asset["state"] == "uploaded", "Draft asset changed before publication")
     approval(config)
     try:
-        tag = request("git/ref/tags/v0.9.0")
+        tag = request("git/ref/tags/v0.9.1")
     except urllib.error.HTTPError as error:
         error.close()
         require(error.code == 404, "Unable to recheck tag absence before publication")
     else:
         require(tag["object"]["type"] == "commit" and tag["object"]["sha"] == config["source_sha"], "Release tag changed to an unreviewed source")
-    final = request(f"releases/{release_id}", "PATCH", {"draft": False, "make_latest": "true", "tag_name": "v0.9.0", "target_commitish": config["source_sha"]})
-    require(final["draft"] is False and final["tag_name"] == "v0.9.0", "Publication readback mismatch")
-    tag = request("git/ref/tags/v0.9.0")
+    final = request(f"releases/{release_id}", "PATCH", {"draft": False, "make_latest": "true", "tag_name": "v0.9.1", "target_commitish": config["source_sha"]})
+    require(final["draft"] is False and final["tag_name"] == "v0.9.1", "Publication readback mismatch")
+    tag = request("git/ref/tags/v0.9.1")
     require(tag["object"]["type"] == "commit" and tag["object"]["sha"] == config["source_sha"], "Published tag source mismatch")
     print("Release is public; checking anonymous feed and updater bytes")
     public_feed = signing.read_json(signing.download(f"https://github.com/{REPOSITORY}/releases/latest/download/latest.json", signing.MAX_METADATA))
@@ -353,7 +353,7 @@ def publish(verifier, destination):
         key = PLATFORMS[candidate["platform"]][2]
         public_payload = signing.download(public_feed["platforms"][key]["url"], signing.MAX_ARCHIVE)
         require(signing.sha256(public_payload) == signing.sha256((destination / candidate["update_archive"]).read_bytes()), "Anonymous updater bytes differ from verified assets")
-    print("Published verified Mogledge 0.9.0 assets and latest.json")
+    print("Published verified Mogledge 0.9.1 assets and latest.json")
 
 
 def main():
