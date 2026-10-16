@@ -504,8 +504,7 @@ async function unchangedFrames(before: Awaited<ReturnType<typeof stampFrames>>) 
   });
 
   it("keeps external HTML search results current after Native reorder and move mutations", async function () {
-    if (process.env.MOGLEDGE_TEST_BINARY || !process.env.MOGLEDGE_E2E_ACTION_CAPTURE)
-      this.skip();
+    if (process.env.MOGLEDGE_TEST_BINARY || !process.env.MOGLEDGE_E2E_ACTION_CAPTURE) this.skip();
     const identifier = randomUUID().replaceAll("-", "");
     const rootName = "search-native-mutations-" + identifier;
     await mutate({ kind: "createFolder", parent: "", name: rootName });

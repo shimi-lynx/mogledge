@@ -60,6 +60,29 @@ test("autostart displays the actual OS state and preserves an explicit unknown s
   await screen.findByText("The OS autostart registration state is unknown");
   expect((await screen.findByRole("alert")).textContent).toContain("Could not restore");
 });
+
+test.each(["en", "ja"] as const)(
+  "legacy macOS autostart gives manual guidance without registering on page load in %s",
+  async (language) => {
+    setLanguage(language);
+    const native = api({
+      ...initial,
+      startupRegistered: null,
+      error: "ResidentStartupLegacyRegistration",
+    });
+    render(<ResidentSettings api={native} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain(
+      language === "en"
+        ? "Disable autostart in the old app before updating"
+        : "更新前に旧アプリで自動起動を解除",
+    );
+    expect(alert.textContent).toContain(
+      language === "en" ? "enable it in Mogledge afterward" : "更新後にMogledgeで有効",
+    );
+    expect(native.update).not.toHaveBeenCalled();
+  },
+);
 test("reading the resident page never enables registration; manual permission settings require a click", async () => {
   const native = api();
   render(<ResidentSettings api={native} />);
