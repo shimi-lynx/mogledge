@@ -48,7 +48,9 @@ fn current_profile_reopens_its_own_settings_without_replacing_them() {
     fs::create_dir(&knowledge).unwrap();
     // Use the real settings writer: a null knowledgeRoot is invalid saved-root data.
     let core = Core::new(19074);
-    core.settings_path.set(config.join("settings.json")).unwrap();
+    core.settings_path
+        .set(config.join("settings.json"))
+        .unwrap();
     core.select(&knowledge, true).unwrap();
     core.watcher.lock().unwrap().take();
     drop(core);
