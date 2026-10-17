@@ -56,6 +56,9 @@ function renameLegacy(links) {
     else if (line === "Pop $0") values.$0 = stack.pop();
     else if (line.startsWith("!insertmacro SetShortcutTarget ")) {
       if (links.has(args[0])) links.get(args[0]).target = args[1];
+    } else if (line.startsWith("!insertmacro RepairLegacyShortcutIcon ")) {
+      const link = links.get(args[0]);
+      if (link?.icon === "old.exe") link.icon = "new.exe";
     } else if (line.startsWith("!insertmacro SetLnkAppUserModelId ")) {
       if (links.has(args[0])) links.get(args[0]).appId = "com.shimilynx.mogledge";
     } else if (line.startsWith("Delete ")) links.delete(args[0]);
@@ -90,18 +93,59 @@ for (const existing of [undefined, "old.exe", "new.exe", "foreign.exe"]) {
   });
 }
 
+for (const existing of [undefined, "old.exe", "new.exe", "foreign.exe"]) {
+  for (const icon of ["old.exe", "custom.ico", ""]) {
+    test(`migration preserves or repairs explicit icon ${icon || "default"} with target ${existing ?? "absent"}`, () => {
+      const links = new Map([
+        ["old.lnk", { target: "old.exe", appId: "legacy", icon, description: "Keep metadata" }],
+      ]);
+      if (existing)
+        links.set("new.lnk", {
+          target: existing,
+          appId: "existing",
+          icon,
+          description: "Keep metadata",
+        });
+      const foreign = existing === "foreign.exe" ? { ...links.get("new.lnk") } : undefined;
+      renameLegacy(links);
+      const owned = links.get(existing === "foreign.exe" ? "old.lnk" : "new.lnk");
+      assert.equal(owned.target, "new.exe");
+      assert.equal(owned.icon, icon === "old.exe" ? "new.exe" : icon);
+      assert.equal(owned.description, "Keep metadata");
+      if (foreign) assert.deepEqual(links.get("new.lnk"), foreign);
+    });
+  }
+}
+
 test("retargeting current-name links also updates their bundle identity", () => {
   const functions = template.slice(template.indexOf("Function CreateOrUpdateStartMenuShortcut"));
   const targets = [
     ...functions.matchAll(
-      /!insertmacro SetShortcutTarget "([^"]+)"[^\r\n]*\r?\n\s*!insertmacro SetLnkAppUserModelId "\1"/g,
+      /!insertmacro SetShortcutTarget "([^"]+)"[^\r\n]*\r?\n\s*!insertmacro RepairLegacyShortcutIcon "\1"\r?\n\s*!insertmacro SetLnkAppUserModelId "\1"/g,
     ),
   ];
   assert.equal(
     targets.length,
     3,
-    "start-menu folder, root start menu and desktop must update AUMID with target",
+    "start-menu folder, root start menu and desktop must repair the old icon and update AUMID with target",
   );
+});
+
+test("icon repair is limited to the retired executable and all owned retarget paths use it", () => {
+  const repair = template.match(
+    /!macro RepairLegacyShortcutIcon shortcut\r?\n([\s\S]*?)!macroend/,
+  )?.[1];
+  assert.ok(repair);
+  assert.match(repair, /IShellLink::GetIconLocation/);
+  assert.match(repair, /\$\{AndIf\} \$2 == "\$INSTDIR\\\$\{LEGACYBINARY\}"/);
+  assert.match(repair, /IShellLink::SetIconLocation.*MAINBINARYNAME.*0/);
+  const retargets = [
+    ...template.matchAll(
+      /!insertmacro SetShortcutTarget "([^"]+)"[^\r\n]*\r?\n\s*!insertmacro RepairLegacyShortcutIcon "\1"/g,
+    ),
+  ];
+  assert.equal(retargets.length, 6);
+  assert.equal([...template.matchAll(/!insertmacro SetShortcutTarget /g)].length, 6);
 });
 
 test("shortcut helpers finish retargeting all current-name links before returning", () => {

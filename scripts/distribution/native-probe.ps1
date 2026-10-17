@@ -180,8 +180,9 @@ function Assert-Shortcut([string]$File, [string]$Target) {
   $shell = New-Object -ComObject Shell.Application
   $item = $shell.Namespace((Split-Path $File -Parent)).ParseName((Split-Path $File -Leaf))
   if ($shortcut.TargetPath -ine $Target -or $shortcut.Arguments -cne '' -or
+      $shortcut.IconLocation -notin @('', ',0', ($Target + ',0')) -or
       $item.ExtendedProperty('System.AppUserModel.ID') -cne $newId) {
-    throw 'Shortcut target, arguments or AppUserModelID mismatch'
+    throw 'Shortcut target, icon, arguments or AppUserModelID mismatch'
   }
 }
 function Assert-CurrentInstall([string]$Directory) {
@@ -268,6 +269,8 @@ try {
   $sentinels = Get-SentinelSnapshot $oldProfiles
   $legacyLink = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop 'My Knowledge.lnk'))
   $legacyLink.TargetPath = $oldExecutable
+  # An explicit old icon survives SetPath; exercise its repair after the rename.
+  $legacyLink.IconLocation = $oldExecutable + ',0'
   $legacyLink.Save()
   $foreignTarget = Join-Path $fixture 'foreign-shortcut-target.txt'
   [IO.File]::WriteAllText($foreignTarget, 'Synthetic shortcut target; never execute')
