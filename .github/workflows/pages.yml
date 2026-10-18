@@ -27,6 +27,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/pages"
           cp site/index.html site/styles.css site/site.js site/sitemap.xml site/.nojekyll "$RUNNER_TEMP/pages/"
           cp -R site/assets "$RUNNER_TEMP/pages/assets"
+          mkdir -p "$RUNNER_TEMP/pages/ja"
+          cp site/ja/index.html "$RUNNER_TEMP/pages/ja/index.html"
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: ${{ runner.temp }}/pages

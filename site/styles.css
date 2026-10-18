@@ -107,6 +107,31 @@ button {
   justify-content: space-between;
   gap: 28px;
 }
+.header-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.site-header .language-switch {
+  gap: 12px;
+}
+.language-switch [aria-current="page"] {
+  color: var(--accent);
+  text-decoration: underline;
+}
+html:lang(ja) {
+  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+}
+html:lang(ja) h1 {
+  font-size: clamp(36px, 4.7vw, 64px);
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+html:lang(ja) h2,
+html:lang(ja) h3 {
+  letter-spacing: 0;
+  line-height: 1.4;
+}
 .wordmark {
   display: inline-flex;
   gap: 11px;
@@ -646,6 +671,14 @@ footer a {
   .site-header {
     min-height: 80px;
     gap: 15px;
+    flex-wrap: wrap;
+    padding-block: 18px;
+  }
+  .header-links {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
   }
   .wordmark {
     font-size: 19px;
@@ -658,7 +691,7 @@ footer a {
     gap: 17px;
     font-size: 12px;
   }
-  .site-header nav > a:first-child {
+  .site-header .main-navigation > a:first-child {
     display: none;
   }
   .hero {
