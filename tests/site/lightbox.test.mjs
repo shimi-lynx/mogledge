@@ -26,7 +26,9 @@ before(async () => {
       response.writeHead(404).end();
       return;
     }
-    const file = path.resolve(site, pathname.slice("/mogledge/".length) || "index.html");
+    let relative = pathname.slice("/mogledge/".length);
+    if (!relative || relative.endsWith("/")) relative += "index.html";
+    const file = path.resolve(site, relative);
     if (!file.startsWith(site) || !existsSync(file) || !statSync(file).isFile()) {
       response.writeHead(404).end();
       return;
@@ -46,8 +48,9 @@ after(async () => {
   await new Promise((resolve) => server?.close(resolve));
 });
 
-async function openScreenshot(page) {
-  await page.goto(url);
+async function openScreenshot(page, language = "en") {
+  const pageURL = url + (language === "ja" ? "ja/" : "");
+  await page.goto(pageURL);
   const link = page.locator(".screenshot a").nth(2);
   await link.scrollIntoViewIfNeeded();
   // Finish the site's smooth scrolling before measuring the return position.
@@ -61,15 +64,19 @@ async function openScreenshot(page) {
   const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   await link.focus();
   await link.click();
-  assert.equal(page.url(), url, "opening a screenshot must not navigate to the raw image");
-  const dialog = page.getByRole("dialog", { name: "Screenshot preview" });
+  assert.equal(page.url(), pageURL, "opening a screenshot must not navigate to the raw image");
+  const dialog = page.getByRole("dialog", {
+    name: language === "ja" ? "画像プレビュー" : "Screenshot preview",
+  });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Close image" })).toBeFocused();
+  await expect(
+    dialog.getByRole("button", { name: language === "ja" ? "画像を閉じる" : "Close image" }),
+  ).toBeFocused();
   assert.equal(
     await dialog.locator("img").getAttribute("alt"),
     await link.locator("img").getAttribute("alt"),
   );
-  return { dialog, link, scroll };
+  return { dialog, link, scroll, pageURL };
 }
 
 async function expectRestored(page, state) {
@@ -85,7 +92,7 @@ async function expectRestored(page, state) {
       message: "restore the original horizontal scroll position",
     })
     .toBeCloseTo(state.scroll.x, 0);
-  assert.equal(page.url(), url);
+  assert.equal(page.url(), state.pageURL);
 }
 
 test("desktop close button returns to the screenshot and scroll position", async () => {
@@ -155,3 +162,23 @@ test("backdrop close restores focus and content clicks keep the dialog open", as
     await page.close();
   }
 });
+
+for (const width of [375, 1440]) {
+  test(`Japanese viewer closes and restores focus/scroll at ${width}px`, async () => {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    try {
+      const state = await openScreenshot(page, "ja");
+      const bounds = await state.dialog.getByRole("button", { name: "画像を閉じる" }).boundingBox();
+      assert.ok(bounds && bounds.height >= 44 && bounds.x >= 0 && bounds.y >= 0);
+      assert.ok(bounds.x + bounds.width <= width && bounds.y + bounds.height <= 900);
+      await page.keyboard.press("Escape");
+      await expectRestored(page, state);
+      await page.keyboard.press("Enter");
+      await expect(state.dialog).toBeVisible();
+      await state.dialog.getByRole("button", { name: "画像を閉じる" }).click();
+      await expectRestored(page, state);
+    } finally {
+      await page.close();
+    }
+  });
+}

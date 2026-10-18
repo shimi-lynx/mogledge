@@ -46,8 +46,8 @@
     <link rel="icon" href="../assets/mogledge-icon-48.png" type="image/png" sizes="48x48" />
     <link rel="icon" href="../assets/favicon.ico" type="image/x-icon" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="../assets/mogledge-icon-180.png" sizes="180x180" />
-    <link rel="stylesheet" href="../styles.css" />
-    <script src="../site.js" defer></script>
+    <link rel="stylesheet" href="../styles.css?v=bilingual-1" />
+    <script src="../site.js?v=bilingual-1" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">本文へ移動</a>
@@ -116,7 +116,7 @@
             <details>
               <summary>動画の内容を日本語で読む</summary>
               <p>
-                ツリーからローカルHTMLを開き、2列でページを見比べます。「AIに送る」から依頼を作成し、対応するChatGPT
+                ツリーからローカルHTMLを開き、2列でページを見比べます。「AIに渡す」から依頼を作成し、対応するChatGPT
                 / CodexアプリやClaude
                 Codeで未送信の下書きを確認します。保存APIで入力を明示的に保存する、操作可能なHTMLツールも利用できます。動画は0.9.0の画面例で、送信先の表示は簡略化されています。
               </p>
@@ -205,10 +205,10 @@
         </article>
         <article class="feature">
           <div class="feature-copy">
-            <p class="step">03 / AIに送る</p>
+            <p class="step">03 / AIに渡す</p>
             <h3>次のアイデアを、<br />依頼の下書きに。</h3>
             <p>
-              ファイルやフォルダーを右クリックして<strong>「AIに送る」</strong>を選び、依頼を入力します。対応する<strong
+              ファイルやフォルダーを右クリックして<strong>「AIに渡す」</strong>を選び、依頼を入力します。対応する<strong
                 >ChatGPT / Codexアプリ</strong
               >や<strong>Claude Code</strong>へ未送信の下書きを渡すか、コピー機能を使えます。
             </p>
@@ -216,7 +216,7 @@
               選択したパスや作業フォルダーが依頼の手掛かりになります。ファイルの内容は添付されず、依頼も自動送信されません。送信・実行の前に、下書きと受け取るツールの権限を確認してください。
             </p>
             <p>
-              同梱のSkillsとガイドには、Mogledgeの保存APIやHTML文書IDを扱うための、対応AI向けの説明があります。通常は自分で編集せず、「AIに送る」で希望を伝えます。必要ならローカルのガイドを読むようAIに依頼してください。ガイドの発見や正しい利用が保証されるわけではありません。
+              同梱のSkillsとガイドには、Mogledgeの保存APIやHTML文書IDを扱うための、対応AI向けの説明があります。通常は自分で編集せず、「AIに渡す」で希望を伝えます。必要ならローカルのガイドを読むようAIに依頼してください。ガイドの発見や正しい利用が保証されるわけではありません。
             </p>
           </div>
           <figure class="screenshot">
@@ -227,7 +227,7 @@
                 src="../assets/mogledge-send-to-ai.webp"
                 width="2048"
                 height="1299"
-                alt="送信先の選択と英語の依頼文を表示した「AIに送る」ダイアログの画面例。"
+                alt="送信先の選択と英語の依頼文を表示した「AIに渡す」ダイアログの画面例。"
                 loading="lazy"
                 decoding="async"
             /></a>
@@ -480,5 +480,14 @@ HTML、保存データ、バックアップを保護する、根拠のある確�
         ><a href="../sitemap.xml">サイトマップ</a>
       </div>
     </footer>
+    <dialog id="image-viewer" class="image-viewer" aria-labelledby="image-viewer-title">
+      <div class="image-viewer-toolbar">
+        <h2 id="image-viewer-title">画像プレビュー</h2>
+        <button id="close-image" type="button" autofocus>
+          画像を閉じる <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <img id="image-viewer-image" alt="" />
+    </dialog>
   </body>
 </html>

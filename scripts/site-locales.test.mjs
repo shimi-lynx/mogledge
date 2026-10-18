@@ -89,11 +89,22 @@ test("Japanese reuses English media and discloses its language and sample versio
   assert.match(japanese.querySelector("track").label, /英語/);
   assert.match(japanese.querySelector(".screenshot-note").textContent, /0\.9\.0.*英語UI/);
   assert.match(japanese.querySelector(".overview summary").textContent, /日本語/);
-  for (const image of japanese.images) assert.match(image.alt, /[ぁ-んァ-ヶ一-龠]/);
+  for (const image of japanese.querySelectorAll("img:not(#image-viewer-image)"))
+    assert.match(image.alt, /[ぁ-んァ-ヶ一-龠]/);
   for (const link of japanese.querySelectorAll(".screenshot a"))
     assert.match(link.getAttribute("aria-label"), /英語UI/);
   assert.equal(japanese.querySelector("video").hasAttribute("autoplay"), false);
   assert.equal(japanese.querySelector("video").getAttribute("preload"), "none");
+});
+
+test("Japanese screenshot dialog uses the shared viewer with localized accessible controls", () => {
+  const japanese = pages[1].document;
+  const dialog = japanese.getElementById("image-viewer");
+  assert.equal(dialog.tagName, "DIALOG");
+  assert.equal(dialog.getAttribute("aria-labelledby"), "image-viewer-title");
+  assert.equal(japanese.getElementById("image-viewer-title").textContent, "画像プレビュー");
+  assert.match(japanese.getElementById("close-image").textContent, /画像を閉じる/);
+  assert.equal(japanese.getElementById("image-viewer-image").getAttribute("alt"), "");
 });
 
 test("Japanese keeps startup trust, profile, storage and network limitations explicit", () => {
@@ -113,6 +124,7 @@ test("Japanese keeps startup trust, profile, storage and network limitations exp
   assert.match(button.dataset.copied, /コピーしました/);
   assert.match(button.dataset.copyFailed, /手動でコピー/);
   assert.match(japanese.getElementById("diagnostic-text").value, /保存データ.*バックアップ/);
+  assert.ok(text.includes("AIに渡す"), "Use the Japanese app's existing menu label");
 });
 
 test("local links, media and fragment destinations resolve under the repository base path", () => {

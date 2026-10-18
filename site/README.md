@@ -14,9 +14,9 @@ python3 -m http.server 4178 --directory site
 
 Open `http://localhost:4178/` or `http://localhost:4178/ja/`. Assets use relative URLs so the same files work under the repository's `/mogledge/` Pages path. Opening either HTML entry point directly also displays it; clipboard access can require a secure context, and failure selects the prompt for manual copying. Copy success/failure messages can be localized by the button's `data-copied` and `data-copy-failed` attributes; English remains the shared script's default.
 
-Screenshot links open a modal preview with a visible **Close image** button. Escape or the backdrop also closes it, restoring the originating link's focus and the original page position. Modified clicks and browsers without dialog support retain ordinary image-link behavior. Stylesheet/script revision queries avoid reusing cached pre-viewer files. No dependency or image asset is added.
+Screenshot links open a modal preview with a visible **Close image** / **画像を閉じる** button. Escape or the backdrop also closes it, restoring the originating link's focus and the original page position. Modified clicks and browsers without dialog support retain ordinary image-link behavior. Stylesheet/script revision queries avoid reusing cached pre-viewer files. No dependency or image asset is added.
 
-Run the focused browser regression with `node --test tests/site/lightbox.test.mjs` using the existing Playwright browser. Set `PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge. It covers desktop/mobile closing, Escape, reopening, focus and scroll restoration; it does not establish physical mobile or Native application behavior.
+Run `node --test scripts/site-locales.test.mjs` for language metadata, shared assets/downloads, local links and packaging. Run the focused browser regression with `node --test tests/site/lightbox.test.mjs` using the existing Playwright browser. Set `PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge. It covers English and Japanese closing, desktop/mobile layout, Escape, reopening, focus and scroll restoration; it does not establish physical mobile or Native application behavior.
 
 ## Publish
 
@@ -47,6 +47,8 @@ No product version bump is required: these files change only the external produc
 ## Verification scope
 
 Review responsive desktop/mobile layout, keyboard navigation, image loading, internal anchors, all three actual download assets and repository guide links. Check the diagnostic copy success and denied/unavailable fallback. Keep raw screenshots and machine-specific evidence outside tracked public files. A static browser preview does not establish desktop Native QA, OS trust or updater installation success. Pages deployment remains unrun until the merge, settings and manual run are authorized.
+
+Japanese-page checks cover nine static locale cases and six shared-viewer browser cases after integration with the existing screenshot dialog. English/Japanese layouts were reviewed at 320, 375, 768 and 1440 px; refined Japanese hero text was checked again at 320 and 1440 px. Both language links remained visible, images loaded and no horizontal overflow or page errors were observed. Four copy success/denial cases used a stubbed clipboard, and both language switches worked with JavaScript disabled and without following the browser's preferred language. Shared media/download URLs, favicons and the homepage verification tag were retained. These are site-only checks, not application, physical-mobile or release verification.
 
 Verified on October 16, 2026:
 
