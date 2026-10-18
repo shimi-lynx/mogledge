@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0f12" />
+    <meta
+      name="description"
+      content="MogledgeはWindows・Mac向けのローカルHTMLビューアーです。フォルダー、タブ、2列表示でHTMLツールを整理し、必要に応じてAIへの依頼や入力データの保存を利用できます。"
+    />
+    <title>Mogledge — Windows・Mac向けローカルHTMLビューアー</title>
+    <link rel="canonical" href="https://shimi-lynx.github.io/mogledge/ja/" />
+    <link rel="alternate" hreflang="en" href="https://shimi-lynx.github.io/mogledge/" />
+    <link rel="alternate" hreflang="ja" href="https://shimi-lynx.github.io/mogledge/ja/" />
+    <link rel="alternate" hreflang="x-default" href="https://shimi-lynx.github.io/mogledge/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mogledge" />
+    <meta property="og:title" content="Mogledge — Windows・Mac向けローカルHTMLビューアー" />
+    <meta
+      property="og:description"
+      content="手元のHTMLを、フォルダー・タブ・2列表示で使いやすく。Windows・Mac向けのローカルHTMLビューアーです。"
+    />
+    <meta property="og:url" content="https://shimi-lynx.github.io/mogledge/ja/" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta
+      property="og:image"
+      content="https://shimi-lynx.github.io/mogledge/assets/mogledge-overview-poster.webp"
+    />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="960" />
+    <meta property="og:image:height" content="540" />
+    <meta property="og:image:alt" content="Mogledgeで2つのローカルHTMLを並べた英語UIの画面例。" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mogledge — Windows・Mac向けローカルHTMLビューアー" />
+    <meta
+      name="twitter:description"
+      content="手元のHTMLを、フォルダー・タブ・2列表示で使いやすく。Windows・Mac向けのローカルHTMLビューアーです。"
+    />
+    <meta
+      name="twitter:image"
+      content="https://shimi-lynx.github.io/mogledge/assets/mogledge-overview-poster.webp"
+    />
+    <meta name="twitter:image:alt" content="Mogledgeで2つのローカルHTMLを並べた英語UIの画面例。" />
+    <link rel="icon" href="../assets/mogledge-icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="../assets/mogledge-icon-48.png" type="image/png" sizes="48x48" />
+    <link rel="icon" href="../assets/favicon.ico" type="image/x-icon" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="../assets/mogledge-icon-180.png" sizes="180x180" />
+    <link rel="stylesheet" href="../styles.css" />
+    <script src="../site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">本文へ移動</a>
+    <header class="site-header wrap">
+      <a class="wordmark" href="./" aria-label="Mogledge 日本語トップページ"
+        ><img
+          class="brand-icon"
+          src="../assets/mogledge-icon-96.png"
+          width="36"
+          height="36"
+          alt="Mogledgeのアプリアイコン"
+        />Mogledge</a
+      >
+      <div class="header-links">
+        <nav class="main-navigation" aria-label="メインナビゲーション">
+          <a href="#features">機能</a><a href="#start">起動・更新</a
+          ><a href="https://github.com/shimi-lynx/mogledge"
+            >GitHub <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+        <nav class="language-switch" aria-label="言語">
+          <a href="../" lang="en" hreflang="en">English</a
+          ><a href="./" lang="ja" hreflang="ja" aria-current="page">日本語</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main">
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <p class="eyebrow">
+          <span class="status-dot" aria-hidden="true"></span> WINDOWS・MACOS向け
+        </p>
+        <div class="hero-intro">
+          <div>
+            <h1 id="hero-title">手元のHTMLを、<br /><span>いつもの道具に。</span></h1>
+            <p class="hero-description">
+              手元のHTMLをフォルダーツリー、タブ、2列表示で開くビューアーです。文書、ダッシュボード、ミニアプリをまとめて使い、必要に応じてAIへの依頼や、対応するHTMLツールでの入力保存を利用できます。
+            </p>
+          </div>
+          <figure class="overview">
+            <video
+              controls
+              playsinline
+              preload="none"
+              width="1600"
+              height="900"
+              poster="../assets/mogledge-overview-poster.webp"
+              aria-label="Mogledgeの約27秒の紹介動画（英語UI）"
+              aria-describedby="overview-caption"
+            >
+              <source src="../assets/mogledge-overview.mp4" type="video/mp4" />
+              <track
+                kind="captions"
+                src="../assets/mogledge-overview.en.vtt"
+                srclang="en"
+                label="English（英語字幕）"
+              />
+              <p>
+                <a href="../assets/mogledge-overview.mp4"
+                  >Mogledgeの紹介動画を再生・ダウンロードする（英語UI）。</a
+                >
+              </p>
+            </video>
+            <figcaption id="overview-caption">
+              約27秒の紹介動画。再生ボタンで開始します。画面は英語UIです。
+            </figcaption>
+            <details>
+              <summary>動画の内容を日本語で読む</summary>
+              <p>
+                ツリーからローカルHTMLを開き、2列でページを見比べます。「AIに送る」から依頼を作成し、対応するChatGPT
+                / CodexアプリやClaude
+                Codeで未送信の下書きを確認します。保存APIで入力を明示的に保存する、操作可能なHTMLツールも利用できます。動画は0.9.0の画面例で、送信先の表示は簡略化されています。
+              </p>
+            </details>
+          </figure>
+        </div>
+        <aside class="trust-notice" id="download" aria-labelledby="trust-title">
+          <div>
+            <strong id="trust-title">起動・更新の前に</strong>
+            <p>
+              Windows版にはコード署名証明書がありません。Mac版はアドホック署名で、Appleの公証を受けていません。OSの保護機能によって起動やアプリ内更新が止まる場合があります。更新用の暗号署名は別途検証されますが、OSのコード署名を代替するものではありません。
+            </p>
+          </div>
+          <a href="#start">起動・復旧の注意点を読む <span aria-hidden="true">↓</span></a>
+        </aside>
+        <div class="download-heading">
+          <strong>0.10.1をダウンロード</strong><span>無料・オープンソース</span>
+        </div>
+        <div class="downloads" aria-label="Mogledge 0.10.1をダウンロード">
+          <a
+            class="download"
+            href="https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_windows-x64_unsigned_updater_19f8d035d198-setup.exe"
+            ><span>Windows <span aria-hidden="true">↓</span></span
+            ><small>x64・インストーラー</small></a
+          >
+          <a
+            class="download"
+            href="https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_macos-arm64_adhoc_updater_19f8d035d198.zip"
+            ><span>Mac・Apple Silicon <span aria-hidden="true">↓</span></span
+            ><small>Mシリーズ・アプリZIP</small></a
+          >
+          <a
+            class="download"
+            href="https://github.com/shimi-lynx/mogledge/releases/download/v0.10.1/Mogledge_0.10.1_macos-x64_adhoc_updater_19f8d035d198.zip"
+            ><span>Mac・Intel <span aria-hidden="true">↓</span></span
+            ><small>x64・アプリZIP</small></a
+          >
+        </div>
+        <figure class="hero-figure screenshot">
+          <a
+            href="../assets/mogledge-tree.webp"
+            aria-label="フォルダーツリーとHTML文書の画面を拡大（英語UI）"
+            ><img
+              src="../assets/mogledge-tree.webp"
+              width="2048"
+              height="1299"
+              alt="左にフォルダーツリー、右にローカルの案内HTMLを開いたMogledgeの英語UI。"
+              fetchpriority="high"
+          /></a>
+          <figcaption>
+            <span>01 / フォルダーとHTMLを、ひとつの場所に。</span><span>英語UI・0.9.0の画面例</span>
+          </figcaption>
+        </figure>
+      </section>
+      <section class="features wrap" id="features" aria-labelledby="features-title">
+        <div class="section-intro">
+          <p class="eyebrow">小さなアプリ、使いやすい置き場所</p>
+          <h2 id="features-title">HTMLファイルを、<br />いつもの道具に。</h2>
+          <p>
+            専用フォルダーに、HTMLツール、画像などの素材、AI向けの作成ガイドをまとめられます。プロジェクトごとに複数のフォルダーを作成・登録し、表示するフォルダーを選びます。HTMLそのものは、エディターや外部のAIで作成します。
+          </p>
+        </div>
+        <article class="feature">
+          <div class="feature-copy">
+            <p class="step">02 / 並べて見る</p>
+            <h3>ふたつの画面を、<br />一緒に。</h3>
+            <p>
+              資料を読みながらダッシュボードを確認する。タブや2列表示で文書を開き、動作中のHTMLの状態を保ちながらツールを切り替えられます。
+            </p>
+            <p class="fine-print">
+              画面に残っている状態は、保存済みのバックアップではありません。残したい入力は、それぞれのHTMLツールが明示的に保存する必要があります。
+            </p>
+          </div>
+          <figure class="screenshot">
+            <a href="../assets/mogledge-two-columns.webp" aria-label="2列表示の画面を拡大（英語UI）"
+              ><img
+                src="../assets/mogledge-two-columns.webp"
+                width="2048"
+                height="1299"
+                alt="案内文書とダッシュボードを2列で表示したMogledgeの英語UI。"
+                loading="lazy"
+                decoding="async"
+            /></a>
+            <figcaption>ひとつのワークスペースに、ふたつのHTML。</figcaption>
+          </figure>
+        </article>
+        <article class="feature">
+          <div class="feature-copy">
+            <p class="step">03 / AIに送る</p>
+            <h3>次のアイデアを、<br />依頼の下書きに。</h3>
+            <p>
+              ファイルやフォルダーを右クリックして<strong>「AIに送る」</strong>を選び、依頼を入力します。対応する<strong
+                >ChatGPT / Codexアプリ</strong
+              >や<strong>Claude Code</strong>へ未送信の下書きを渡すか、コピー機能を使えます。
+            </p>
+            <p>
+              選択したパスや作業フォルダーが依頼の手掛かりになります。ファイルの内容は添付されず、依頼も自動送信されません。送信・実行の前に、下書きと受け取るツールの権限を確認してください。
+            </p>
+            <p>
+              同梱のSkillsとガイドには、Mogledgeの保存APIやHTML文書IDを扱うための、対応AI向けの説明があります。通常は自分で編集せず、「AIに送る」で希望を伝えます。必要ならローカルのガイドを読むようAIに依頼してください。ガイドの発見や正しい利用が保証されるわけではありません。
+            </p>
+          </div>
+          <figure class="screenshot">
+            <a
+              href="../assets/mogledge-send-to-ai.webp"
+              aria-label="AIへの依頼ダイアログを拡大（英語UI）"
+              ><img
+                src="../assets/mogledge-send-to-ai.webp"
+                width="2048"
+                height="1299"
+                alt="送信先の選択と英語の依頼文を表示した「AIに送る」ダイアログの画面例。"
+                loading="lazy"
+                decoding="async"
+            /></a>
+            <figcaption>送信先を選び、変更したい内容を伝えます。</figcaption>
+          </figure>
+        </article>
+        <article class="feature">
+          <div class="feature-copy">
+            <p class="step">04 / 確認してから送信</p>
+            <h3>使うAIツールは、<br />自分で選ぶ。</h3>
+            <p>
+              Mogledgeは依頼を受け渡し、選んだツールがAIの処理を行います。Mogledge自身がAI
+              APIへ接続したり、文書を自動アップロードしたりすることはありません。
+            </p>
+            <p>
+              画面例はCodex内の下書きです。Claude
+              CodeやCLI向けの選択肢もあります。受け渡しの可否はOSや受け取るアプリのインストール・設定に依存し、ファイルへのアクセスは受け取ったツールが管理します。
+            </p>
+          </div>
+          <figure class="screenshot">
+            <a
+              href="../assets/mogledge-handoff.webp"
+              aria-label="Codex内の未送信の依頼を拡大（英語UI）"
+              ><img
+                src="../assets/mogledge-handoff.webp"
+                width="1976"
+                height="1239"
+                alt="ローカルのカンバンHTML作成を依頼する、未送信の英語の下書きをCodexに表示した画面例。"
+                loading="lazy"
+                decoding="async"
+            /></a>
+            <figcaption>受け取るアプリの例。内容を確認してから送信します。</figcaption>
+          </figure>
+        </article>
+        <article class="feature">
+          <div class="feature-copy">
+            <p class="step">05 / 文書からツールへ</p>
+            <h3>少しのJavaScriptで、<br />手元の便利な道具に。</h3>
+            <p>
+              ローカルのJavaScriptや相対パスの素材を使うHTMLを動かせます。計算機、可視化レポート、チェックリスト、小さなタスクボードなど。文書保存APIを使えば、HTMLソースとは別にJSONの入力データを明示的に保存できます。
+            </p>
+            <p>
+              保存処理はHTMLツール側で実装する必要があります。任意のJavaScriptやCanvasの状態が自動保存されるわけではありません。保存済みの入力を正常に復元してから、新しい保存を許可します。
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/shimi-lynx/mogledge/blob/main/docs/document-storage.md"
+              >保存APIのガイド（英語） <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <figure class="screenshot">
+            <a
+              href="../assets/mogledge-javascript-storage.webp"
+              aria-label="操作可能なカンバンツールを拡大（英語UI）"
+              ><img
+                src="../assets/mogledge-javascript-storage.webp"
+                width="2048"
+                height="1299"
+                alt="タスクカード、進捗、保存ボタンを備えたHTMLカンバンボードをMogledgeで表示した英語UIの画面例。"
+                loading="lazy"
+                decoding="async"
+            /></a>
+            <figcaption>JavaScriptと明示的な保存操作を備えた、HTMLツールの例。</figcaption>
+          </figure>
+        </article>
+        <p class="screenshot-note">
+          動画とスクリーンショットは、Mogledge
+          0.9.0の英語UIとサンプルHTMLです。0.10.1では表示や操作名が異なる場合があります。サンプルツールは作成したHTMLの例であり、Mogledgeの内蔵機能ではありません。
+        </p>
+      </section>
+      <section class="boundaries wrap" aria-labelledby="boundaries-title">
+        <p class="eyebrow">使える範囲を知る</p>
+        <h2 id="boundaries-title">手元のファイルを、<br />決まった権限の範囲で。</h2>
+        <div class="boundary-grid">
+          <div>
+            <h3>HTMLはサンドボックス内で動作します。</h3>
+            <p>
+              文書のHTMLでは、ローカルスクリプトや対応する相対パスの素材を利用できます。外部サイト、CDN、文書からの任意のネットワーク要求には制限があります。外部リンクは確認後、既定のブラウザーで開きます。
+            </p>
+            <p>
+              この制限は文書のHTMLに対するものです。デスクトップアプリの更新機能は、更新の確認とダウンロードに別途ネットワーク通信を利用します。
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/shimi-lynx/mogledge/blob/main/docs/security.md"
+              >権限と制限（英語） <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <div>
+            <h3>同じHTMLをブラウザーでも使えますか？</h3>
+            <p>
+              HTMLの内容とブラウザーの対応状況によります。標準機能で完結するHTMLは動作する場合があります。標準の保存アダプターにはブラウザー内の<code>localStorage</code>を使うフォールバックがあり、オリジン、権限、容量の制約を受けます。
+            </p>
+            <p>
+              ブラウザーとMogledgeの保存データは別で、自動同期されません。Mogledge固有のAPIを前提にするHTMLには適切な代替処理が必要です。ブラウザー向けの任意の保存コードを、そのままMogledgeで置き換えて使えるわけではありません。
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/shimi-lynx/mogledge/blob/main/docs/known-limitations.md"
+              >既知の制限（英語） <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </div>
+      </section>
+      <section class="start-section wrap" id="start" aria-labelledby="start-title">
+        <p class="eyebrow">起動・更新</p>
+        <h2 id="start-title">最初に開く前に、<br />知っておきたいこと。</h2>
+        <div class="start-grid">
+          <div class="startup-copy">
+            <h3>現在の署名について</h3>
+            <p>
+              <strong>Windows：</strong
+              >0.10.1にはWindowsのコード署名証明書がありません。<strong>Mac：</strong>アドホック署名で、Apple
+              Developer ID署名と公証はありません。
+            </p>
+            <p>
+              セキュリティ警告、起動のブロック、アプリ内更新の失敗が起こる場合があります。すべての端末で起こるわけではありません。更新機能が検証する別の暗号署名は、WindowsやAppleによる発行元の信頼を示すものではありません。
+            </p>
+            <p>
+              旧My
+              Knowledgeから更新する場合、0.10.0以降のMogledgeは別のプロファイルを使うため、以前の設定や保存入力は自動でコピーされません。Macでは更新前に旧アプリのログイン時起動を無効にし、必要なら更新後のMogledgeで有効にしてください。置き換える前に<a
+                href="https://github.com/shimi-lynx/mogledge/blob/main/docs/update-guide.md"
+                >更新ガイド（英語）</a
+              >を確認してください。
+            </p>
+            <p>
+              失敗した場合は、警告文をそのまま控えてください。更新の失敗だけでは、旧アプリが変更されていないことや、元に戻ったことは確認できません。
+            </p>
+          </div>
+          <div>
+            <h3>起動・更新に失敗したら</h3>
+            <ol class="recovery-steps">
+              <li>
+                <a href="https://github.com/shimi-lynx/mogledge/releases">公式Releases</a
+                >から、バージョンとCPUに合う配布物を取得します。公開チェックサムを確認し、元の警告を残します。
+              </li>
+              <li>
+                固定のインストール先と、ショートカットやDockの起動先を確認します。未保存の入力を保存して<strong>終了（Quit）</strong>し、アプリが完全に終了したことを確認します。常駐時はウィンドウを閉じても隠れるだけの場合があります。
+              </li>
+              <li>
+                終了後にHTML、素材、保存データのプロファイル全体と旧アプリを別途バックアップします。更新を通すために設定やデータベースを削除しないでください。
+              </li>
+              <li>
+                手動で復旧する場合は、検証済みの新しい版を同じ場所に置き換えます。Macは<code>.app</code>全体を置き換えます。Windowsは同じインストール先を使う公式インストーラー、またはアプリのみの置換ガイドに従います。
+              </li>
+              <li>
+                導入済みバージョンを確認して、固定の起動先から開きます。保存入力を確認してから利用を再開し、復旧を確認できるまでバックアップを保持します。
+              </li>
+            </ol>
+          </div>
+        </div>
+        <p class="security-note">
+          起動を強制するためにセキュリティソフトを無効化したり、隔離属性を一律に解除したりしないでください。検証、保存、終了に失敗した場合は置き換えを止め、警告を調べます。詳しくは<a
+            href="https://github.com/shimi-lynx/mogledge/blob/main/docs/update-guide.md"
+            >更新・ロールバックのガイド（英語）</a
+          >をご覧ください。
+        </p>
+        <div class="diagnostic">
+          <div>
+            <h3>AIツールに調査を依頼する。</h3>
+            <p>
+              症状、OS、アプリのバージョン、正確なエラーを、普段使うAIツールに伝えると調査の助けになる場合があります。解決が保証されるわけではありません。共有前に内容を確認し、個人のパス、非公開の文書、認証情報などの秘密を取り除いてください。
+            </p>
+          </div>
+          <div class="diagnostic-form">
+            <label for="diagnostic-text">ひな形をコピーし、角括弧の中を記入してください</label
+            ><textarea id="diagnostic-text" rows="10" readonly spellcheck="false">
+Mogledgeの起動または更新の問題を調べてください。
+OSとバージョン：[Windows/macOSのバージョン]
+CPU：[Windows x64 / Intel Mac / Apple Silicon]
+Mogledgeのバージョン：[バージョン]
+失敗した段階：[起動 / 更新確認 / ダウンロード / 検証 / 適用 / 再起動]
+症状と正確なエラー（非公開情報を除く）：[内容]
+入手元：[公式ReleaseのURL]
+HTML、保存データ、バックアップを保護する、根拠のある確認手順を提案してください。セキュリティ保護の無効化や、隔離属性の一律解除は提案しないでください。破壊的な変更の前には確認してください。</textarea>
+            <div class="copy-row">
+              <button
+                id="copy-diagnostic"
+                type="button"
+                data-copied="コピーしました。共有前に内容を確認し、角括弧の中を記入してください。"
+                data-copy-failed="コピーできませんでした。選択された文章を手動でコピーしてください。"
+              >
+                調査用のひな形をコピー</button
+              ><span id="copy-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="source-section wrap" id="source" aria-labelledby="source-title">
+        <p class="eyebrow">任意 / 開発環境が必要</p>
+        <h2 id="source-title">ソースから<br />ビルドする方法も。</h2>
+        <p class="source-intro">
+          通常は上の配布ファイルから始めることをおすすめします。ローカルでのビルドには開発ツールと環境設定が必要です。
+        </p>
+        <div class="boundary-grid">
+          <div>
+            <h3>公式ガイドを確認してください。</h3>
+            <p>
+              ソースリポジトリから使いたい版を選びます。Node.jsとリポジトリで固定されたRustツールチェーンを用意し、OSとCPUに合う初回ビルドのガイドに従ってください。
+            </p>
+            <p>
+              WindowsではMSVC C++ Build Tools、Windows SDK、WebView2も必要です。MacではXcode Command
+              Line Toolsが必要です。対応バージョンとコマンドはガイドに記載しています。
+            </p>
+            <div class="source-links">
+              <a class="text-link" href="https://github.com/shimi-lynx/mogledge"
+                >ソースコード <span aria-hidden="true">↗</span></a
+              ><a
+                class="text-link"
+                href="https://github.com/shimi-lynx/mogledge/blob/main/docs/first-run.md#build-an-ordinary-application"
+                >初回ビルドのガイド（英語） <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </div>
+          <div>
+            <h3>Macでの起動について</h3>
+            <p>
+              ローカルでビルドすると、ダウンロードしたMacアプリの隔離属性に由来する一部の起動問題を避けられる場合があります。ただしAppleの公証は付与されず、権限、セキュリティ警告、アプリの不具合の解決も保証されません。
+            </p>
+            <p>
+              通常のソースビルドではアプリ内更新は無効です。後から手動、または更新機能が有効な配布版を通じて公開アプリに置き換えると、その配布版の署名と起動条件が再び適用されます。HTMLと保存データのバックアップを保持してください。
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/shimi-lynx/mogledge/blob/main/docs/update-guide.md"
+              >既存アプリの更新（英語） <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </div>
+      </section>
+      <section class="closing wrap" aria-labelledby="closing-title">
+        <p class="eyebrow">便利なHTMLの置き場所に</p>
+        <h2 id="closing-title">次の道具は、<br />ひとつのファイルかも。</h2>
+        <a class="button" href="#download"
+          >Mogledge 0.10.1を入手 <span aria-hidden="true">↓</span></a
+        ><a
+          class="text-link"
+          href="https://github.com/shimi-lynx/mogledge/blob/main/docs/user-guide.md"
+          >ユーザーガイド（英語） <span aria-hidden="true">↗</span></a
+        >
+      </section>
+    </main>
+    <footer class="wrap">
+      <a class="wordmark" href="./">Mogledge</a>
+      <p>ローカルHTMLビューアー・オープンソース</p>
+      <div>
+        <a href="https://github.com/shimi-lynx/mogledge/releases/tag/v0.10.1">リリースノート</a
+        ><a href="https://github.com/shimi-lynx/mogledge/issues">問題の報告</a
+        ><a href="https://github.com/shimi-lynx/mogledge/blob/main/LICENSE">MITライセンス</a
+        ><a href="../sitemap.xml">サイトマップ</a>
+      </div>
+    </footer>
+  </body>
+</html>

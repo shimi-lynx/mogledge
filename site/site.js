@@ -7,11 +7,13 @@ copyButton.addEventListener("click", async () => {
   copyStatus.textContent = "";
   try {
     await navigator.clipboard.writeText(diagnosticText.value);
-    copyStatus.textContent = "Copied. Review and fill in the brackets before sharing.";
+    copyStatus.textContent =
+      copyButton.dataset.copied ?? "Copied. Review and fill in the brackets before sharing.";
   } catch {
     diagnosticText.focus();
     diagnosticText.select();
-    copyStatus.textContent = "Copy unavailable. The text is selected; copy it manually.";
+    copyStatus.textContent =
+      copyButton.dataset.copyFailed ?? "Copy unavailable. The text is selected; copy it manually.";
   } finally {
     copyButton.disabled = false;
   }
