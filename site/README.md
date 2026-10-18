@@ -1,6 +1,6 @@
 # Mogledge product site
 
-Buildless English product site for GitHub Pages. All public page files live in this directory; the desktop app, HTML authoring kit and npm/Rust build inputs are independent. There is no analytics, external font, CDN dependency, AI connection or form submission. JavaScript only copies a diagnostic prompt on request.
+Buildless English product site for GitHub Pages. All public page files live in this directory; the desktop app, HTML authoring kit and npm/Rust build inputs are independent. There is no analytics, external font, CDN dependency, AI connection or form submission. JavaScript copies a diagnostic prompt on request and opens screenshots in a native HTML dialog.
 
 ## Preview
 
@@ -11,6 +11,10 @@ python3 -m http.server 4178 --directory site
 ```
 
 Open `http://localhost:4178/`. Assets use relative URLs so the same files work under the repository's `/mogledge/` Pages path. Opening `site/index.html` directly also displays the page; clipboard access can require a secure context, and failure selects the prompt for manual copying.
+
+Screenshot links open a modal preview with a visible **Close image** button. Escape or the backdrop also closes it, restoring the originating link's focus and the original page position. Modified clicks and browsers without dialog support retain ordinary image-link behavior. Stylesheet/script revision queries avoid reusing cached pre-viewer files. No dependency or image asset is added.
+
+Run the focused browser regression with `node --test tests/site/lightbox.test.mjs` using the existing Playwright browser. Set `PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge. It covers desktop/mobile closing, Escape, reopening, focus and scroll restoration; it does not establish physical mobile or Native application behavior.
 
 ## Publish
 

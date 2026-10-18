@@ -18,6 +18,62 @@ html {
 body {
   margin: 0;
 }
+body.image-viewer-open {
+  position: fixed;
+  top: var(--image-viewer-scroll-top);
+  width: 100%;
+  overflow: hidden;
+}
+.image-viewer {
+  width: min(1280px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: #eeefef;
+  background: #0d0f12;
+}
+.image-viewer:not([open]) {
+  display: none;
+}
+.image-viewer::backdrop {
+  background: rgb(0 0 0 / 80%);
+}
+.image-viewer-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  background: #0d0f12;
+}
+.image-viewer h2 {
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.image-viewer button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #586d66;
+  border-radius: 6px;
+  color: #eeefef;
+  background: #1d2b26;
+}
+.image-viewer img {
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 112px);
+  object-fit: contain;
+}
 a {
   color: inherit;
   text-decoration-thickness: 1px;
