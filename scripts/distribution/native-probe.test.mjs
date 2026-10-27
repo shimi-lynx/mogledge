@@ -29,13 +29,13 @@ const environment = {
   GITHUB_REPOSITORY: "shimi-lynx/mogledge",
   EXPECTED_SOURCE_SHA: source,
   GITHUB_SHA: source,
-  EXPECTED_VERSION: "0.10.1",
+  EXPECTED_VERSION: "0.10.2",
 };
 const config = {
   identifier: "com.shimilynx.mogledge",
   productName: "Mogledge",
   mainBinaryName: "mogledge",
-  version: "0.10.1",
+  version: "0.10.2",
 };
 const candidate = {
   ...config,
@@ -44,7 +44,7 @@ const candidate = {
   updater: true,
   executableSha256: "b".repeat(64),
   updateArchiveSha256: "c".repeat(64),
-  updateArchive: "Mogledge_0.10.1_windows-x64_unsigned_updater_aaaaaaaaaaaa-setup.exe",
+  updateArchive: "Mogledge_0.10.2_windows-x64_unsigned_updater_aaaaaaaaaaaa-setup.exe",
 };
 
 test("Native probes accept only the matching disposable hosted runner", () => {
