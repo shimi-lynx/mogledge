@@ -395,14 +395,25 @@ button:focus-visible,
 }
 .chevron {
   width: 12px;
+  height: 16px;
   flex-shrink: 0;
-  font-size: 20px;
   color: #7c90a3;
-  display: inline-block;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.chevron .chevron-icon {
+  width: 12px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center;
   transition: transform 0.1s;
 }
-.chevron.expanded {
+.chevron.expanded .chevron-icon {
   transform: rotate(90deg);
 }
 .file-icon {

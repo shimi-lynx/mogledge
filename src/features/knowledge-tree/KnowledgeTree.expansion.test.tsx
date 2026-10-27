@@ -35,6 +35,38 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("keeps a hidden chevron slot for files and updates folder chevrons at each depth", () => {
+  const file: TreeNode = {
+    name: "file.html",
+    relativePath: "a/file.html",
+    kind: "html",
+    children: [],
+  };
+  const view = render(
+    <KnowledgeTree {...props} nodes={[folder("a", [folder("a/nested"), file])]} />,
+  );
+  const parent = view.getByRole("treeitem", { name: "a" });
+  const chevron = parent.querySelector(".chevron")!;
+  expect(chevron.getAttribute("aria-hidden")).toBe("true");
+  expect(chevron.querySelector("svg")).not.toBeNull();
+  expect(chevron.classList.contains("expanded")).toBe(false);
+  fireEvent.click(parent);
+  expect(parent.getAttribute("aria-expanded")).toBe("true");
+  expect(chevron.classList.contains("expanded")).toBe(true);
+  const nested = view.getByRole("treeitem", { name: "nested" });
+  expect(nested.getAttribute("aria-level")).toBe("2");
+  fireEvent.click(nested);
+  expect(nested.getAttribute("aria-expanded")).toBe("true");
+  expect(nested.querySelector(".chevron")?.classList.contains("expanded")).toBe(true);
+  const fileSlot = view.getByRole("treeitem", { name: "file HTML" }).querySelector(".chevron")!;
+  expect(fileSlot.getAttribute("aria-hidden")).toBe("true");
+  expect(fileSlot.querySelector("svg")).toBeNull();
+  fireEvent.click(parent);
+  expect(parent.getAttribute("aria-expanded")).toBe("false");
+  expect(chevron.classList.contains("expanded")).toBe(false);
+  expect(view.queryByRole("treeitem", { name: "nested" })).toBeNull();
+});
+
 it("restores expanded folders after remount with a new workspace token", () => {
   let view = render(<KnowledgeTree {...props} />);
   fireEvent.click(view.getByRole("treeitem", { name: "a" }));
