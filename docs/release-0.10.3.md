@@ -23,3 +23,9 @@ The reviewed artifacts are bound to that source and version:
 | macOS ARM64 | `12746104621` | `9cface2c18197bb59005639c6ea0aed4bfc87fe6613dbd5745e713d658f0fedc` | 2026-10-30 15:50:30 |
 
 The candidate manifests record the common source archive SHA-256 `2f3464ae5b5aeb645be8f5b3105bbd00ae8463e5cd4450fac1723a51c6999bad`. Windows and ARM64 artifact sizes and hashes were checked against GitHub metadata. The Intel artifact's actual manifest and its archive and updater checksums were checked against its bytes and GitHub metadata. Production signing preparation revalidates all three pinned archives and manifests before the signing job receives secrets. Publication remains disabled until verified signing output is pinned separately.
+
+## Verified signing and publication activation
+
+[Signing run 40548685964](https://github.com/shimi-lynx/mogledge/actions/runs/40548685964) succeeded from tooling main `2f108da81508cdb93f85918edf7c1719a80c07e1`. Preparation validated the three pinned candidates, and the separate Secrets-free verifier checked their signatures and signed version 0.10.3 and generated the staged feed.
+
+The verified output artifact is `12753822151`, size `149534253`, SHA-256 `8bca875480bb4e7bbaed4f27cd3ed9cd21e24b7434ec1a418d6cfc792478f2ee`, expiring `2026-10-30T17:15:46Z`. Publication is enabled only for this exact successful output; the publication workflow independently revalidates the artifact, feed, checksums and signatures before writing. Public Release and feed readback remain pending at this activation stage.
