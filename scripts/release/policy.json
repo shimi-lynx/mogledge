@@ -79,8 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.10.3",
-    "notes": "Center folder and favorites disclosure chevrons in their existing 12px slots. Targeted tests and a static Chromium fixture passed; visual inspection in the actual app remains unrun. The full suite has not passed; an earlier run was interrupted after one initial StorageTransition failure whose details were not captured, and a later isolated run passed. Native updater and Apple Silicon update/restart acceptance remain incomplete; the cause of the Apple Silicon failure is unconfirmed. The prior site headings remain visually unchecked at desktop and mobile widths. Production npm audit previously reported zero findings; development tooling retains four unique npm advisories affecting 18 package entries, and the Rust app lockfile retains three zip advisories and five informational warnings. Windows binaries are not Authenticode-signed; macOS bundles use ad-hoc signing without Developer ID or notarization. Updater signatures are separate from OS trust."
+    "notes": "Center folder and favorites disclosure chevrons in their existing 12px slots. Targeted tests and a static Chromium fixture passed; visual inspection in the actual app remains unrun. The full suite has not passed; an earlier run was interrupted after one initial StorageTransition failure whose details were not captured, and a later isolated run passed. Native updater and Apple Silicon update/restart acceptance remain incomplete; the cause of the Apple Silicon failure is unconfirmed. The prior site headings remain visually unchecked at desktop and mobile widths. Production npm audit previously reported zero findings; development tooling retains four unique npm advisories affecting 18 package entries, and the Rust app lockfile retains three zip advisories and five informational warnings. Windows binaries are not Authenticode-signed; macOS bundles use ad-hoc signing without Developer ID or notarization. Updater signatures are separate from OS trust.",
+    "verification_run_id": 40548685964,
+    "verification_tooling_sha": "2f108da81508cdb93f85918edf7c1719a80c07e1",
+    "artifact_id": 12753822151,
+    "artifact_size": 149534253,
+    "artifact_sha256": "8bca875480bb4e7bbaed4f27cd3ed9cd21e24b7434ec1a418d6cfc792478f2ee",
+    "artifact_name": "production-verified-0.10.3-40548685964-1",
+    "expires_at": "2026-10-30T17:15:46Z"
   }
 }
