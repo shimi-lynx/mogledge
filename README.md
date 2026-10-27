@@ -39,7 +39,7 @@ See [supported boundaries](docs/security.md), [storage](docs/document-storage.md
 
 ## Build from source
 
-Use Node.js 22.18+ in the 22.x series or 24.11+, and the Rust toolchain pinned in `rust-toolchain.toml`. Windows also requires MSVC C++ Build Tools, Windows SDK and WebView2. macOS 12+ requires Xcode Command Line Tools.
+Use Node.js 22.23.4 or later in the 22.x series, or 24.22.1 or later in the 24.x series, and the Rust toolchain pinned in `rust-toolchain.toml`. Windows also requires MSVC C++ Build Tools, Windows SDK and WebView2. macOS 12+ requires Xcode Command Line Tools.
 
 ```sh
 npm ci
