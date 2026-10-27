@@ -286,7 +286,7 @@ async function main(platform, appOnly = false, updaterApp = false) {
   if (process.env.GITHUB_SHA)
     requireApprovedSource(sourceSha, process.env.EXPECTED_SOURCE_SHA, process.env.GITHUB_SHA);
   if (
-    (!appOnly && process.version !== "v24.11.0") ||
+    (!appOnly && process.version !== "v24.22.1") ||
     !run("rustc", ["--version"]).stdout.startsWith("rustc 1.99.0 ")
   )
     throw new Error("Unexpected Node/Rust toolchain");

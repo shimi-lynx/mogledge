@@ -22,7 +22,7 @@ The Git commands apply to a checkout. An extracted source archive has no Git met
 
 | Environment | Requirements                                                                                              |
 | ----------- | --------------------------------------------------------------------------------------------------------- |
-| All         | Node.js 22.18+ in 22.x or 24.11+, npm, pinned Rust 1.99.0, network access for missing locked dependencies |
+| All         | Node.js 22.23.4+ in 22.x or 24.22.1+ in 24.x, npm, pinned Rust 1.99.0, network access for missing locked dependencies |
 | Windows     | MSVC C++ Build Tools, Windows SDK, WebView2; use the MSVC Rust host                                       |
 | macOS 12+   | Xcode Command Line Tools and the matching Rust host                                                       |
 
