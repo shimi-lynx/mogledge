@@ -5,6 +5,7 @@ import { FileContextMenu } from "./FileContextMenu";
 import { MutationDialog, type MutationIntent } from "./MutationDialog";
 import { displayedNodes, htmlNameParts, renamedHtmlPath, treeLabel, visibleRows } from "./model";
 import { FolderIcon } from "./FolderIcon";
+import { Chevron } from "./Chevron";
 import { CreationIcon } from "./CreationIcon";
 import { TrashDialog } from "./TrashDialog";
 import { rootCreationLabels } from "./rootCreationLabels";
@@ -609,12 +610,10 @@ export function KnowledgeTree({
                 else onSelect(node.relativePath);
               }}
             >
-              <span
-                aria-hidden="true"
-                className={"chevron " + (expanded.has(node.relativePath) ? "expanded" : "")}
-              >
-                {node.kind === "folder" ? "›" : ""}
-              </span>
+              <Chevron
+                expanded={expanded.has(node.relativePath)}
+                visible={node.kind === "folder"}
+              />
               {node.kind === "folder" ? (
                 <FolderIcon expanded={expanded.has(node.relativePath)} />
               ) : (

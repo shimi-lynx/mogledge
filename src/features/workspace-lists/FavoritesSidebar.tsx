@@ -3,6 +3,7 @@ import type { KnowledgeController } from "../../lib/controller";
 import type { AppState, DocumentSelection, WorkspaceListEntry } from "../../lib/types";
 import { translateUiMessage, useLanguage, useT } from "../../lib/i18n";
 import { FolderIcon } from "../knowledge-tree/FolderIcon";
+import { Chevron } from "../knowledge-tree/Chevron";
 import "./favorites-sidebar.css";
 
 const statusLabels = {
@@ -177,9 +178,7 @@ export function FavoritesSidebar({
               setExpandedContext(expanded ? null : context);
             }}
           >
-            <span className={"chevron" + (expanded ? " expanded" : "")} aria-hidden="true">
-              ›
-            </span>
+            <Chevron expanded={expanded} />
             <svg className="favorites-star" viewBox="0 0 20 20" aria-hidden="true">
               <path d="m10 2 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9L7.5 7z" />
             </svg>
