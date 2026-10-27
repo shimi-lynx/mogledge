@@ -79,8 +79,15 @@
     }
   ],
   "publication": {
-    "enabled": false,
+    "enabled": true,
     "tag": "v0.10.2",
-    "notes": "Fix updater restart admission before tab-session saving and update Node runtime pins and npm/Rust dependencies. Clarify English and Japanese product-site HTML workflows. The full test suite was interrupted after one initial StorageTransition failure with no captured details; a later isolated run passed, but the full suite is not a pass. Native updater and Apple Silicon update/restart acceptance remain incomplete, and the Apple Silicon failure cause is unconfirmed. Desktop and mobile appearance of the updated site headings has not been checked. Production npm audit reported zero findings; development tooling retains four unique npm advisories affecting 18 package entries, and the Rust app lockfile retains three zip advisories and five informational warnings. Windows binaries are not Authenticode-signed; macOS bundles use ad-hoc signing without Developer ID or notarization. Updater signatures are separate from OS trust."
+    "notes": "Fix updater restart admission before tab-session saving and update Node runtime pins and npm/Rust dependencies. Clarify English and Japanese product-site HTML workflows. The full test suite was interrupted after one initial StorageTransition failure with no captured details; a later isolated run passed, but the full suite is not a pass. Native updater and Apple Silicon update/restart acceptance remain incomplete, and the Apple Silicon failure cause is unconfirmed. Desktop and mobile appearance of the updated site headings has not been checked. Production npm audit reported zero findings; development tooling retains four unique npm advisories affecting 18 package entries, and the Rust app lockfile retains three zip advisories and five informational warnings. Windows binaries are not Authenticode-signed; macOS bundles use ad-hoc signing without Developer ID or notarization. Updater signatures are separate from OS trust.",
+    "verification_run_id": 40514213749,
+    "verification_tooling_sha": "7391941610644b358c36f6879299578de11b89e0",
+    "artifact_id": 12738581600,
+    "artifact_size": 149504014,
+    "artifact_sha256": "1282b21d1cdbddf72a0e6fc91291c0ce3e37d01054d299e1021ecda08b396d07",
+    "artifact_name": "production-verified-0.10.2-40514213749-1",
+    "expires_at": "2026-10-30T13:41:58Z"
   }
 }

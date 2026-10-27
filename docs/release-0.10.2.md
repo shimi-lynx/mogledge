@@ -25,3 +25,11 @@ The following immutable artifacts were downloaded and checked against GitHub siz
 The Windows NSIS update payload SHA-256 is `e0005d2852874c67ad832d0e6f6e49001104172dcc2a026c9535d7808d7c5853`; the macOS ARM64 payload SHA-256 is `e7bce1ed9470ada02f20c72871a44dde5afb669f70058a060e90aed9e3b32031`. The Intel Mac receipt records payload SHA-256 `4aa026eaf0e59b946eb2f98cf90c3453a90b138d750e656f759fdef808ab41f1`. Each matches its bounded Native probe receipt.
 
 Signing is enabled only for these exact reviewed candidates; publication remains disabled until a separate successful signature-verification artifact is pinned. This policy and evidence change does not change the binary source or rebuild the app.
+
+## Verified signing and publication activation
+
+[Signing run 40514213749](https://github.com/shimi-lynx/mogledge/actions/runs/40514213749) succeeded on attempt 1 from tooling main `7391941610644b358c36f6879299578de11b89e0`. Its separate Secrets-free public-key verifier checked all three updater signatures and signed version 0.10.2. The binary source remains `90ce7a331564292d5080763c3653edaa4305ff3a`.
+
+The verified artifact is `production-verified-0.10.2-40514213749-1`, ID `12738581600`, size `149504014`, SHA-256 `1282b21d1cdbddf72a0e6fc91291c0ce3e37d01054d299e1021ecda08b396d07`, expiring `2026-10-30T13:41:58Z`. Its raw digest matches GitHub metadata. The twelve staged assets, receipt and checksums match the reviewed candidates; feed entries use the exact matching signatures and versioned HTTPS asset URLs. The publication workflow independently repeats source, checksum, feed and signature validation before writing.
+
+Publication is enabled only for this verified output. Public Release, tag and anonymous latest-feed verification remain pending at this activation stage. Existing-device Native update acceptance remains unrun.
