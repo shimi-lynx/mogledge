@@ -24,7 +24,7 @@ import control as signing
 require = signing.require
 REPOSITORY = "shimi-lynx/mogledge"
 REPOSITORY_ID = 1416386985
-RELEASE_VERSION = "0.10.2"
+RELEASE_VERSION = "0.10.3"
 RELEASE_IDENTIFIER = "com.shimilynx.mogledge"
 PLATFORMS = {
     "windows-x64": ("x86_64-pc-windows-msvc", "unsigned", "windows-x86_64"),
