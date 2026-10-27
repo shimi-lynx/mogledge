@@ -361,6 +361,25 @@ mod tests {
         assert!(s.cancel().is_err());
     }
     #[test]
+    fn restart_claim_blocks_cancel_and_new_update_during_pending_save() {
+        let mut session = available();
+        let download = session.download().unwrap();
+        assert!(session.downloaded(download));
+
+        // The host claims the staged update before awaiting the renderer's save.
+        let install = session.install().unwrap();
+        assert_eq!(session.cancel(), Err("UpdateCannotCancel"));
+        assert_eq!(session.check(), Err("UpdateBusy"));
+        assert_eq!(session.download(), Err("UpdateNotAvailable"));
+        assert_eq!(session.install(), Err("UpdateNotReady"));
+
+        // A failed save ends this attempt and cannot be retried as an install.
+        assert!(session.failed(install, "UpdateSaveFailed"));
+        assert_eq!(session.snapshot.phase, Phase::Error);
+        assert_eq!(session.install(), Err("UpdateNotReady"));
+        assert!(session.check().is_ok());
+    }
+    #[test]
     fn install_rejects_every_phase_without_a_ready_update() {
         for phase in [
             Phase::Disabled,

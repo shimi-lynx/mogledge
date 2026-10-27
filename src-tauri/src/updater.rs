@@ -358,9 +358,6 @@ mod native {
         state: Arc<Mutex<Runtime>>,
         core: Arc<crate::core::Core>,
     ) -> Result<Snapshot, String> {
-        crate::tab_session_exit::flush(&app)
-            .await
-            .map_err(|_| "UpdateSaveFailed")?;
         let (id, update, bytes) = {
             let mut r = state.lock().map_err(|_| "UpdateUnavailable")?;
             if r.bytes.is_none() || r.update.is_none() {
@@ -372,6 +369,14 @@ mod native {
             publish(&app, &r);
             (id, update, bytes)
         };
+        // Claim this exact staged update before yielding to the renderer. Otherwise a
+        // cancel and a later download could make this request install newer bytes.
+        if crate::tab_session_exit::flush(&app).await.is_err() {
+            let mut r = state.lock().map_err(|_| "UpdateUnavailable")?;
+            r.session.failed(id, "UpdateSaveFailed");
+            publish(&app, &r);
+            return Ok(r.session.snapshot.clone());
+        }
         let result = tauri::async_runtime::spawn_blocking(move || {
             // Windows install exits directly; flush the host's pending settings first.
             // The update action warns that arbitrary HTML inputs need their own save operation.
