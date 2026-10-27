@@ -20,11 +20,11 @@ The Git commands apply to a checkout. An extracted source archive has no Git met
 
 ## Prerequisites
 
-| Environment | Requirements                                                                                              |
-| ----------- | --------------------------------------------------------------------------------------------------------- |
+| Environment | Requirements                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------- |
 | All         | Node.js 22.23.4+ in 22.x or 24.22.1+ in 24.x, npm, pinned Rust 1.99.0, network access for missing locked dependencies |
-| Windows     | MSVC C++ Build Tools, Windows SDK, WebView2; use the MSVC Rust host                                       |
-| macOS 12+   | Xcode Command Line Tools and the matching Rust host                                                       |
+| Windows     | MSVC C++ Build Tools, Windows SDK, WebView2; use the MSVC Rust host                                                   |
+| macOS 12+   | Xcode Command Line Tools and the matching Rust host                                                                   |
 
 Check `node --version`, `npm --version`, `rustc -vV` and `cargo --version`. On macOS, check `xcode-select -p` when needed. Rustup can download the pinned toolchain on first use. Explain missing system tools or permissions rather than bypassing OS protections. A global Vite+ installation or `tauri-driver` is not needed for an ordinary app build.
 
