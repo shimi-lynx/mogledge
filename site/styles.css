@@ -123,9 +123,14 @@ html:lang(ja) {
   font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
 html:lang(ja) h1 {
-  font-size: clamp(36px, 4.7vw, 64px);
+  font-size: clamp(36px, 4vw, 48px);
   letter-spacing: -0.03em;
   line-height: 1.25;
+}
+html:lang(ja) h1 .hero-ja-chunk {
+  display: inline-block;
+  white-space: nowrap;
+  color: inherit;
 }
 html:lang(ja) h2,
 html:lang(ja) h3 {
@@ -846,6 +851,11 @@ footer a {
   #features,
   #download {
     scroll-margin-top: 24px;
+  }
+}
+@media (max-width: 360px) {
+  html:lang(ja) h1 {
+    font-size: clamp(28px, 9vw, 36px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
