@@ -82,6 +82,41 @@ ${StrLoc}
 !define ESTIMATEDSIZE "{{estimated_size}}"
 !define STARTMENUFOLDER "{{start_menu_folder}}"
 
+; SetShortcutTarget preserves explicit icons, including a removed predecessor.
+; Repair only that exact old icon path; custom icons and default icons stay intact.
+!macro RepairLegacyShortcutIcon shortcut
+  ; In particular, callers still need $0's ownership result after this repair.
+  Push $0
+  Push $1
+  Push $2
+  Push $3
+  Push $4
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE}).r4'
+      ${If} $4 = 0
+        ${IShellLink::GetIconLocation} $0 '(.r2, ${NSIS_MAX_STRLEN}, .r3).r4'
+        ${If} $4 = 0
+        ${AndIf} $2 == "$INSTDIR\${LEGACYBINARY}"
+          ${IShellLink::SetIconLocation} $0 '("$INSTDIR\${MAINBINARYNAME}.exe", 0).r4'
+          ${If} $4 = 0
+            ${IPersistFile::Save} $1 '("${shortcut}",1)'
+          ${EndIf}
+        ${EndIf}
+      ${EndIf}
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+  Pop $4
+  Pop $3
+  Pop $2
+  Pop $1
+  Pop $0
+!macroend
+
 ; Never rename or overwrite a shortcut belonging to another target. Keep the
 ; original link metadata when moving an owned shortcut to the new display name.
 !macro RenameLegacyShortcut legacy renamed
@@ -98,9 +133,12 @@ ${If} $LegacyInstall = 1
         Pop $0
         ${If} $0 = 1
           !insertmacro SetShortcutTarget "${renamed}" "$INSTDIR\${MAINBINARYNAME}.exe"
+          !insertmacro RepairLegacyShortcutIcon "${renamed}"
           !insertmacro SetLnkAppUserModelId "${renamed}"
           StrCpy $0 1
         ${EndIf}
+      ${Else}
+        !insertmacro RepairLegacyShortcutIcon "${renamed}"
       ${EndIf}
       ${If} $0 = 1
         !insertmacro SetLnkAppUserModelId "${renamed}"
@@ -109,11 +147,13 @@ ${If} $LegacyInstall = 1
     ${Else}
       Rename "${legacy}" "${renamed}"
       !insertmacro SetShortcutTarget "${renamed}" "$INSTDIR\${MAINBINARYNAME}.exe"
+      !insertmacro RepairLegacyShortcutIcon "${renamed}"
       !insertmacro SetLnkAppUserModelId "${renamed}"
     ${EndIf}
     ; Preserve a foreign new-name link; an owned legacy link still needs the new target.
     ${If} ${FileExists} "${legacy}"
       !insertmacro SetShortcutTarget "${legacy}" "$INSTDIR\${MAINBINARYNAME}.exe"
+      !insertmacro RepairLegacyShortcutIcon "${legacy}"
       !insertmacro SetLnkAppUserModelId "${legacy}"
     ${EndIf}
     StrCpy $R0 1
@@ -1075,6 +1115,7 @@ Function CreateOrUpdateStartMenuShortcut
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro RepairLegacyShortcutIcon "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     StrCpy $R0 1
   ${EndIf}
@@ -1083,6 +1124,7 @@ Function CreateOrUpdateStartMenuShortcut
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro RepairLegacyShortcutIcon "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     StrCpy $R0 1
   ${EndIf}
@@ -1121,6 +1163,7 @@ Function CreateOrUpdateDesktopShortcut
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro RepairLegacyShortcutIcon "$DESKTOP\${PRODUCTNAME}.lnk"
     !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
     Return
   ${EndIf}
